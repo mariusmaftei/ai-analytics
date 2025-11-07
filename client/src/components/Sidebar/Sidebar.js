@@ -13,6 +13,7 @@ import {
   faChevronRight,
 } from "@fortawesome/free-solid-svg-icons";
 import { useSession } from "../../context/SessionContext";
+import Modal from "../UI/Modal/Modal";
 import styles from "./Sidebar.module.css";
 
 const Sidebar = () => {
@@ -31,6 +32,8 @@ const Sidebar = () => {
 
   const [editingSessionId, setEditingSessionId] = useState(null);
   const [editTitle, setEditTitle] = useState("");
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [sessionToDelete, setSessionToDelete] = useState(null);
 
   const handleNewSession = () => {
     const newSessionId = createNewSession();
@@ -42,9 +45,8 @@ const Sidebar = () => {
     setCurrentSessionId(sessionId);
     const session = sessions.find((s) => s.id === sessionId);
     if (session && session.files.length > 0) {
-      // Navigate to analysis page with the last file
-      const lastFile = session.files[session.files.length - 1];
-      navigate("/analysis", { state: lastFile });
+      // Navigate to session page
+      navigate(`/session/${sessionId}`);
     } else {
       navigate("/home");
     }
@@ -52,8 +54,14 @@ const Sidebar = () => {
 
   const handleDeleteSession = (e, sessionId) => {
     e.stopPropagation();
-    if (window.confirm("Are you sure you want to delete this session?")) {
-      deleteSession(sessionId);
+    setSessionToDelete(sessionId);
+    setDeleteModalOpen(true);
+  };
+
+  const confirmDelete = () => {
+    if (sessionToDelete) {
+      deleteSession(sessionToDelete);
+      setSessionToDelete(null);
     }
   };
 
@@ -232,6 +240,19 @@ const Sidebar = () => {
       {isSidebarOpen && (
         <div className={styles.overlay} onClick={toggleSidebar}></div>
       )}
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        isOpen={deleteModalOpen}
+        onClose={() => setDeleteModalOpen(false)}
+        onConfirm={confirmDelete}
+        title="Delete Session"
+        message="Are you sure you want to delete this session? This action cannot be undone and all associated data will be permanently removed."
+        confirmText="Delete"
+        cancelText="Cancel"
+        type="danger"
+        icon={faTrash}
+      />
     </>
   );
 };

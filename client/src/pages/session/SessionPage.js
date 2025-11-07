@@ -1,0 +1,346 @@
+import React, { useState, useRef, useEffect } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import {
+  faMagnifyingGlass,
+  faChartLine,
+  faFilter,
+  faDownload,
+  faFilePdf,
+  faFileCsv,
+  faFileCode,
+  faArrowLeft,
+  faChartBar,
+  faTable,
+  faBolt,
+  faBook,
+} from "@fortawesome/free-solid-svg-icons";
+import { useSession } from "../../context/SessionContext";
+import { analyzeFile, getAIResponse as getSmartAIResponse } from "../../services/dummyDataService";
+import DataPreview from "../../components/DataPreview/DataPreview";
+import ChaptersView from "../../components/ChaptersView/ChaptersView";
+import ChartDisplay from "../../components/ChartDisplay/ChartDisplay";
+import styles from "./SessionPage.module.css";
+
+const SessionPage = () => {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { currentSessionId, getCurrentSession } = useSession();
+  
+  const session = getCurrentSession();
+  const fileData = location.state || session?.files[0] || {
+    fileName: "sample-data.csv",
+    fileSize: 245000,
+    fileType: "text/csv",
+  };
+
+  // Analyze file and get dummy data
+  const analysisData = analyzeFile(fileData.fileName, fileData.fileType);
+  
+  const [inputValue, setInputValue] = useState("");
+  const [showDataPreview, setShowDataPreview] = useState(false);
+  const [showChapters, setShowChapters] = useState(false);
+  const [showCharts, setShowCharts] = useState(false);
+  const [messages, setMessages] = useState([
+    {
+      type: "ai",
+      text: `I've analyzed your ${analysisData.fileType.toUpperCase()} file. Here's what I found:\n\n${analysisData.summary}\n\n${
+        analysisData.hasChapters 
+          ? `📚 This document has ${analysisData.chapters.length} chapters across ${analysisData.pageCount} pages.`
+          : analysisData.fileType === 'csv'
+          ? `📊 Found ${analysisData.rowCount.toLocaleString()} rows and ${analysisData.columnCount} columns.`
+          : `💾 Found ${analysisData.objectCount} objects with nested data.`
+      }\n\nYou can ask me questions, ${analysisData.hasNumericData ? 'generate visualizations, ' : ''}or explore the data using the buttons above!`,
+      timestamp: new Date(),
+    },
+  ]);
+  const messagesEndRef = useRef(null);
+  const fileInputRef = useRef(null);
+
+  // Scroll to bottom when messages change
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  // Use smart AI responses from dummy data service
+  const getAIResponse = (userMessage) => {
+    return getSmartAIResponse(userMessage, analysisData);
+  };
+
+  const handleInputChange = (e) => {
+    setInputValue(e.target.value);
+  };
+
+  const handleKeyPress = (e) => {
+    if (e.key === "Enter" && inputValue.trim()) {
+      e.preventDefault();
+      handleSendMessage();
+    }
+  };
+
+  const handleSendMessage = () => {
+    if (!inputValue.trim()) return;
+
+    // Add user message
+    const userMessage = {
+      type: "user",
+      text: inputValue,
+      timestamp: new Date(),
+    };
+    setMessages((prev) => [...prev, userMessage]);
+
+    // Get AI response
+    const aiResponse = {
+      type: "ai",
+      text: getAIResponse(inputValue),
+      timestamp: new Date(),
+    };
+
+    // Clear input
+    setInputValue("");
+
+    // Add AI response after a short delay
+    setTimeout(() => {
+      setMessages((prev) => [...prev, aiResponse]);
+    }, 500);
+  };
+
+  const handleGenerateGraphic = () => {
+    setShowCharts(!showCharts);
+    if (!showCharts) {
+      const graphicMessage = {
+        type: "ai",
+        text: `📊 Generated ${analysisData.fileType === 'csv' ? '3' : '2'} interactive visualizations based on your data. Scroll down to view the charts!`,
+        timestamp: new Date(),
+      };
+      setMessages((prev) => [...prev, graphicMessage]);
+    }
+  };
+
+  const handleShowChapters = () => {
+    setShowChapters(!showChapters);
+    if (!showChapters) {
+      const chaptersMessage = {
+        type: "ai",
+        text: `📚 Displaying ${analysisData.chapters.length} chapters with summaries, key highlights, and extracted keywords. Scroll down to explore!`,
+        timestamp: new Date(),
+      };
+      setMessages((prev) => [...prev, chaptersMessage]);
+    }
+  };
+
+  const handleViewTable = () => {
+    setShowDataPreview(!showDataPreview);
+    if (!showDataPreview) {
+      const tableMessage = {
+        type: "ai",
+        text: `📋 Showing ${analysisData.fileType === 'csv' ? 'table preview' : 'JSON objects'} with ${analysisData.fileType === 'csv' ? analysisData.previewData.length + ' sample rows' : analysisData.previewData.length + ' records'}. Scroll down to view the data!`,
+        timestamp: new Date(),
+      };
+      setMessages((prev) => [...prev, tableMessage]);
+    }
+  };
+
+  const handleDownload = () => {
+    const downloadMessage = {
+      type: "ai",
+      text: `📥 Preparing download...\n\nAvailable formats:\n• PDF Report (Full Analysis with ${analysisData.hasChapters ? 'Chapters' : 'Data Summary'})\n• ${analysisData.fileType.toUpperCase()} Data (Original File)\n• Excel Workbook (${analysisData.hasNumericData ? 'With Charts' : 'Data Only'})\n\nDownload would start automatically in production!`,
+      timestamp: new Date(),
+    };
+    setMessages((prev) => [...prev, downloadMessage]);
+  };
+
+  const handleQuickAction = (action) => {
+    const actions = {
+      summary: "Give me a summary of the document",
+      revenue: "Show me revenue analysis",
+      trends: "What are the key trends?",
+      customers: "Tell me about customer data",
+    };
+    
+    setInputValue(actions[action]);
+    // Auto-send after a brief delay
+    setTimeout(() => {
+      const event = { key: "Enter" };
+      setInputValue(actions[action]);
+      setTimeout(() => handleSendMessage(), 100);
+    }, 100);
+  };
+
+  return (
+    <div className={styles.container}>
+      {/* Header with File Info */}
+      <div className={styles.sessionHeader}>
+        <button className={styles.backButton} onClick={() => navigate("/home")}>
+          <FontAwesomeIcon icon={faArrowLeft} />
+          <span>Back to Home</span>
+        </button>
+        <div className={styles.fileInfo}>
+          <FontAwesomeIcon
+            icon={
+              fileData.fileType.includes("pdf")
+                ? faFilePdf
+                : fileData.fileType.includes("csv")
+                ? faFileCsv
+                : faFileCode
+            }
+            className={styles.fileIcon}
+          />
+          <div className={styles.fileDetails}>
+            <h2>{fileData.fileName}</h2>
+            <p>{(fileData.fileSize / 1024).toFixed(2)} KB</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Action Buttons - Contextual based on file type */}
+      <div className={styles.actionBar}>
+        {/* Show Generate Graphic only if numeric data exists */}
+        {analysisData.hasNumericData && (
+          <button 
+            className={`${styles.actionButton} ${showCharts ? styles.active : ''}`} 
+            onClick={handleGenerateGraphic}
+          >
+            <FontAwesomeIcon icon={faChartLine} />
+            <span>{showCharts ? 'Hide' : 'Generate'} Graphic</span>
+          </button>
+        )}
+        
+        {/* Show Chapters only for PDFs with chapters */}
+        {analysisData.hasChapters && (
+          <button 
+            className={`${styles.actionButton} ${showChapters ? styles.active : ''}`} 
+            onClick={handleShowChapters}
+          >
+            <FontAwesomeIcon icon={faBook} />
+            <span>{showChapters ? 'Hide' : 'Show'} Chapters</span>
+          </button>
+        )}
+        
+        {/* Show View Table only for CSV/JSON */}
+        {(analysisData.fileType === 'csv' || analysisData.fileType === 'json') && (
+          <button 
+            className={`${styles.actionButton} ${showDataPreview ? styles.active : ''}`} 
+            onClick={handleViewTable}
+          >
+            <FontAwesomeIcon icon={faTable} />
+            <span>{showDataPreview ? 'Hide' : 'View'} Table</span>
+          </button>
+        )}
+        
+        {/* Download always available */}
+        <button className={styles.actionButton} onClick={handleDownload}>
+          <FontAwesomeIcon icon={faDownload} />
+          <span>Download</span>
+        </button>
+      </div>
+
+      {/* Quick Actions */}
+      <div className={styles.quickActions}>
+        <button
+          className={styles.quickActionChip}
+          onClick={() => handleQuickAction("summary")}
+        >
+          <FontAwesomeIcon icon={faBolt} />
+          Summary
+        </button>
+        <button
+          className={styles.quickActionChip}
+          onClick={() => handleQuickAction("revenue")}
+        >
+          <FontAwesomeIcon icon={faChartBar} />
+          Revenue
+        </button>
+        <button
+          className={styles.quickActionChip}
+          onClick={() => handleQuickAction("trends")}
+        >
+          <FontAwesomeIcon icon={faChartLine} />
+          Trends
+        </button>
+        <button
+          className={styles.quickActionChip}
+          onClick={() => handleQuickAction("customers")}
+        >
+          <FontAwesomeIcon icon={faTable} />
+          Customers
+        </button>
+      </div>
+
+      {/* Messages Area */}
+      <div className={styles.chatMessagesArea}>
+        <div className={styles.messagesWrapper}>
+          {messages.map((message, index) => (
+            <div
+              key={index}
+              className={`${styles.message} ${
+                message.type === "user" ? styles.userMessage : styles.aiMessage
+              }`}
+            >
+              <div className={styles.messageContent}>
+                <div className={styles.messageHeader}>
+                  <strong>
+                    {message.type === "user" ? "You" : "AI Assistant"}
+                  </strong>
+                </div>
+                <div className={styles.messageText}>
+                  {message.text.split("\n").map((line, i) => (
+                    <React.Fragment key={i}>
+                      {line}
+                      {i < message.text.split("\n").length - 1 && <br />}
+                    </React.Fragment>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ))}
+          <div ref={messagesEndRef} />
+          
+          {/* Display Components - Shown when user clicks buttons */}
+          {showChapters && analysisData.hasChapters && (
+            <ChaptersView 
+              chapters={analysisData.chapters}
+              highlights={analysisData.highlights}
+              keywords={analysisData.keywords}
+            />
+          )}
+          
+          {showDataPreview && (analysisData.fileType === 'csv' || analysisData.fileType === 'json') && (
+            <DataPreview analysisData={analysisData} />
+          )}
+          
+          {showCharts && analysisData.hasNumericData && (
+            <ChartDisplay analysisData={analysisData} />
+          )}
+        </div>
+      </div>
+
+      {/* Fixed Bottom Input Area */}
+      <div className={styles.bottomInputArea}>
+        <div className={styles.bottomInputContainer}>
+          {/* Input Box */}
+          <div className={styles.bottomSearchBox}>
+            <input
+              type="text"
+              className={styles.bottomInput}
+              placeholder="Ask me about the data..."
+              value={inputValue}
+              onChange={handleInputChange}
+              onKeyPress={handleKeyPress}
+            />
+            <button
+              className={styles.bottomSendButton}
+              onClick={handleSendMessage}
+              disabled={!inputValue.trim()}
+            >
+              <FontAwesomeIcon icon={faMagnifyingGlass} />
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default SessionPage;
+

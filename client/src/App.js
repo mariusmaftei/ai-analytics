@@ -6,6 +6,7 @@ import RootLayout from "./components/RootLayout/RootLayout";
 import HomePage from "./pages/home/HomePage";
 import LoginPage from "./pages/login/LoginPage";
 import AnalysisPage from "./pages/analysis/AnalysisPage";
+import SessionPage from "./pages/session/SessionPage";
 
 const router = createBrowserRouter([
   {
@@ -27,6 +28,10 @@ const router = createBrowserRouter([
       {
         path: "analysis",
         element: <AnalysisPage />,
+      },
+      {
+        path: "session/:sessionId",
+        element: <SessionPage />,
       },
     ],
   },

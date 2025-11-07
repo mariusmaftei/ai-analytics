@@ -141,7 +141,7 @@ const HomePage = () => {
     // Add file to session
     addFileToSession(sessionId, fileData);
 
-    // Navigate to analysis page with file data
+    // Navigate to analysis page first (user sees results, then proceeds to session)
     navigate("/analysis", {
       state: fileData,
     });

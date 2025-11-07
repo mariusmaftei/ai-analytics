@@ -1,32 +1,32 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
-  faArrowLeft,
   faSpinner,
   faCheckCircle,
-  faChartBar,
   faFileLines,
-  faMagnifyingGlass,
-  faTriangleExclamation,
-  faDownload,
-  faShare,
-  faFileArrowUp,
+  faChartLine,
+  faDatabase,
+  faArrowRight,
 } from "@fortawesome/free-solid-svg-icons";
+import { useSession } from "../../context/SessionContext";
+import { analyzeFile } from "../../services/dummyDataService";
 import styles from "./AnalysisPage.module.css";
 
 const AnalysisPage = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const { currentSessionId, createNewSession, addFileToSession } = useSession();
   const [isAnalyzing, setIsAnalyzing] = useState(true);
   const [progress, setProgress] = useState(0);
+  const [analysisResults, setAnalysisResults] = useState(null);
 
-  const fileData = location.state || {
+  const fileData = useMemo(() => location.state || {
     fileName: "sample.pdf",
     fileSize: 0,
     fileType: "application/pdf",
     uploadTime: new Date().toISOString(),
-  };
+  }, [location.state]);
 
   // Simulate analysis progress
   useEffect(() => {
@@ -36,6 +36,9 @@ const AnalysisPage = () => {
           if (prev >= 100) {
             clearInterval(interval);
             setIsAnalyzing(false);
+            // Generate analysis results when complete
+            const results = analyzeFile(fileData.fileName, fileData.fileType);
+            setAnalysisResults(results);
             return 100;
           }
           return prev + 10;
@@ -44,83 +47,45 @@ const AnalysisPage = () => {
 
       return () => clearInterval(interval);
     }
-  }, [isAnalyzing]);
+  }, [isAnalyzing, fileData]);
 
-  // Mock analysis data
-  const analysisResults = {
-    summary: {
-      title: "Analysis Complete",
-      status: "Success",
-      confidence: 95,
-      processingTime: "2.3s",
-    },
-    keyFindings: [
-      {
-        icon: faChartBar,
-        title: "Document Structure",
-        value: "Well-formatted with clear sections",
-        confidence: 98,
-      },
-      {
-        icon: faFileLines,
-        title: "Content Quality",
-        value: "High readability score",
-        confidence: 92,
-      },
-      {
-        icon: faMagnifyingGlass,
-        title: "Data Extraction",
-        value: "Successfully extracted text and metadata",
-        confidence: 95,
-      },
-      {
-        icon: faTriangleExclamation,
-        title: "Issues Found",
-        value: "No critical issues detected",
-        confidence: 100,
-      },
-    ],
-    statistics: [
-      { label: "Total Pages", value: "12" },
-      { label: "Word Count", value: "3,245" },
-      { label: "Images", value: "8" },
-      { label: "Tables", value: "3" },
-    ],
-    sentiment: {
-      positive: 65,
-      neutral: 25,
-      negative: 10,
-    },
-    categories: [
-      { name: "Technical", percentage: 45 },
-      { name: "Business", percentage: 30 },
-      { name: "General", percentage: 25 },
-    ],
+  // Handle proceed to session
+  const handleViewResults = () => {
+    // Get or create session
+    let sessionId = currentSessionId;
+    if (!sessionId) {
+      sessionId = createNewSession();
+      addFileToSession(sessionId, fileData);
+    }
+    
+    // Navigate to session page
+    navigate(`/session/${sessionId}`, {
+      state: fileData,
+      replace: true,
+    });
   };
 
   return (
     <div className={styles.container}>
       <div className={styles.content}>
-        {/* Header */}
-        <div className={styles.header}>
-          <button className={styles.backButton} onClick={() => navigate("/")}>
-            <FontAwesomeIcon icon={faArrowLeft} /> Back
-          </button>
-          <div className={styles.fileInfo}>
-            <h1 className={styles.fileName}>{fileData.fileName}</h1>
-            <p className={styles.fileDetails}>
-              {(fileData.fileSize / 1024).toFixed(2)} KB • {fileData.fileType}
-            </p>
-          </div>
+        {/* File Info Header */}
+        <div className={styles.fileInfo}>
+          <h1 className={styles.fileName}>{fileData.fileName}</h1>
+          <p className={styles.fileDetails}>
+            {(fileData.fileSize / 1024).toFixed(2)} KB • {fileData.fileType}
+          </p>
         </div>
 
         {/* Analysis Progress */}
-        {isAnalyzing && (
+        {isAnalyzing ? (
           <div className={styles.progressSection}>
             <div className={styles.progressIcon}>
               <FontAwesomeIcon icon={faSpinner} spin />
             </div>
             <h2 className={styles.progressTitle}>Analyzing your file...</h2>
+            <p className={styles.progressSubtitle}>
+              Extracting data, identifying patterns, and preparing insights
+            </p>
             <div className={styles.progressBar}>
               <div
                 className={styles.progressFill}
@@ -129,159 +94,169 @@ const AnalysisPage = () => {
             </div>
             <p className={styles.progressText}>{progress}% Complete</p>
           </div>
-        )}
-
-        {/* Analysis Results */}
-        {!isAnalyzing && (
-          <div className={styles.results}>
-            {/* Summary Section */}
-            <div className={styles.summaryCard}>
-              <div className={styles.summaryHeader}>
-                <div className={styles.statusIcon}>
-                  <FontAwesomeIcon icon={faCheckCircle} />
-                </div>
-                <div>
-                  <h2 className={styles.summaryTitle}>
-                    {analysisResults.summary.title}
-                  </h2>
-                  <p className={styles.summaryStatus}>
-                    Status: {analysisResults.summary.status} •{" "}
-                    {analysisResults.summary.confidence}% Confidence
-                  </p>
-                </div>
+        ) : (
+          <>
+            {/* Success Header */}
+            <div className={styles.successHeader}>
+              <div className={styles.successIcon}>
+                <FontAwesomeIcon icon={faCheckCircle} />
               </div>
-              <div className={styles.summaryStats}>
-                <div className={styles.stat}>
-                  <span className={styles.statLabel}>Processing Time</span>
-                  <span className={styles.statValue}>
-                    {analysisResults.summary.processingTime}
-                  </span>
-                </div>
-                <div className={styles.stat}>
-                  <span className={styles.statLabel}>Timestamp</span>
-                  <span className={styles.statValue}>
-                    {new Date(fileData.uploadTime).toLocaleString()}
-                  </span>
-                </div>
-              </div>
+              <h2 className={styles.successTitle}>Analysis Complete!</h2>
+              <p className={styles.successSubtitle}>
+                Here's what we found in your file
+              </p>
             </div>
 
-            {/* Key Findings */}
-            <div className={styles.section}>
-              <h3 className={styles.sectionTitle}>Key Findings</h3>
-              <div className={styles.findingsGrid}>
-                {analysisResults.keyFindings.map((finding, index) => (
-                  <div key={index} className={styles.findingCard}>
-                    <div className={styles.findingIcon}>
-                      <FontAwesomeIcon icon={finding.icon} />
-                    </div>
-                    <div className={styles.findingContent}>
-                      <h4 className={styles.findingTitle}>{finding.title}</h4>
-                      <p className={styles.findingValue}>{finding.value}</p>
-                      <div className={styles.confidenceBar}>
-                        <div
-                          className={styles.confidenceFill}
-                          style={{ width: `${finding.confidence}%` }}
-                        ></div>
+            {/* Analysis Results Preview */}
+            {analysisResults && (
+              <div className={styles.resultsContainer}>
+                {/* Key Statistics */}
+                <div className={styles.statsGrid}>
+                  {analysisResults.fileType === "PDF" && (
+                    <>
+                      <div className={styles.statCard}>
+                        <FontAwesomeIcon icon={faFileLines} className={styles.statIcon} />
+                        <div className={styles.statContent}>
+                          <div className={styles.statValue}>
+                            {analysisResults.metadata?.totalPages || 0}
+                          </div>
+                          <div className={styles.statLabel}>Total Pages</div>
+                        </div>
                       </div>
-                      <p className={styles.confidenceText}>
-                        {finding.confidence}% confidence
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
+                      <div className={styles.statCard}>
+                        <FontAwesomeIcon icon={faDatabase} className={styles.statIcon} />
+                        <div className={styles.statContent}>
+                          <div className={styles.statValue}>
+                            {analysisResults.chapters?.length || 0}
+                          </div>
+                          <div className={styles.statLabel}>Chapters Found</div>
+                        </div>
+                      </div>
+                      <div className={styles.statCard}>
+                        <FontAwesomeIcon icon={faChartLine} className={styles.statIcon} />
+                        <div className={styles.statContent}>
+                          <div className={styles.statValue}>
+                            {analysisResults.metadata?.wordCount?.toLocaleString() || 0}
+                          </div>
+                          <div className={styles.statLabel}>Total Words</div>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                  
+                  {(analysisResults.fileType === "CSV" || analysisResults.fileType === "JSON") && (
+                    <>
+                      <div className={styles.statCard}>
+                        <FontAwesomeIcon icon={faDatabase} className={styles.statIcon} />
+                        <div className={styles.statContent}>
+                          <div className={styles.statValue}>
+                            {analysisResults.data?.length || 0}
+                          </div>
+                          <div className={styles.statLabel}>Total Rows</div>
+                        </div>
+                      </div>
+                      <div className={styles.statCard}>
+                        <FontAwesomeIcon icon={faChartLine} className={styles.statIcon} />
+                        <div className={styles.statContent}>
+                          <div className={styles.statValue}>
+                            {analysisResults.columns?.length || 0}
+                          </div>
+                          <div className={styles.statLabel}>Columns</div>
+                        </div>
+                      </div>
+                      <div className={styles.statCard}>
+                        <FontAwesomeIcon icon={faFileLines} className={styles.statIcon} />
+                        <div className={styles.statContent}>
+                          <div className={styles.statValue}>
+                            {analysisResults.insights?.patterns?.length || 0}
+                          </div>
+                          <div className={styles.statLabel}>Patterns Found</div>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
 
-            {/* Statistics */}
-            <div className={styles.section}>
-              <h3 className={styles.sectionTitle}>Document Statistics</h3>
-              <div className={styles.statsGrid}>
-                {analysisResults.statistics.map((stat, index) => (
-                  <div key={index} className={styles.statCard}>
-                    <span className={styles.statCardLabel}>{stat.label}</span>
-                    <span className={styles.statCardValue}>{stat.value}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Sentiment Analysis Chart */}
-            <div className={styles.section}>
-              <h3 className={styles.sectionTitle}>Sentiment Analysis</h3>
-              <div className={styles.chartCard}>
-                <div className={styles.sentimentChart}>
-                  <div
-                    className={styles.sentimentBar}
-                    style={{
-                      width: `${analysisResults.sentiment.positive}%`,
-                      background: "var(--success-color)",
-                    }}
-                  >
-                    <span className={styles.sentimentLabel}>
-                      Positive {analysisResults.sentiment.positive}%
-                    </span>
-                  </div>
-                  <div
-                    className={styles.sentimentBar}
-                    style={{
-                      width: `${analysisResults.sentiment.neutral}%`,
-                      background: "var(--text-secondary)",
-                    }}
-                  >
-                    <span className={styles.sentimentLabel}>
-                      Neutral {analysisResults.sentiment.neutral}%
-                    </span>
-                  </div>
-                  <div
-                    className={styles.sentimentBar}
-                    style={{
-                      width: `${analysisResults.sentiment.negative}%`,
-                      background: "var(--error-color)",
-                    }}
-                  >
-                    <span className={styles.sentimentLabel}>
-                      Negative {analysisResults.sentiment.negative}%
-                    </span>
+                {/* Key Insights */}
+                <div className={styles.insightsSection}>
+                  <h3 className={styles.sectionTitle}>Key Insights</h3>
+                  <div className={styles.insightsList}>
+                    {analysisResults.insights?.summary && (
+                      <div className={styles.insightItem}>
+                        <div className={styles.insightIcon}>💡</div>
+                        <div className={styles.insightText}>
+                          {analysisResults.insights.summary}
+                        </div>
+                      </div>
+                    )}
+                    {analysisResults.insights?.patterns?.slice(0, 3).map((pattern, idx) => (
+                      <div key={idx} className={styles.insightItem}>
+                        <div className={styles.insightIcon}>📊</div>
+                        <div className={styles.insightText}>{pattern}</div>
+                      </div>
+                    ))}
                   </div>
                 </div>
-              </div>
-            </div>
 
-            {/* Category Distribution */}
-            <div className={styles.section}>
-              <h3 className={styles.sectionTitle}>Content Categories</h3>
-              <div className={styles.chartCard}>
-                {analysisResults.categories.map((category, index) => (
-                  <div key={index} className={styles.categoryRow}>
-                    <span className={styles.categoryName}>{category.name}</span>
-                    <div className={styles.categoryBar}>
-                      <div
-                        className={styles.categoryFill}
-                        style={{ width: `${category.percentage}%` }}
-                      ></div>
+                {/* Preview Data */}
+                {analysisResults.fileType === "PDF" && analysisResults.chapters && (
+                  <div className={styles.previewSection}>
+                    <h3 className={styles.sectionTitle}>Chapter Overview (Preview)</h3>
+                    <div className={styles.chaptersList}>
+                      {analysisResults.chapters.slice(0, 3).map((chapter, idx) => (
+                        <div key={idx} className={styles.chapterPreview}>
+                          <div className={styles.chapterNumber}>Chapter {chapter.number}</div>
+                          <div className={styles.chapterTitle}>{chapter.title}</div>
+                          <div className={styles.chapterPages}>{chapter.pages} pages</div>
+                        </div>
+                      ))}
+                      {analysisResults.chapters.length > 3 && (
+                        <div className={styles.moreItems}>
+                          +{analysisResults.chapters.length - 3} more chapters
+                        </div>
+                      )}
                     </div>
-                    <span className={styles.categoryPercent}>
-                      {category.percentage}%
-                    </span>
                   </div>
-                ))}
-              </div>
-            </div>
+                )}
 
-            {/* Actions */}
-            <div className={styles.actions}>
-              <button className={styles.actionButton} onClick={() => navigate("/")}>
-                <FontAwesomeIcon icon={faFileArrowUp} /> Analyze Another File
-              </button>
-              <button className={styles.actionButtonSecondary}>
-                <FontAwesomeIcon icon={faDownload} /> Download Report
-              </button>
-              <button className={styles.actionButtonSecondary}>
-                <FontAwesomeIcon icon={faShare} /> Share Results
-              </button>
-            </div>
-          </div>
+                {(analysisResults.fileType === "CSV" || analysisResults.fileType === "JSON") && analysisResults.data && (
+                  <div className={styles.previewSection}>
+                    <h3 className={styles.sectionTitle}>Data Preview</h3>
+                    <div className={styles.dataPreview}>
+                      <div className={styles.columnsList}>
+                        {analysisResults.columns?.slice(0, 5).map((col, idx) => (
+                          <span key={idx} className={styles.columnBadge}>{col}</span>
+                        ))}
+                        {analysisResults.columns?.length > 5 && (
+                          <span className={styles.columnBadge}>+{analysisResults.columns.length - 5} more</span>
+                        )}
+                      </div>
+                      <div className={styles.rowsInfo}>
+                        First {Math.min(10, analysisResults.data.length)} of {analysisResults.data.length} rows ready to explore
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Call to Action */}
+                <div className={styles.ctaSection}>
+                  <p className={styles.ctaText}>
+                    <strong>Want to dive deeper?</strong> Access the full Session Workspace to:
+                  </p>
+                  <ul className={styles.featuresList}>
+                    <li>💬 Chat with AI about your data</li>
+                    <li>📈 Generate interactive visualizations</li>
+                    <li>🔍 Filter and explore all data</li>
+                    <li>💾 Download processed results</li>
+                  </ul>
+                  <button className={styles.viewResultsButton} onClick={handleViewResults}>
+                    Open Session Workspace
+                    <FontAwesomeIcon icon={faArrowRight} className={styles.buttonIcon} />
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>
@@ -289,4 +264,3 @@ const AnalysisPage = () => {
 };
 
 export default AnalysisPage;
-

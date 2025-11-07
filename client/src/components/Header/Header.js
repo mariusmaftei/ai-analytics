@@ -16,7 +16,7 @@ export default function Header() {
           <div className={styles.logoIcon}>
             <FontAwesomeIcon icon={faChartLine} />
           </div>
-          <span className={styles.logoText}>AI Analytics</span>
+          <span className={styles.logoText}>Softindex AI Analytics</span>
         </Link>
         <nav className={styles.nav}>
           <Link to="/home" className={styles.navLink}>

@@ -1,0 +1,235 @@
+/* Overlay */
+.overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  animation: fadeIn 0.2s ease-out;
+  padding: 1rem;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Modal */
+.modal {
+  background: var(--surface-color);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-xl);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.9);
+  max-width: 450px;
+  width: 100%;
+  padding: 2rem;
+  position: relative;
+  animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Close Button */
+.closeButton {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  width: 32px;
+  height: 32px;
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  font-size: 1.25rem;
+}
+
+.closeButton:hover {
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+/* Icon */
+.iconWrapper {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 1.5rem auto;
+}
+
+.iconWrapper.danger {
+  background: rgba(239, 68, 68, 0.15);
+  border: 2px solid rgba(239, 68, 68, 0.3);
+}
+
+.iconWrapper.warning {
+  background: rgba(245, 158, 11, 0.15);
+  border: 2px solid rgba(245, 158, 11, 0.3);
+}
+
+.iconWrapper.info {
+  background: rgba(16, 185, 129, 0.15);
+  border: 2px solid rgba(16, 185, 129, 0.3);
+}
+
+.icon {
+  font-size: 2.5rem;
+}
+
+.iconWrapper.danger .icon {
+  color: #ef4444;
+}
+
+.iconWrapper.warning .icon {
+  color: #f59e0b;
+}
+
+.iconWrapper.info .icon {
+  color: var(--primary-color);
+}
+
+/* Content */
+.content {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 0.75rem 0;
+}
+
+.message {
+  font-size: 1rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin: 0;
+}
+
+/* Actions */
+.actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+}
+
+.cancelButton,
+.confirmButton {
+  flex: 1;
+  padding: 0.875rem 1.5rem;
+  border-radius: var(--radius-lg);
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+}
+
+.cancelButton {
+  background: var(--surface-hover);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+}
+
+.cancelButton:hover {
+  background: var(--background-color);
+  border-color: var(--text-secondary);
+}
+
+.confirmButton {
+  color: var(--text-primary);
+}
+
+.confirmButton.danger {
+  background: #ef4444;
+}
+
+.confirmButton.danger:hover {
+  background: #dc2626;
+  transform: translateY(-2px);
+  box-shadow: 0 10px 20px rgba(239, 68, 68, 0.3);
+}
+
+.confirmButton.warning {
+  background: #f59e0b;
+}
+
+.confirmButton.warning:hover {
+  background: #d97706;
+  transform: translateY(-2px);
+  box-shadow: 0 10px 20px rgba(245, 158, 11, 0.3);
+}
+
+.confirmButton.info {
+  background: var(--primary-color);
+}
+
+.confirmButton.info:hover {
+  background: var(--primary-dark);
+  transform: translateY(-2px);
+  box-shadow: var(--glow);
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+  .modal {
+    padding: 1.5rem;
+    max-width: calc(100% - 2rem);
+  }
+
+  .iconWrapper {
+    width: 64px;
+    height: 64px;
+    margin-bottom: 1rem;
+  }
+
+  .icon {
+    font-size: 2rem;
+  }
+
+  .title {
+    font-size: 1.25rem;
+  }
+
+  .message {
+    font-size: 0.9375rem;
+  }
+
+  .actions {
+    flex-direction: column;
+  }
+
+  .cancelButton,
+  .confirmButton {
+    width: 100%;
+  }
+}
+
