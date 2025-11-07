@@ -18,17 +18,18 @@ const HomePage = () => {
   const [inputValue, setInputValue] = useState("");
   const [messages, setMessages] = useState([]);
   const [chatStarted, setChatStarted] = useState(false);
+  const [isTyping, setIsTyping] = useState(false);
   const fileInputRef = useRef(null);
   const messagesEndRef = useRef(null);
   const navigate = useNavigate();
   const { currentSessionId, createNewSession, addFileToSession } = useSession();
 
-  // Scroll to bottom when messages change
+  // Scroll to bottom when messages change or typing indicator appears
   useEffect(() => {
     if (chatStarted) {
       messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }
-  }, [messages, chatStarted]);
+  }, [messages, chatStarted, isTyping]);
 
   // Get AI response based on user question
   const getAIResponse = (userMessage) => {
@@ -182,20 +183,67 @@ const HomePage = () => {
     };
     setMessages((prev) => [...prev, userMessage]);
 
-    // Get AI response
-    const aiResponse = {
-      type: "ai",
-      text: getAIResponse(inputValue),
-      timestamp: new Date(),
-    };
+    // Store the input value before clearing
+    const currentInput = inputValue;
 
     // Clear input
     setInputValue("");
 
-    // Add AI response after a short delay
+    // Show typing indicator
+    setIsTyping(true);
+
+    // Simulate AI "thinking" time (1-2 seconds)
+    const thinkingTime = 1200 + Math.random() * 800; // Random delay between 1.2-2s
+
     setTimeout(() => {
-      setMessages((prev) => [...prev, aiResponse]);
-    }, 500);
+      // Hide typing indicator
+      setIsTyping(false);
+
+      // Get full AI response text
+      const fullResponse = getAIResponse(currentInput);
+
+      // Add empty AI message that we'll fill with streaming text
+      const aiMessageIndex = messages.length + 1; // +1 for user message already added
+      setMessages((prev) => [
+        ...prev,
+        {
+          type: "ai",
+          text: "",
+          timestamp: new Date(),
+          isStreaming: true,
+        },
+      ]);
+
+      // Stream the response character by character
+      let currentIndex = 0;
+      const streamInterval = setInterval(() => {
+        if (currentIndex < fullResponse.length) {
+          const chunkSize = Math.floor(Math.random() * 3) + 1; // 1-3 characters at a time
+          const chunk = fullResponse.slice(currentIndex, currentIndex + chunkSize);
+          currentIndex += chunkSize;
+
+          setMessages((prev) => {
+            const newMessages = [...prev];
+            const lastMessage = newMessages[newMessages.length - 1];
+            if (lastMessage && lastMessage.type === "ai") {
+              lastMessage.text = fullResponse.slice(0, currentIndex);
+            }
+            return newMessages;
+          });
+        } else {
+          // Finished streaming
+          clearInterval(streamInterval);
+          setMessages((prev) => {
+            const newMessages = [...prev];
+            const lastMessage = newMessages[newMessages.length - 1];
+            if (lastMessage && lastMessage.type === "ai") {
+              lastMessage.isStreaming = false;
+            }
+            return newMessages;
+          });
+        }
+      }, 15); // 15ms between chunks (2x faster)
+    }, thinkingTime);
   };
 
   return (
@@ -232,10 +280,30 @@ const HomePage = () => {
                           {i < message.text.split("\n").length - 1 && <br />}
                         </React.Fragment>
                       ))}
+                      {message.isStreaming && (
+                        <span className={styles.streamingCursor}>▊</span>
+                      )}
                     </div>
                   </div>
                 </div>
               ))}
+
+              {/* Typing Indicator */}
+              {isTyping && (
+                <div className={`${styles.message} ${styles.aiMessage}`}>
+                  <div className={styles.messageContent}>
+                    <div className={styles.messageHeader}>
+                      <strong>AI Assistant</strong>
+                    </div>
+                    <div className={styles.typingIndicator}>
+                      <span></span>
+                      <span></span>
+                      <span></span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div ref={messagesEndRef} />
             </div>
           </div>
