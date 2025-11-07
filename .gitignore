@@ -1,0 +1,110 @@
+# Node modules
+node_modules/
+client/node_modules/
+app/node_modules/
+server/node_modules/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+app/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.coverage
+htmlcov/
+*.egg
+*.egg-info/
+dist/
+build/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.manifest
+*.spec
+
+# Virtual environments
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+.venv/
+app/venv/
+app/env/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+*.log
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+.env.development
+.env.production
+client/.env
+server/.env
+app/.env
+
+# Build output
+dist/
+build/
+client/build/
+server/dist/
+
+# IDEs and editors
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+*.bak
+
+# Testing coverage
+coverage/
+client/coverage/
+server/coverage/
+.coverage
+.coverage.*
+
+# Misc
+*.tgz
+*.gz
+
+# Binaries
+*.exe
+*.out
+*.app
+
+# Firebase (if not using, can remove)
+.firebase/
+firebase-debug.log
+firestore.indexes.json
+firestore.rules
+firebase.json
+
+# Local Netlify folder (if not using, can remove)
+.netlify
