@@ -1,10 +1,20 @@
 .container {
-  min-height: 100vh;
+  min-height: calc(100vh - 80px);
   display: flex;
   align-items: center;
   justify-content: center;
   background: var(--background-gradient);
   padding: 2rem;
+}
+
+/* Chat Mode - Full Height */
+.container.chatMode {
+  min-height: calc(100vh - 80px);
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
 }
 
 .content {
@@ -101,6 +111,137 @@
   color: var(--primary-color);
 }
 
+/* Ask Button */
+.askButton {
+  padding: 0.875rem 2rem;
+  background: var(--primary-color);
+  border: 2px solid var(--primary-color);
+  border-radius: var(--radius-full);
+  color: var(--text-primary);
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-bottom: 1.5rem;
+  box-shadow: var(--shadow-md);
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.askButton:hover {
+  background: var(--primary-dark);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg), var(--glow);
+}
+
+/* Chat Messages Area (ChatGPT Style) */
+.chatMessagesArea {
+  flex: 1;
+  overflow-y: auto;
+  padding: 2rem 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.chatMessagesArea::-webkit-scrollbar {
+  width: 6px;
+}
+
+.chatMessagesArea::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.chatMessagesArea::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 3px;
+}
+
+.chatMessagesArea::-webkit-scrollbar-thumb:hover {
+  background: var(--surface-hover);
+}
+
+.messagesWrapper {
+  max-width: 800px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 0 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.message {
+  display: flex;
+  animation: messageSlideIn 0.3s ease-out;
+}
+
+@keyframes messageSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.userMessage {
+  justify-content: flex-end;
+}
+
+.aiMessage {
+  justify-content: flex-start;
+}
+
+.messageContent {
+  max-width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.messageHeader {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  padding: 0 0.5rem;
+  font-weight: 600;
+}
+
+.messageText {
+  padding: 1.25rem 1.5rem;
+  border-radius: var(--radius-lg);
+  font-size: 0.9375rem;
+  line-height: 1.7;
+  word-wrap: break-word;
+  white-space: pre-wrap;
+}
+
+.userMessage {
+  align-self: flex-end;
+  max-width: 80%;
+}
+
+.userMessage .messageText {
+  background: #2d2d2d;
+  color: var(--text-primary);
+  border-bottom-right-radius: 0.25rem;
+  border: 1px solid #3d3d3d;
+}
+
+.aiMessage {
+  align-self: flex-start;
+  max-width: 100%;
+}
+
+.aiMessage .messageText {
+  background: var(--gradient-ai);
+  color: var(--text-primary);
+  border-bottom-left-radius: 0.25rem;
+  border: 1px solid var(--border-color);
+}
+
 /* Upload Options */
 .uploadOptions {
   display: flex;
@@ -111,6 +252,111 @@
 
 .fileInput {
   display: none;
+}
+
+/* Bottom Input Area (ChatGPT Style) */
+.bottomInputArea {
+  position: sticky;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: var(--background-color);
+  border-top: 1px solid var(--border-color);
+  padding: 1.5rem 0;
+  z-index: 10;
+}
+
+.bottomInputContainer {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 0 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.bottomUploadOptions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-start;
+}
+
+.bottomUploadIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  background: var(--surface-color);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: var(--text-secondary);
+  font-size: 1.25rem;
+}
+
+.bottomUploadIcon:hover {
+  border-color: var(--primary-color);
+  background: var(--surface-hover);
+  color: var(--primary-color);
+  transform: translateY(-2px);
+}
+
+.bottomSearchBox {
+  position: relative;
+  width: 100%;
+}
+
+.bottomInput {
+  width: 100%;
+  padding: 1.25rem 4rem 1.25rem 1.5rem;
+  background: var(--surface-color);
+  border: 2px solid var(--border-color);
+  border-radius: var(--radius-full);
+  color: var(--text-primary);
+  font-size: 1.125rem;
+  transition: all 0.3s ease;
+  box-shadow: var(--shadow-lg);
+  outline: none;
+}
+
+.bottomInput:focus {
+  border-color: var(--primary-color);
+  box-shadow: var(--shadow-xl), var(--glow);
+}
+
+.bottomInput::placeholder {
+  color: var(--text-muted);
+}
+
+.bottomSendButton {
+  position: absolute;
+  right: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  padding: 0.75rem;
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  border-radius: 50%;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+}
+
+.bottomSendButton:hover:not(:disabled) {
+  background: var(--surface-hover);
+  color: var(--primary-color);
+  transform: translateY(-50%);
+}
+
+.bottomSendButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .uploadIcon {
@@ -295,11 +541,11 @@
   }
 
   .title {
-    font-size: 2.5rem;
+    font-size: 2rem;
   }
 
   .subtitle {
-    font-size: 1rem;
+    font-size: 0.9375rem;
   }
 
   .mainInput {
@@ -314,6 +560,48 @@
   .uploadIcon {
     padding: 1rem 1.5rem;
     min-width: 100px;
+  }
+
+  /* Chat Mode Mobile */
+  .messagesWrapper {
+    padding: 0 1rem;
+  }
+
+  .userMessage {
+    max-width: 85%;
+  }
+
+  .messageText {
+    padding: 0.875rem 1.125rem;
+    font-size: 0.875rem;
+  }
+
+  .messageHeader {
+    font-size: 0.6875rem;
+  }
+
+  .bottomInputArea {
+    padding: 1rem 0;
+  }
+
+  .bottomInputContainer {
+    padding: 0 1rem;
+  }
+
+  .bottomInput {
+    padding: 1rem 3.5rem 1rem 1rem;
+    font-size: 1rem;
+  }
+
+  .bottomSendButton {
+    padding: 0.5rem;
+    font-size: 1.125rem;
+  }
+
+  .bottomUploadIcon {
+    width: 36px;
+    height: 36px;
+    font-size: 1.125rem;
   }
 
   .uploadIcon span:first-child {

@@ -1,6 +1,7 @@
 import React from "react";
 import "./App.css";
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
+import { SessionProvider } from "./context/SessionContext";
 import RootLayout from "./components/RootLayout/RootLayout";
 import HomePage from "./pages/home/HomePage";
 import LoginPage from "./pages/login/LoginPage";
@@ -32,7 +33,11 @@ const router = createBrowserRouter([
 ]);
 
 function App() {
-  return <RouterProvider router={router} />;
+  return (
+    <SessionProvider>
+      <RouterProvider router={router} />
+    </SessionProvider>
+  );
 }
 
 export default App;
