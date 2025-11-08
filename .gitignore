@@ -94,6 +94,9 @@ server/coverage/
 *.tgz
 *.gz
 
+# Documentation files
+*.md
+
 # Binaries
 *.exe
 *.out
