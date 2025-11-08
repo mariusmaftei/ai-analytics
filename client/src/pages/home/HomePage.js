@@ -51,12 +51,13 @@ const HomePage = () => {
       sessionId = createNewSession();
     }
 
-    // Prepare file data
+    // Prepare file data with the actual File object
     const fileData = {
       fileName: file.name,
       fileSize: file.size,
       fileType: file.type || "Unknown",
       uploadTime: new Date().toISOString(),
+      file: file, // Pass the actual File object for backend upload
     };
 
     // Add file to session

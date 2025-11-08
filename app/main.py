@@ -3,6 +3,7 @@ from flask_cors import CORS
 from dotenv import load_dotenv
 import os
 from config import init_db, close_db, get_db, generate_text, generate_text_stream, analyze_content
+from routes import pdf_bp
 
 # Load environment variables
 load_dotenv()
@@ -11,6 +12,9 @@ port = int(os.getenv('PORT', 8080))
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes
+
+# Register blueprints
+app.register_blueprint(pdf_bp)
 
 # Initialize database connection
 try:

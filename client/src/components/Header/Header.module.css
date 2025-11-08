@@ -27,22 +27,15 @@
   text-decoration: none;
 }
 
-.logoIcon {
-  width: 32px;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  font-size: 1.25rem;
+.logoImage {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
 }
 
 .logoText {
-  background: var(--gradient-metallic);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  font-weight: 800;
+  color: #10b981;
+  font-weight: 700;
   letter-spacing: -0.02em;
 }
 

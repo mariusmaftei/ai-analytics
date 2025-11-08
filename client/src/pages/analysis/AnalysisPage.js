@@ -8,9 +8,14 @@ import {
   faChartLine,
   faDatabase,
   faArrowRight,
+  faFile,
+  faClock,
+  faHeading,
+  faUser,
+  faLightbulb,
 } from "@fortawesome/free-solid-svg-icons";
 import { useSession } from "../../context/SessionContext";
-import { analyzeFile } from "../../services/dummyDataService";
+import { analyzePDFFile } from "../../services/pdfAnalysisService";
 import styles from "./AnalysisPage.module.css";
 
 const AnalysisPage = () => {
@@ -26,26 +31,62 @@ const AnalysisPage = () => {
     fileSize: 0,
     fileType: "application/pdf",
     uploadTime: new Date().toISOString(),
+    file: null, // The actual File object
   }, [location.state]);
 
-  // Simulate analysis progress
+  // Real PDF analysis with progress simulation
   useEffect(() => {
-    if (isAnalyzing) {
-      const interval = setInterval(() => {
+    if (isAnalyzing && fileData.file) {
+      let progressInterval;
+      let analysisComplete = false;
+
+      // Start the actual PDF analysis
+      const performAnalysis = async () => {
+        try {
+          // Call real backend API
+          const results = await analyzePDFFile(fileData.file, {
+            includeAI: true,
+            analysisType: 'summary',
+            saveToDb: false,
+          });
+          
+          analysisComplete = true;
+          setAnalysisResults(results);
+          setProgress(100);
+          setIsAnalyzing(false);
+          
+        } catch (error) {
+          console.error('Analysis failed:', error);
+          analysisComplete = true;
+          setProgress(100);
+          setIsAnalyzing(false);
+          
+          // Show error state
+          setAnalysisResults({
+            fileType: 'PDF',
+            error: true,
+            message: error.message || 'Failed to analyze PDF. Please try again.',
+          });
+        }
+      };
+
+      // Simulate progress while waiting for backend
+      progressInterval = setInterval(() => {
         setProgress((prev) => {
-          if (prev >= 100) {
-            clearInterval(interval);
-            setIsAnalyzing(false);
-            // Generate analysis results when complete
-            const results = analyzeFile(fileData.fileName, fileData.fileType);
-            setAnalysisResults(results);
-            return 100;
+          if (analysisComplete || prev >= 90) {
+            clearInterval(progressInterval);
+            return analysisComplete ? 100 : 90;
           }
           return prev + 10;
         });
-      }, 300);
+      }, 400);
 
-      return () => clearInterval(interval);
+      // Start the actual analysis
+      performAnalysis();
+
+      return () => {
+        if (progressInterval) clearInterval(progressInterval);
+      };
     }
   }, [isAnalyzing, fileData]);
 
@@ -58,9 +99,12 @@ const AnalysisPage = () => {
       addFileToSession(sessionId, fileData);
     }
     
-    // Navigate to session page
+    // Navigate to session page with BOTH fileData AND analysisResults
     navigate(`/session/${sessionId}`, {
-      state: fileData,
+      state: {
+        fileData: fileData,
+        analysisResults: analysisResults, // Pass the real analysis data!
+      },
       replace: true,
     });
   };
@@ -183,18 +227,37 @@ const AnalysisPage = () => {
                   <div className={styles.insightsList}>
                     {analysisResults.insights?.summary && (
                       <div className={styles.insightItem}>
-                        <div className={styles.insightIcon}>💡</div>
+                        <div className={styles.insightIcon}>
+                          <FontAwesomeIcon icon={faLightbulb} />
+                        </div>
                         <div className={styles.insightText}>
                           {analysisResults.insights.summary}
                         </div>
                       </div>
                     )}
-                    {analysisResults.insights?.patterns?.slice(0, 3).map((pattern, idx) => (
-                      <div key={idx} className={styles.insightItem}>
-                        <div className={styles.insightIcon}>📊</div>
-                        <div className={styles.insightText}>{pattern}</div>
-                      </div>
-                    ))}
+                    {analysisResults.insights?.patterns?.slice(0, 3).map((pattern, idx) => {
+                      // Determine icon based on pattern content
+                      let icon = faChartLine; // Default icon
+                      
+                      if (pattern.toLowerCase().includes('page')) {
+                        icon = faFile;
+                      } else if (pattern.toLowerCase().includes('reading time') || pattern.toLowerCase().includes('minute')) {
+                        icon = faClock;
+                      } else if (pattern.toLowerCase().includes('title')) {
+                        icon = faHeading;
+                      } else if (pattern.toLowerCase().includes('author')) {
+                        icon = faUser;
+                      }
+                      
+                      return (
+                        <div key={idx} className={styles.insightItem}>
+                          <div className={styles.insightIcon}>
+                            <FontAwesomeIcon icon={icon} />
+                          </div>
+                          <div className={styles.insightText}>{pattern}</div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
 

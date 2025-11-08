@@ -4,9 +4,10 @@ import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import { SessionProvider } from "./context/SessionContext";
 import RootLayout from "./components/RootLayout/RootLayout";
 import HomePage from "./pages/home/HomePage";
-import LoginPage from "./pages/login/LoginPage";
 import AnalysisPage from "./pages/analysis/AnalysisPage";
 import SessionPage from "./pages/session/SessionPage";
+import ComingSoonPage from "./pages/comingsoon/ComingSoonPage";
+import NotFoundPage from "./pages/notfound/NotFoundPage";
 
 const router = createBrowserRouter([
   {
@@ -22,8 +23,16 @@ const router = createBrowserRouter([
         element: <HomePage />,
       },
       {
+        path: "features",
+        element: <ComingSoonPage />,
+      },
+      {
+        path: "pricing",
+        element: <ComingSoonPage />,
+      },
+      {
         path: "login",
-        element: <LoginPage />,
+        element: <ComingSoonPage />,
       },
       {
         path: "analysis",
@@ -32,6 +41,10 @@ const router = createBrowserRouter([
       {
         path: "session/:sessionId",
         element: <SessionPage />,
+      },
+      {
+        path: "*",
+        element: <NotFoundPage />,
       },
     ],
   },

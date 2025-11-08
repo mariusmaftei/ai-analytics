@@ -1,3 +1,13 @@
+# Softindex Agent - AI Document Analysis Platform
 # https://www.robotstxt.org/robotstxt.html
+
+# Allow all web crawlers
 User-agent: *
-Disallow:
+Allow: /
+
+# Disallow private/temporary pages
+Disallow: /session/
+Disallow: /analysis
+
+# Sitemap
+Sitemap: https://softindex-agent.com/sitemap.xml

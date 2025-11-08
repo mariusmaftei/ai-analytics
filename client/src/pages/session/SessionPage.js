@@ -3,26 +3,15 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faMagnifyingGlass,
-  faChartLine,
-  faFilter,
   faDownload,
   faFilePdf,
   faFileCsv,
   faFileCode,
   faArrowLeft,
-  faChartBar,
-  faTable,
-  faBolt,
   faBook,
 } from "@fortawesome/free-solid-svg-icons";
 import { useSession } from "../../context/SessionContext";
-import {
-  analyzeFile,
-  getAIResponse as getSmartAIResponse,
-} from "../../services/dummyDataService";
-import DataPreview from "../../components/DataPreview/DataPreview";
-import ChaptersView from "../../components/ChaptersView/ChaptersView";
-import ChartDisplay from "../../components/ChartDisplay/ChartDisplay";
+import { chatAboutDocument } from "../../services/documentChatService";
 import styles from "./SessionPage.module.css";
 
 const SessionPage = () => {
@@ -31,43 +20,41 @@ const SessionPage = () => {
   const { currentSessionId, getCurrentSession } = useSession();
 
   const session = getCurrentSession();
-  const fileData = location.state ||
-    session?.files[0] || {
-      fileName: "sample-data.csv",
-      fileSize: 245000,
-      fileType: "text/csv",
-    };
-
-  // Analyze file and get dummy data
-  const analysisData = analyzeFile(fileData.fileName, fileData.fileType);
+  
+  // Get fileData and analysisResults from location state (passed from AnalysisPage)
+  const locationState = location.state || {};
+  const fileData = locationState.fileData || session?.files[0] || {
+    fileName: "sample-data.pdf",
+    fileSize: 245000,
+    fileType: "application/pdf",
+  };
+  
+  // Use REAL analysis data passed from AnalysisPage
+  const analysisData = locationState.analysisResults || {
+    fileType: 'PDF',
+    metadata: { totalPages: 0, wordCount: 0 },
+    text: '',
+    insights: { summary: 'No analysis available', patterns: [] },
+  };
 
   const [inputValue, setInputValue] = useState("");
-  const [showDataPreview, setShowDataPreview] = useState(false);
   const [showChapters, setShowChapters] = useState(false);
-  const [showCharts, setShowCharts] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
   const [showDownloadMenu, setShowDownloadMenu] = useState(false);
   const [messages, setMessages] = useState([
     {
       type: "ai",
-      text: `I've analyzed your ${analysisData.fileType.toUpperCase()} file. Here's what I found:\n\n${
-        analysisData.summary
+      text: `I've analyzed your ${analysisData.fileType || 'PDF'} file. Here's what I found:\n\n${
+        analysisData.insights?.summary || 'Analysis complete'
       }\n\n${
-        analysisData.hasChapters
-          ? `📚 This document has ${analysisData.chapters.length} chapters across ${analysisData.pageCount} pages.`
-          : analysisData.fileType === "csv"
-          ? `📊 Found ${analysisData.rowCount.toLocaleString()} rows and ${
-              analysisData.columnCount
-            } columns.`
-          : `💾 Found ${analysisData.objectCount} objects with nested data.`
-      }\n\nYou can ask me questions, ${
-        analysisData.hasNumericData ? "generate visualizations, " : ""
-      }or explore the data using the buttons above!`,
+        analysisData.metadata?.totalPages
+          ? `📄 This document has ${analysisData.metadata.totalPages} pages with approximately ${analysisData.metadata.wordCount?.toLocaleString()} words.`
+          : ''
+      }\n\nYou can ask me questions about the content, request specific information, or explore the data using the buttons above!`,
       timestamp: new Date(),
     },
   ]);
   const messagesEndRef = useRef(null);
-  const fileInputRef = useRef(null);
   const downloadMenuRef = useRef(null);
 
   // Scroll to bottom when messages change or typing indicator appears
@@ -93,11 +80,6 @@ const SessionPage = () => {
     }
   }, [showDownloadMenu]);
 
-  // Use smart AI responses from dummy data service
-  const getAIResponse = (userMessage) => {
-    return getSmartAIResponse(userMessage, analysisData);
-  };
-
   const handleInputChange = (e) => {
     setInputValue(e.target.value);
   };
@@ -109,7 +91,7 @@ const SessionPage = () => {
     }
   };
 
-  const handleSendMessage = () => {
+  const handleSendMessage = async () => {
     if (!inputValue.trim()) return;
 
     // Add user message
@@ -126,77 +108,78 @@ const SessionPage = () => {
     // Clear input
     setInputValue("");
 
-    // Show typing indicator
+    // Show typing indicator briefly
     setIsTyping(true);
 
-    // Simulate AI "thinking" time (1-2 seconds)
-    const thinkingTime = 1200 + Math.random() * 800; // Random delay between 1.2-2s
-
-    setTimeout(() => {
-      // Hide typing indicator
-      setIsTyping(false);
-
-      // Get full AI response text
-      const fullResponse = getAIResponse(currentInput);
-
-      // Add empty AI message that we'll fill with streaming text
-      const aiMessageIndex = messages.length + 1; // +1 for user message already added
-      setMessages((prev) => [
-        ...prev,
-        {
-          type: "ai",
-          text: "",
-          timestamp: new Date(),
-          isStreaming: true,
-        },
-      ]);
-
-      // Stream the response character by character
-      let currentIndex = 0;
-      const streamInterval = setInterval(() => {
-        if (currentIndex < fullResponse.length) {
-          const chunkSize = Math.floor(Math.random() * 3) + 1; // 1-3 characters at a time
-          const chunk = fullResponse.slice(
-            currentIndex,
-            currentIndex + chunkSize
-          );
-          currentIndex += chunkSize;
-
-          setMessages((prev) => {
-            const newMessages = [...prev];
-            const lastMessage = newMessages[newMessages.length - 1];
-            if (lastMessage && lastMessage.type === "ai") {
-              lastMessage.text = fullResponse.slice(0, currentIndex);
-            }
-            return newMessages;
-          });
-        } else {
-          // Finished streaming
-          clearInterval(streamInterval);
-          setMessages((prev) => {
-            const newMessages = [...prev];
-            const lastMessage = newMessages[newMessages.length - 1];
-            if (lastMessage && lastMessage.type === "ai") {
-              lastMessage.isStreaming = false;
-            }
-            return newMessages;
-          });
-        }
-      }, 15); // 15ms between chunks (2x faster)
-    }, thinkingTime);
-  };
-
-  const handleGenerateGraphic = () => {
-    setShowCharts(!showCharts);
-    if (!showCharts) {
-      const graphicMessage = {
+    // Add empty AI message for streaming
+    setMessages((prev) => [
+      ...prev,
+      {
         type: "ai",
-        text: `📊 Generated ${
-          analysisData.fileType === "csv" ? "3" : "2"
-        } interactive visualizations based on your data. Scroll down to view the charts!`,
+        text: "",
         timestamp: new Date(),
-      };
-      setMessages((prev) => [...prev, graphicMessage]);
+        isStreaming: true,
+      },
+    ]);
+
+    try {
+      // Use REAL AI chat with document context
+      await chatAboutDocument(
+        currentInput,
+        analysisData.text || '',
+        {
+          filename: fileData.fileName,
+          totalPages: analysisData.metadata?.totalPages,
+          wordCount: analysisData.metadata?.wordCount,
+          title: analysisData.metadata?.title,
+          author: analysisData.metadata?.author,
+        },
+        (chunk) => {
+          // Hide typing indicator on first chunk
+          setIsTyping(false);
+          
+          // Update the streaming message with new chunk
+          setMessages((prev) => {
+            const newMessages = [...prev];
+            const lastMessage = newMessages[newMessages.length - 1];
+            if (lastMessage && lastMessage.type === "ai") {
+              lastMessage.text += chunk;
+            }
+            return newMessages;
+          });
+        },
+        {
+          user_name: 'Marius',
+          temperature: 0.7,
+          max_tokens: 2048,
+        }
+      );
+
+      // Mark streaming as complete
+      setIsTyping(false);
+      setMessages((prev) => {
+        const newMessages = [...prev];
+        const lastMessage = newMessages[newMessages.length - 1];
+        if (lastMessage && lastMessage.type === "ai") {
+          lastMessage.isStreaming = false;
+        }
+        return newMessages;
+      });
+
+    } catch (error) {
+      console.error('Chat error:', error);
+      setIsTyping(false);
+      
+      // Show error message
+      setMessages((prev) => {
+        const newMessages = [...prev];
+        const lastMessage = newMessages[newMessages.length - 1];
+        if (lastMessage && lastMessage.type === "ai") {
+          lastMessage.text = "⚠️ I'm having trouble connecting to the AI service. Please make sure the backend is running and try again.";
+          lastMessage.isStreaming = false;
+        }
+        return newMessages;
+      });
     }
   };
 
@@ -205,28 +188,10 @@ const SessionPage = () => {
     if (!showChapters) {
       const chaptersMessage = {
         type: "ai",
-        text: `📚 Displaying ${analysisData.chapters.length} chapters with summaries, key highlights, and extracted keywords. Scroll down to explore!`,
+        text: `📚 Chapter extraction is coming soon! This will break down your document into sections.`,
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, chaptersMessage]);
-    }
-  };
-
-  const handleViewTable = () => {
-    setShowDataPreview(!showDataPreview);
-    if (!showDataPreview) {
-      const tableMessage = {
-        type: "ai",
-        text: `📋 Showing ${
-          analysisData.fileType === "csv" ? "table preview" : "JSON objects"
-        } with ${
-          analysisData.fileType === "csv"
-            ? analysisData.previewData.length + " sample rows"
-            : analysisData.previewData.length + " records"
-        }. Scroll down to view the data!`,
-        timestamp: new Date(),
-      };
-      setMessages((prev) => [...prev, tableMessage]);
     }
   };
 
@@ -249,23 +214,6 @@ const SessionPage = () => {
     };
     setMessages((prev) => [...prev, downloadMessage]);
     setShowDownloadMenu(false);
-  };
-
-  const handleQuickAction = (action) => {
-    const actions = {
-      summary: "Give me a summary of the document",
-      revenue: "Show me revenue analysis",
-      trends: "What are the key trends?",
-      customers: "Tell me about customer data",
-    };
-
-    setInputValue(actions[action]);
-    // Auto-send after a brief delay
-    setTimeout(() => {
-      const event = { key: "Enter" };
-      setInputValue(actions[action]);
-      setTimeout(() => handleSendMessage(), 100);
-    }, 100);
   };
 
   return (
@@ -296,21 +244,8 @@ const SessionPage = () => {
 
       {/* Action Buttons - Contextual based on file type */}
       <div className={styles.actionBar}>
-        {/* Show Generate Graphic only if numeric data exists */}
-        {analysisData.hasNumericData && (
-          <button
-            className={`${styles.actionButton} ${
-              showCharts ? styles.active : ""
-            }`}
-            onClick={handleGenerateGraphic}
-          >
-            <FontAwesomeIcon icon={faChartLine} />
-            <span>{showCharts ? "Hide" : "Generate"} Graphic</span>
-          </button>
-        )}
-
-        {/* Show Chapters only for PDFs with chapters */}
-        {analysisData.hasChapters && (
+        {/* Show Chapters for PDF documents */}
+        {analysisData.fileType === "PDF" && (
           <button
             className={`${styles.actionButton} ${
               showChapters ? styles.active : ""
@@ -319,20 +254,6 @@ const SessionPage = () => {
           >
             <FontAwesomeIcon icon={faBook} />
             <span>{showChapters ? "Hide" : "Show"} Chapters</span>
-          </button>
-        )}
-
-        {/* Show View Table only for CSV/JSON */}
-        {(analysisData.fileType === "csv" ||
-          analysisData.fileType === "json") && (
-          <button
-            className={`${styles.actionButton} ${
-              showDataPreview ? styles.active : ""
-            }`}
-            onClick={handleViewTable}
-          >
-            <FontAwesomeIcon icon={faTable} />
-            <span>{showDataPreview ? "Hide" : "View"} Table</span>
           </button>
         )}
 
@@ -374,37 +295,6 @@ const SessionPage = () => {
         </div>
       </div>
 
-      {/* Quick Actions */}
-      <div className={styles.quickActions}>
-        <button
-          className={styles.quickActionChip}
-          onClick={() => handleQuickAction("summary")}
-        >
-          <FontAwesomeIcon icon={faBolt} />
-          Summary
-        </button>
-        <button
-          className={styles.quickActionChip}
-          onClick={() => handleQuickAction("revenue")}
-        >
-          <FontAwesomeIcon icon={faChartBar} />
-          Revenue
-        </button>
-        <button
-          className={styles.quickActionChip}
-          onClick={() => handleQuickAction("trends")}
-        >
-          <FontAwesomeIcon icon={faChartLine} />
-          Trends
-        </button>
-        <button
-          className={styles.quickActionChip}
-          onClick={() => handleQuickAction("customers")}
-        >
-          <FontAwesomeIcon icon={faTable} />
-          Customers
-        </button>
-      </div>
 
       {/* Messages Area */}
       <div className={styles.chatMessagesArea}>
@@ -454,25 +344,6 @@ const SessionPage = () => {
           )}
 
           <div ref={messagesEndRef} />
-
-          {/* Display Components - Shown when user clicks buttons */}
-          {showChapters && analysisData.hasChapters && (
-            <ChaptersView
-              chapters={analysisData.chapters}
-              highlights={analysisData.highlights}
-              keywords={analysisData.keywords}
-            />
-          )}
-
-          {showDataPreview &&
-            (analysisData.fileType === "csv" ||
-              analysisData.fileType === "json") && (
-              <DataPreview analysisData={analysisData} />
-            )}
-
-          {showCharts && analysisData.hasNumericData && (
-            <ChartDisplay analysisData={analysisData} />
-          )}
         </div>
       </div>
 
