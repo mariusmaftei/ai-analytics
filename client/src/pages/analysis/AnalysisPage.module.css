@@ -228,6 +228,7 @@
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
+  text-align: center;
 }
 
 .statValue {
@@ -235,6 +236,7 @@
   color: var(--text-primary);
   font-weight: 700;
   line-height: 1;
+  text-align: center;
 }
 
 .statLabel {
@@ -242,6 +244,7 @@
   color: var(--text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.05em;
+  text-align: center;
 }
 
 /* Insights Section */
@@ -812,4 +815,3 @@
     width: 100%;
   }
 }
-

@@ -1,0 +1,7 @@
+Transaction_ID,Date,Customer_ID,Product,Quantity,Unit_Price,Revenue,Region
+TXN-001234,2023-05-15,CUST-5678,Electronics,3,299.99,899.97,North America
+TXN-001235,2023-05-16,CUST-2341,Clothing,2,49.99,99.98,Europe
+TXN-001236,2023-05-16,CUST-8892,Home & Garden,1,159.99,159.99,Asia
+TXN-001237,2023-05-17,CUST-4423,Electronics,5,89.99,449.95,North America
+TXN-001238,2023-05-17,CUST-7654,Books,8,12.99,103.92,Europe
+

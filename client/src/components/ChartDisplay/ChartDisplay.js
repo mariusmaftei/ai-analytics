@@ -1,15 +1,180 @@
 import React from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faChartLine, faChartBar, faChartPie } from "@fortawesome/free-solid-svg-icons";
+import {
+  faChartLine,
+  faChartBar,
+  faChartPie,
+} from "@fortawesome/free-solid-svg-icons";
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  BarElement,
+  ArcElement,
+  Title,
+  Tooltip,
+  Legend,
+  Filler,
+} from "chart.js";
+import { Line, Bar, Doughnut } from "react-chartjs-2";
 import styles from "./ChartDisplay.module.css";
 
+// Register Chart.js components
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  BarElement,
+  ArcElement,
+  Title,
+  Tooltip,
+  Legend,
+  Filler
+);
+
 const ChartDisplay = ({ analysisData }) => {
-  if (!analysisData.hasNumericData) {
-    return null;
+  console.log("ChartDisplay rendered with:", analysisData);
+
+  if (!analysisData) {
+    return <div className={styles.errorMessage}>No analysis data provided</div>;
   }
+
+  if (!analysisData.hasNumericData) {
+    return (
+      <div className={styles.errorMessage}>
+        No numeric data available for charts
+      </div>
+    );
+  }
+
+  const chartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        position: "bottom",
+        labels: {
+          color: "#e5e7eb",
+          font: {
+            size: 12,
+            family: "'Inter', sans-serif",
+          },
+          padding: 15,
+        },
+      },
+      tooltip: {
+        backgroundColor: "rgba(17, 24, 39, 0.95)",
+        titleColor: "#10b981",
+        bodyColor: "#e5e7eb",
+        borderColor: "#10b981",
+        borderWidth: 1,
+        padding: 12,
+        displayColors: true,
+        titleFont: {
+          size: 14,
+          weight: "bold",
+        },
+        bodyFont: {
+          size: 13,
+        },
+      },
+    },
+    scales: {
+      y: {
+        beginAtZero: true,
+        grid: {
+          color: "rgba(229, 231, 235, 0.1)",
+          drawBorder: false,
+        },
+        ticks: {
+          color: "#9ca3af",
+          font: {
+            size: 11,
+          },
+        },
+      },
+      x: {
+        grid: {
+          display: false,
+          drawBorder: false,
+        },
+        ticks: {
+          color: "#9ca3af",
+          font: {
+            size: 11,
+          },
+        },
+      },
+    },
+  };
 
   const renderCSVCharts = () => {
     const { chartData } = analysisData;
+
+    if (!chartData) {
+      return <div className={styles.errorMessage}>No chart data available</div>;
+    }
+
+    // Line Chart Data - Revenue by Month
+    const lineChartData = {
+      labels: chartData.revenueByMonth?.map((item) => item.month) || [],
+      datasets: [
+        {
+          label: "Revenue",
+          data: chartData.revenueByMonth?.map((item) => item.revenue) || [],
+          borderColor: "#10b981",
+          backgroundColor: "rgba(16, 185, 129, 0.1)",
+          borderWidth: 3,
+          fill: true,
+          tension: 0.4,
+          pointBackgroundColor: "#10b981",
+          pointBorderColor: "#fff",
+          pointBorderWidth: 2,
+          pointRadius: 5,
+          pointHoverRadius: 7,
+        },
+      ],
+    };
+
+    // Doughnut Chart Data - Revenue by Region
+    const doughnutChartData = {
+      labels: chartData.revenueByRegion?.map((item) => item.region) || [],
+      datasets: [
+        {
+          label: "Revenue",
+          data: chartData.revenueByRegion?.map((item) => item.revenue) || [],
+          backgroundColor: [
+            "#10b981",
+            "#06b6d4",
+            "#f59e0b",
+            "#ec4899",
+            "#8b5cf6",
+          ],
+          borderColor: "#1f2937",
+          borderWidth: 2,
+          hoverOffset: 10,
+        },
+      ],
+    };
+
+    // Bar Chart Data - Top Products
+    const barChartData = {
+      labels: chartData.topProducts?.map((item) => item.product) || [],
+      datasets: [
+        {
+          label: "Volume",
+          data: chartData.topProducts?.map((item) => item.count) || [],
+          backgroundColor: "rgba(16, 185, 129, 0.8)",
+          borderColor: "#10b981",
+          borderWidth: 2,
+          borderRadius: 8,
+          hoverBackgroundColor: "#10b981",
+        },
+      ],
+    };
 
     return (
       <>
@@ -20,56 +185,35 @@ const ChartDisplay = ({ analysisData }) => {
             <h4>Revenue Trend (Monthly)</h4>
           </div>
           <div className={styles.chartPlaceholder}>
-            <div className={styles.lineChart}>
-              {chartData.revenueByMonth.map((item, index) => {
-                const height = (item.revenue / 95432) * 100; // Max height
-                return (
-                  <div key={index} className={styles.barWrapper}>
-                    <div 
-                      className={styles.line}
-                      style={{ height: `${height}%` }}
-                    />
-                    <div className={styles.barLabel}>{item.month}</div>
-                    <div className={styles.barValue}>
-                      ${(item.revenue / 1000).toFixed(0)}K
-                    </div>
-                  </div>
-                );
-              })}
+            <div className={styles.chartContainer}>
+              <Line data={lineChartData} options={chartOptions} />
             </div>
-            <p className={styles.chartNote}>
-              📊 In production, this would be an interactive Chart.js line chart
-            </p>
           </div>
         </div>
 
-        {/* Revenue by Region - Pie Chart */}
+        {/* Revenue by Region - Doughnut Chart */}
         <div className={styles.chartCard}>
           <div className={styles.chartHeader}>
             <FontAwesomeIcon icon={faChartPie} />
             <h4>Revenue by Region</h4>
           </div>
           <div className={styles.chartPlaceholder}>
-            <div className={styles.pieChart}>
-              {chartData.revenueByRegion.map((item, index) => {
-                const percentage = (item.revenue / 857151) * 100;
-                const colors = ['#10b981', '#06b6d4', '#f59e0b'];
-                return (
-                  <div key={index} className={styles.pieItem}>
-                    <div 
-                      className={styles.pieColor}
-                      style={{ backgroundColor: colors[index] }}
-                    />
-                    <div className={styles.pieLabel}>
-                      {item.region}: ${(item.revenue / 1000).toFixed(0)}K ({percentage.toFixed(1)}%)
-                    </div>
-                  </div>
-                );
-              })}
+            <div className={styles.chartContainerSmall}>
+              <Doughnut
+                data={doughnutChartData}
+                options={{
+                  ...chartOptions,
+                  cutout: "65%",
+                  plugins: {
+                    ...chartOptions.plugins,
+                    legend: {
+                      ...chartOptions.plugins.legend,
+                      position: "right",
+                    },
+                  },
+                }}
+              />
             </div>
-            <p className={styles.chartNote}>
-              📊 In production, this would be an interactive pie chart
-            </p>
           </div>
         </div>
 
@@ -80,26 +224,15 @@ const ChartDisplay = ({ analysisData }) => {
             <h4>Top Products by Volume</h4>
           </div>
           <div className={styles.chartPlaceholder}>
-            <div className={styles.barChart}>
-              {chartData.topProducts.map((item, index) => {
-                const width = (item.count / 456) * 100;
-                return (
-                  <div key={index} className={styles.barRow}>
-                    <div className={styles.barRowLabel}>{item.product}</div>
-                    <div className={styles.barRowBar}>
-                      <div 
-                        className={styles.barRowFill}
-                        style={{ width: `${width}%` }}
-                      />
-                      <span className={styles.barRowValue}>{item.count}</span>
-                    </div>
-                  </div>
-                );
-              })}
+            <div className={styles.chartContainer}>
+              <Bar
+                data={barChartData}
+                options={{
+                  ...chartOptions,
+                  indexAxis: "y",
+                }}
+              />
             </div>
-            <p className={styles.chartNote}>
-              📊 In production, this would be an interactive bar chart
-            </p>
           </div>
         </div>
       </>
@@ -109,35 +242,72 @@ const ChartDisplay = ({ analysisData }) => {
   const renderJSONCharts = () => {
     const { chartData } = analysisData;
 
+    if (!chartData) {
+      return <div className={styles.errorMessage}>No chart data available</div>;
+    }
+
+    // Doughnut Chart Data - Users by Status
+    const userStatusChartData = {
+      labels: chartData.usersByStatus?.map((item) => item.status) || [],
+      datasets: [
+        {
+          label: "Users",
+          data: chartData.usersByStatus?.map((item) => item.count) || [],
+          backgroundColor: [
+            "#10b981",
+            "#ef4444",
+            "#f59e0b",
+            "#06b6d4",
+            "#8b5cf6",
+          ],
+          borderColor: "#1f2937",
+          borderWidth: 2,
+          hoverOffset: 10,
+        },
+      ],
+    };
+
+    // Bar Chart Data - Spending Distribution
+    const spendingChartData = {
+      labels: chartData.spendingDistribution?.map((item) => item.range) || [],
+      datasets: [
+        {
+          label: "Users",
+          data: chartData.spendingDistribution?.map((item) => item.count) || [],
+          backgroundColor: "rgba(16, 185, 129, 0.8)",
+          borderColor: "#10b981",
+          borderWidth: 2,
+          borderRadius: 8,
+          hoverBackgroundColor: "#10b981",
+        },
+      ],
+    };
+
     return (
       <>
-        {/* Users by Status - Pie Chart */}
+        {/* Users by Status - Doughnut Chart */}
         <div className={styles.chartCard}>
           <div className={styles.chartHeader}>
             <FontAwesomeIcon icon={faChartPie} />
             <h4>Users by Status</h4>
           </div>
           <div className={styles.chartPlaceholder}>
-            <div className={styles.pieChart}>
-              {chartData.usersByStatus.map((item, index) => {
-                const percentage = (item.count / 342) * 100;
-                const colors = ['#10b981', '#ef4444', '#f59e0b'];
-                return (
-                  <div key={index} className={styles.pieItem}>
-                    <div 
-                      className={styles.pieColor}
-                      style={{ backgroundColor: colors[index] }}
-                    />
-                    <div className={styles.pieLabel}>
-                      {item.status}: {item.count} ({percentage.toFixed(1)}%)
-                    </div>
-                  </div>
-                );
-              })}
+            <div className={styles.chartContainerSmall}>
+              <Doughnut
+                data={userStatusChartData}
+                options={{
+                  ...chartOptions,
+                  cutout: "65%",
+                  plugins: {
+                    ...chartOptions.plugins,
+                    legend: {
+                      ...chartOptions.plugins.legend,
+                      position: "right",
+                    },
+                  },
+                }}
+              />
             </div>
-            <p className={styles.chartNote}>
-              📊 In production, this would be an interactive pie chart
-            </p>
           </div>
         </div>
 
@@ -148,39 +318,40 @@ const ChartDisplay = ({ analysisData }) => {
             <h4>Spending Distribution</h4>
           </div>
           <div className={styles.chartPlaceholder}>
-            <div className={styles.barChart}>
-              {chartData.spendingDistribution.map((item, index) => {
-                const width = (item.count / 134) * 100;
-                return (
-                  <div key={index} className={styles.barRow}>
-                    <div className={styles.barRowLabel}>{item.range}</div>
-                    <div className={styles.barRowBar}>
-                      <div 
-                        className={styles.barRowFill}
-                        style={{ width: `${width}%` }}
-                      />
-                      <span className={styles.barRowValue}>{item.count}</span>
-                    </div>
-                  </div>
-                );
-              })}
+            <div className={styles.chartContainer}>
+              <Bar data={spendingChartData} options={chartOptions} />
             </div>
-            <p className={styles.chartNote}>
-              📊 In production, this would be an interactive bar chart
-            </p>
           </div>
         </div>
       </>
     );
   };
 
+  const fileType = analysisData.fileType?.toLowerCase() || "";
+
   return (
     <div className={styles.container}>
-      {analysisData.fileType === 'csv' && renderCSVCharts()}
-      {analysisData.fileType === 'json' && renderJSONCharts()}
+      <div className={styles.containerHeader}>
+        <div className={styles.headerIcon}>
+          <FontAwesomeIcon icon={faChartLine} />
+        </div>
+        <div className={styles.headerContent}>
+          <h3 className={styles.containerTitle}>📊 Data Visualizations</h3>
+          <p className={styles.containerSubtitle}>
+            Interactive charts generated from your{" "}
+            {analysisData.fileType?.toUpperCase()} data
+          </p>
+        </div>
+      </div>
+      {fileType === "csv" && renderCSVCharts()}
+      {fileType === "json" && renderJSONCharts()}
+      {fileType !== "csv" && fileType !== "json" && (
+        <div className={styles.errorMessage}>
+          Unsupported file type: {analysisData.fileType}. Expected CSV or JSON.
+        </div>
+      )}
     </div>
   );
 };
 
 export default ChartDisplay;
-
