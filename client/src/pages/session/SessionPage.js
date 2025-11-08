@@ -16,7 +16,10 @@ import {
   faBook,
 } from "@fortawesome/free-solid-svg-icons";
 import { useSession } from "../../context/SessionContext";
-import { analyzeFile, getAIResponse as getSmartAIResponse } from "../../services/dummyDataService";
+import {
+  analyzeFile,
+  getAIResponse as getSmartAIResponse,
+} from "../../services/dummyDataService";
 import DataPreview from "../../components/DataPreview/DataPreview";
 import ChaptersView from "../../components/ChaptersView/ChaptersView";
 import ChartDisplay from "../../components/ChartDisplay/ChartDisplay";
@@ -26,42 +29,69 @@ const SessionPage = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { currentSessionId, getCurrentSession } = useSession();
-  
+
   const session = getCurrentSession();
-  const fileData = location.state || session?.files[0] || {
-    fileName: "sample-data.csv",
-    fileSize: 245000,
-    fileType: "text/csv",
-  };
+  const fileData = location.state ||
+    session?.files[0] || {
+      fileName: "sample-data.csv",
+      fileSize: 245000,
+      fileType: "text/csv",
+    };
 
   // Analyze file and get dummy data
   const analysisData = analyzeFile(fileData.fileName, fileData.fileType);
-  
+
   const [inputValue, setInputValue] = useState("");
   const [showDataPreview, setShowDataPreview] = useState(false);
   const [showChapters, setShowChapters] = useState(false);
   const [showCharts, setShowCharts] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
+  const [showDownloadMenu, setShowDownloadMenu] = useState(false);
   const [messages, setMessages] = useState([
     {
       type: "ai",
-      text: `I've analyzed your ${analysisData.fileType.toUpperCase()} file. Here's what I found:\n\n${analysisData.summary}\n\n${
-        analysisData.hasChapters 
+      text: `I've analyzed your ${analysisData.fileType.toUpperCase()} file. Here's what I found:\n\n${
+        analysisData.summary
+      }\n\n${
+        analysisData.hasChapters
           ? `📚 This document has ${analysisData.chapters.length} chapters across ${analysisData.pageCount} pages.`
-          : analysisData.fileType === 'csv'
-          ? `📊 Found ${analysisData.rowCount.toLocaleString()} rows and ${analysisData.columnCount} columns.`
+          : analysisData.fileType === "csv"
+          ? `📊 Found ${analysisData.rowCount.toLocaleString()} rows and ${
+              analysisData.columnCount
+            } columns.`
           : `💾 Found ${analysisData.objectCount} objects with nested data.`
-      }\n\nYou can ask me questions, ${analysisData.hasNumericData ? 'generate visualizations, ' : ''}or explore the data using the buttons above!`,
+      }\n\nYou can ask me questions, ${
+        analysisData.hasNumericData ? "generate visualizations, " : ""
+      }or explore the data using the buttons above!`,
       timestamp: new Date(),
     },
   ]);
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
+  const downloadMenuRef = useRef(null);
 
   // Scroll to bottom when messages change or typing indicator appears
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isTyping]);
+
+  // Close download menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (
+        downloadMenuRef.current &&
+        !downloadMenuRef.current.contains(event.target)
+      ) {
+        setShowDownloadMenu(false);
+      }
+    };
+
+    if (showDownloadMenu) {
+      document.addEventListener("mousedown", handleClickOutside);
+      return () =>
+        document.removeEventListener("mousedown", handleClickOutside);
+    }
+  }, [showDownloadMenu]);
 
   // Use smart AI responses from dummy data service
   const getAIResponse = (userMessage) => {
@@ -126,7 +156,10 @@ const SessionPage = () => {
       const streamInterval = setInterval(() => {
         if (currentIndex < fullResponse.length) {
           const chunkSize = Math.floor(Math.random() * 3) + 1; // 1-3 characters at a time
-          const chunk = fullResponse.slice(currentIndex, currentIndex + chunkSize);
+          const chunk = fullResponse.slice(
+            currentIndex,
+            currentIndex + chunkSize
+          );
           currentIndex += chunkSize;
 
           setMessages((prev) => {
@@ -158,7 +191,9 @@ const SessionPage = () => {
     if (!showCharts) {
       const graphicMessage = {
         type: "ai",
-        text: `📊 Generated ${analysisData.fileType === 'csv' ? '3' : '2'} interactive visualizations based on your data. Scroll down to view the charts!`,
+        text: `📊 Generated ${
+          analysisData.fileType === "csv" ? "3" : "2"
+        } interactive visualizations based on your data. Scroll down to view the charts!`,
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, graphicMessage]);
@@ -182,20 +217,38 @@ const SessionPage = () => {
     if (!showDataPreview) {
       const tableMessage = {
         type: "ai",
-        text: `📋 Showing ${analysisData.fileType === 'csv' ? 'table preview' : 'JSON objects'} with ${analysisData.fileType === 'csv' ? analysisData.previewData.length + ' sample rows' : analysisData.previewData.length + ' records'}. Scroll down to view the data!`,
+        text: `📋 Showing ${
+          analysisData.fileType === "csv" ? "table preview" : "JSON objects"
+        } with ${
+          analysisData.fileType === "csv"
+            ? analysisData.previewData.length + " sample rows"
+            : analysisData.previewData.length + " records"
+        }. Scroll down to view the data!`,
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, tableMessage]);
     }
   };
 
-  const handleDownload = () => {
+  const handleDownload = (format) => {
+    const formatInfo = {
+      pdf: "📄 PDF Report - Full analysis with visualizations and insights",
+      csv: "📊 CSV File - Raw data in spreadsheet format",
+      json: "💾 JSON File - Structured data export",
+    };
+
     const downloadMessage = {
       type: "ai",
-      text: `📥 Preparing download...\n\nAvailable formats:\n• PDF Report (Full Analysis with ${analysisData.hasChapters ? 'Chapters' : 'Data Summary'})\n• ${analysisData.fileType.toUpperCase()} Data (Original File)\n• Excel Workbook (${analysisData.hasNumericData ? 'With Charts' : 'Data Only'})\n\nDownload would start automatically in production!`,
+      text: `✅ Download started!\n\n${
+        formatInfo[format]
+      }\n\nFile: ${fileData.fileName.replace(
+        /\.[^/.]+$/,
+        ""
+      )}.${format}\n\n💡 In production, your ${format.toUpperCase()} file would download automatically.`,
       timestamp: new Date(),
     };
     setMessages((prev) => [...prev, downloadMessage]);
+    setShowDownloadMenu(false);
   };
 
   const handleQuickAction = (action) => {
@@ -205,7 +258,7 @@ const SessionPage = () => {
       trends: "What are the key trends?",
       customers: "Tell me about customer data",
     };
-    
+
     setInputValue(actions[action]);
     // Auto-send after a brief delay
     setTimeout(() => {
@@ -245,42 +298,80 @@ const SessionPage = () => {
       <div className={styles.actionBar}>
         {/* Show Generate Graphic only if numeric data exists */}
         {analysisData.hasNumericData && (
-          <button 
-            className={`${styles.actionButton} ${showCharts ? styles.active : ''}`} 
+          <button
+            className={`${styles.actionButton} ${
+              showCharts ? styles.active : ""
+            }`}
             onClick={handleGenerateGraphic}
           >
             <FontAwesomeIcon icon={faChartLine} />
-            <span>{showCharts ? 'Hide' : 'Generate'} Graphic</span>
+            <span>{showCharts ? "Hide" : "Generate"} Graphic</span>
           </button>
         )}
-        
+
         {/* Show Chapters only for PDFs with chapters */}
         {analysisData.hasChapters && (
-          <button 
-            className={`${styles.actionButton} ${showChapters ? styles.active : ''}`} 
+          <button
+            className={`${styles.actionButton} ${
+              showChapters ? styles.active : ""
+            }`}
             onClick={handleShowChapters}
           >
             <FontAwesomeIcon icon={faBook} />
-            <span>{showChapters ? 'Hide' : 'Show'} Chapters</span>
+            <span>{showChapters ? "Hide" : "Show"} Chapters</span>
           </button>
         )}
-        
+
         {/* Show View Table only for CSV/JSON */}
-        {(analysisData.fileType === 'csv' || analysisData.fileType === 'json') && (
-          <button 
-            className={`${styles.actionButton} ${showDataPreview ? styles.active : ''}`} 
+        {(analysisData.fileType === "csv" ||
+          analysisData.fileType === "json") && (
+          <button
+            className={`${styles.actionButton} ${
+              showDataPreview ? styles.active : ""
+            }`}
             onClick={handleViewTable}
           >
             <FontAwesomeIcon icon={faTable} />
-            <span>{showDataPreview ? 'Hide' : 'View'} Table</span>
+            <span>{showDataPreview ? "Hide" : "View"} Table</span>
           </button>
         )}
-        
+
         {/* Download always available */}
-        <button className={styles.actionButton} onClick={handleDownload}>
-          <FontAwesomeIcon icon={faDownload} />
-          <span>Download</span>
-        </button>
+        <div className={styles.downloadContainer} ref={downloadMenuRef}>
+          <button
+            className={styles.actionButton}
+            onClick={() => setShowDownloadMenu(!showDownloadMenu)}
+          >
+            <FontAwesomeIcon icon={faDownload} />
+            <span>Download</span>
+          </button>
+
+          {showDownloadMenu && (
+            <div className={styles.downloadMenu}>
+              <button
+                className={styles.downloadOption}
+                onClick={() => handleDownload("pdf")}
+              >
+                <FontAwesomeIcon icon={faFilePdf} />
+                <span>PDF Report</span>
+              </button>
+              <button
+                className={styles.downloadOption}
+                onClick={() => handleDownload("csv")}
+              >
+                <FontAwesomeIcon icon={faFileCsv} />
+                <span>CSV Data</span>
+              </button>
+              <button
+                className={styles.downloadOption}
+                onClick={() => handleDownload("json")}
+              >
+                <FontAwesomeIcon icon={faFileCode} />
+                <span>JSON Data</span>
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Quick Actions */}
@@ -363,20 +454,22 @@ const SessionPage = () => {
           )}
 
           <div ref={messagesEndRef} />
-          
+
           {/* Display Components - Shown when user clicks buttons */}
           {showChapters && analysisData.hasChapters && (
-            <ChaptersView 
+            <ChaptersView
               chapters={analysisData.chapters}
               highlights={analysisData.highlights}
               keywords={analysisData.keywords}
             />
           )}
-          
-          {showDataPreview && (analysisData.fileType === 'csv' || analysisData.fileType === 'json') && (
-            <DataPreview analysisData={analysisData} />
-          )}
-          
+
+          {showDataPreview &&
+            (analysisData.fileType === "csv" ||
+              analysisData.fileType === "json") && (
+              <DataPreview analysisData={analysisData} />
+            )}
+
           {showCharts && analysisData.hasNumericData && (
             <ChartDisplay analysisData={analysisData} />
           )}
@@ -411,4 +504,3 @@ const SessionPage = () => {
 };
 
 export default SessionPage;
-

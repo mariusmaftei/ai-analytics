@@ -74,7 +74,7 @@
   height: 50px;
   min-width: 50px;
   background: var(--primary-color);
-  color: var(--text-primary);
+  color: #ffffff;
   border-radius: var(--radius-md);
   font-size: 1.5rem;
   font-weight: 700;
@@ -220,4 +220,3 @@
     font-size: 0.8125rem;
   }
 }
-

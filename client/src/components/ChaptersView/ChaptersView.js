@@ -16,9 +16,9 @@ const ChaptersView = ({ chapters, highlights, keywords }) => {
 
         <div className={styles.chaptersList}>
           {chapters.map((chapter) => (
-            <div key={chapter.id} className={styles.chapterCard}>
+            <div key={chapter.number} className={styles.chapterCard}>
               <div className={styles.chapterNumber}>
-                {chapter.id}
+                {chapter.number}
               </div>
               <div className={styles.chapterContent}>
                 <h4 className={styles.chapterTitle}>{chapter.title}</h4>

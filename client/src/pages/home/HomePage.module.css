@@ -242,6 +242,13 @@
   border: 1px solid var(--border-color);
 }
 
+/* Error Message Styling */
+.aiMessage .messageText.errorMessage {
+  background: linear-gradient(135deg, #2d1a1a 0%, #1a1a2d 100%);
+  border: 1px solid #ff6b6b;
+  border-left: 4px solid #ff6b6b;
+}
+
 /* Typing Indicator */
 .typingIndicator {
   display: flex;

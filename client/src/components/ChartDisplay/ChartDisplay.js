@@ -1,9 +1,11 @@
-import React from "react";
+import React, { useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faChartLine,
   faChartBar,
   faChartPie,
+  faChevronDown,
+  faChevronUp,
 } from "@fortawesome/free-solid-svg-icons";
 import {
   Chart as ChartJS,
@@ -36,6 +38,7 @@ ChartJS.register(
 );
 
 const ChartDisplay = ({ analysisData }) => {
+  const [isExpanded, setIsExpanded] = useState(true);
   console.log("ChartDisplay rendered with:", analysisData);
 
   if (!analysisData) {
@@ -49,6 +52,10 @@ const ChartDisplay = ({ analysisData }) => {
       </div>
     );
   }
+
+  const toggleExpanded = () => {
+    setIsExpanded(!isExpanded);
+  };
 
   const chartOptions = {
     responsive: true,
@@ -328,26 +335,44 @@ const ChartDisplay = ({ analysisData }) => {
   };
 
   const fileType = analysisData.fileType?.toLowerCase() || "";
+  const chartCount = fileType === "csv" ? 3 : fileType === "json" ? 2 : 0;
 
   return (
     <div className={styles.container}>
-      <div className={styles.containerHeader}>
+      <div
+        className={styles.containerHeader}
+        onClick={toggleExpanded}
+        role="button"
+        tabIndex={0}
+        onKeyPress={(e) => e.key === "Enter" && toggleExpanded()}
+      >
         <div className={styles.headerIcon}>
           <FontAwesomeIcon icon={faChartLine} />
         </div>
         <div className={styles.headerContent}>
-          <h3 className={styles.containerTitle}>📊 Data Visualizations</h3>
+          <h3 className={styles.containerTitle}>
+            📊 Data Visualizations ({chartCount} Charts)
+          </h3>
           <p className={styles.containerSubtitle}>
-            Interactive charts generated from your{" "}
-            {analysisData.fileType?.toUpperCase()} data
+            {isExpanded ? "Click to collapse" : "Click to expand"} • Interactive
+            charts from your {analysisData.fileType?.toUpperCase()} data
           </p>
         </div>
+        <div className={styles.toggleIcon}>
+          <FontAwesomeIcon icon={isExpanded ? faChevronUp : faChevronDown} />
+        </div>
       </div>
-      {fileType === "csv" && renderCSVCharts()}
-      {fileType === "json" && renderJSONCharts()}
-      {fileType !== "csv" && fileType !== "json" && (
-        <div className={styles.errorMessage}>
-          Unsupported file type: {analysisData.fileType}. Expected CSV or JSON.
+
+      {isExpanded && (
+        <div className={styles.chartsContent}>
+          {fileType === "csv" && renderCSVCharts()}
+          {fileType === "json" && renderJSONCharts()}
+          {fileType !== "csv" && fileType !== "json" && (
+            <div className={styles.errorMessage}>
+              Unsupported file type: {analysisData.fileType}. Expected CSV or
+              JSON.
+            </div>
+          )}
         </div>
       )}
     </div>

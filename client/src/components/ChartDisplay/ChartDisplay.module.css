@@ -1,7 +1,7 @@
 .container {
   display: flex;
   flex-direction: column;
-  gap: 2rem;
+  gap: 0;
   margin: 2rem 0;
   padding: 2rem;
   background: var(--background-color);
@@ -9,7 +9,6 @@
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow-xl), 0 0 30px rgba(16, 185, 129, 0.5);
   animation: fadeInScale 0.5s ease-out;
-  min-height: 400px;
 }
 
 @keyframes fadeInScale {
@@ -29,9 +28,26 @@
   gap: 1.5rem;
   padding: 1.5rem;
   background: var(--gradient-ai);
-  border: 1px solid rgba(16, 185, 129, 0.3);
+  border: 2px solid rgba(16, 185, 129, 0.3);
   border-radius: var(--radius-lg);
-  margin-bottom: 1rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  user-select: none;
+}
+
+.containerHeader:hover {
+  border-color: var(--primary-color);
+  background: linear-gradient(
+    135deg,
+    rgba(16, 185, 129, 0.12) 0%,
+    rgba(16, 185, 129, 0.05) 100%
+  );
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
+}
+
+.containerHeader:active {
+  transform: translateY(0);
 }
 
 .headerIcon {
@@ -63,6 +79,38 @@
   margin: 0.5rem 0 0;
   font-size: 0.9375rem;
   color: var(--text-secondary);
+}
+
+.toggleIcon {
+  font-size: 1.5rem;
+  color: var(--primary-color);
+  margin-left: auto;
+  transition: transform 0.3s ease;
+}
+
+.containerHeader:hover .toggleIcon {
+  transform: scale(1.1);
+}
+
+.chartsContent {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  padding-top: 1rem;
+  animation: slideDown 0.4s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    max-height: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    max-height: 5000px;
+    transform: translateY(0);
+  }
 }
 
 .chartCard {
@@ -137,9 +185,11 @@
   }
 
   .containerHeader {
-    flex-direction: column;
-    align-items: flex-start;
     padding: 1.25rem;
+  }
+
+  .toggleIcon {
+    font-size: 1.25rem;
   }
 
   .headerIcon {
