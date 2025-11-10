@@ -83,6 +83,11 @@ function transformPDFResponse(backendData) {
     filename: backendData.filename,
     dbId: backendData.db_id || null,
     
+    // Tables data
+    tables: backendData.tables || [],
+    hasTables: backendData.has_tables || false,
+    tableCount: backendData.table_count || 0,
+    
     // Note: Chapters would require additional processing
     // For now, we'll simulate basic chapter detection
     hasChapters: false,
@@ -111,6 +116,10 @@ function generatePatterns(data) {
   
   if (data.metadata?.title && data.metadata.title !== 'Unknown') {
     patterns.push(`Title: ${data.metadata.title}`);
+  }
+  
+  if (data.has_tables && data.table_count) {
+    patterns.push(`Contains ${data.table_count} table(s) with structured data`);
   }
   
   return patterns;

@@ -6,7 +6,7 @@ from werkzeug.utils import secure_filename
 from datetime import datetime
 import os
 
-from services.pdf_service import extract_text_from_pdf, extract_pdf_metadata, analyze_pdf_with_ai
+from services.pdf_service import extract_text_from_pdf, extract_pdf_metadata, analyze_pdf_with_ai, extract_tables_from_pdf
 
 pdf_bp = Blueprint('pdf', __name__, url_prefix='/api/pdf')
 
@@ -64,6 +64,10 @@ def upload_pdf():
                 'message': f"Failed to extract PDF: {extraction_result['error']}"
             }), 500
         
+        # Extract tables from PDF
+        file.seek(0)  # Reset file stream position
+        tables_result = extract_tables_from_pdf(file)
+        
         # Prepare response data
         response_data = {
             'status': 'success',
@@ -73,7 +77,10 @@ def upload_pdf():
             'metadata': extraction_result['metadata'],
             'extracted_at': datetime.now().isoformat(),
             'character_count': len(extraction_result['text']),
-            'word_count': len(extraction_result['text'].split())
+            'word_count': len(extraction_result['text'].split()),
+            'tables': tables_result.get('tables', []) if tables_result.get('success') else [],
+            'has_tables': tables_result.get('has_tables', False) if tables_result.get('success') else False,
+            'table_count': tables_result.get('table_count', 0) if tables_result.get('success') else 0
         }
         
         # Optional: Get analysis type from request

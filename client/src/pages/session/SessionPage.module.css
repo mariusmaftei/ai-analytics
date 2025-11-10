@@ -246,6 +246,48 @@
   font-size: 0.875rem;
 }
 
+/* Chapters Section */
+.chaptersSection,
+.csvPreviewSection,
+.jsonPreviewSection,
+.insightGeneratorSection {
+  padding: 1.5rem 2rem;
+  background: var(--surface-color);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.chaptersSection,
+.csvPreviewSection,
+.jsonPreviewSection {
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.chaptersSection::-webkit-scrollbar,
+.csvPreviewSection::-webkit-scrollbar,
+.jsonPreviewSection::-webkit-scrollbar {
+  width: 6px;
+}
+
+.chaptersSection::-webkit-scrollbar-track,
+.csvPreviewSection::-webkit-scrollbar-track,
+.jsonPreviewSection::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.chaptersSection::-webkit-scrollbar-thumb,
+.csvPreviewSection::-webkit-scrollbar-thumb,
+.jsonPreviewSection::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 3px;
+}
+
+.chaptersSection::-webkit-scrollbar-thumb:hover,
+.csvPreviewSection::-webkit-scrollbar-thumb:hover,
+.jsonPreviewSection::-webkit-scrollbar-thumb:hover {
+  background: var(--surface-hover);
+}
+
 /* Chat Messages Area */
 .chatMessagesArea {
   flex: 1;

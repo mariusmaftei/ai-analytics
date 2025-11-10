@@ -337,10 +337,14 @@
 
   .toggleButton {
     left: 1rem;
+    top: calc(1rem - 4px);
+    transform: translateY(0);
   }
 
   .toggleButton.open {
     left: 1rem;
+    top: calc(1rem - 4px);
+    transform: translateY(0);
   }
 
   .overlay {
@@ -352,6 +356,17 @@
     height: 100%;
     background: rgba(0, 0, 0, 0.5);
     z-index: 999;
+  }
+}
+
+/* Extra Small Mobile - Adjust toggle button for smaller logo */
+@media (max-width: 480px) {
+  .toggleButton {
+    top: calc(1rem - 2px);
+  }
+
+  .toggleButton.open {
+    top: calc(1rem - 2px);
   }
 }
 

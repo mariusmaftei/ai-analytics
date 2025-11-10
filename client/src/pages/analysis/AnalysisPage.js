@@ -16,6 +16,8 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import { useSession } from "../../context/SessionContext";
 import { analyzePDFFile } from "../../services/pdfAnalysisService";
+import { analyzeJSONFile } from "../../services/jsonAnalysisService";
+import { analyzeCSVFile } from "../../services/csvAnalysisService";
 import styles from "./AnalysisPage.module.css";
 
 const AnalysisPage = () => {
@@ -40,15 +42,26 @@ const AnalysisPage = () => {
       let progressInterval;
       let analysisComplete = false;
 
-      // Start the actual PDF analysis
+      // Start the actual analysis based on file type
       const performAnalysis = async () => {
         try {
-          // Call real backend API
-          const results = await analyzePDFFile(fileData.file, {
-            includeAI: true,
-            analysisType: 'summary',
-            saveToDb: false,
-          });
+          let results;
+          
+          // Check file type and call appropriate analysis function
+          if (fileData.fileType === 'application/json' || fileData.fileName.endsWith('.json')) {
+            // Analyze JSON file
+            results = await analyzeJSONFile(fileData.file);
+          } else if (fileData.fileType === 'text/csv' || fileData.fileName.endsWith('.csv')) {
+            // Analyze CSV file
+            results = await analyzeCSVFile(fileData.file);
+          } else {
+            // Analyze PDF file (default)
+            results = await analyzePDFFile(fileData.file, {
+              includeAI: true,
+              analysisType: 'summary',
+              saveToDb: false,
+            });
+          }
           
           analysisComplete = true;
           setAnalysisResults(results);
@@ -62,10 +75,17 @@ const AnalysisPage = () => {
           setIsAnalyzing(false);
           
           // Show error state
+          let fileType = 'PDF';
+          if (fileData.fileType === 'application/json' || fileData.fileName.endsWith('.json')) {
+            fileType = 'JSON';
+          } else if (fileData.fileType === 'text/csv' || fileData.fileName.endsWith('.csv')) {
+            fileType = 'CSV';
+          }
+          
           setAnalysisResults({
-            fileType: 'PDF',
+            fileType: fileType,
             error: true,
-            message: error.message || 'Failed to analyze PDF. Please try again.',
+            message: error.message || `Failed to analyze ${fileType}. Please try again.`,
           });
         }
       };
@@ -188,13 +208,47 @@ const AnalysisPage = () => {
                     </>
                   )}
                   
-                  {(analysisResults.fileType === "CSV" || analysisResults.fileType === "JSON") && (
+                  {analysisResults.fileType === "JSON" && (
                     <>
                       <div className={styles.statCard}>
                         <FontAwesomeIcon icon={faDatabase} className={styles.statIcon} />
                         <div className={styles.statContent}>
                           <div className={styles.statValue}>
-                            {analysisResults.data?.length || 0}
+                            {analysisResults.metadata?.totalRecords?.toLocaleString() || analysisResults.data?.length || 0}
+                          </div>
+                          <div className={styles.statLabel}>
+                            {analysisResults.metadata?.structureType === 'array' ? 'Records' : 'Object'}
+                          </div>
+                        </div>
+                      </div>
+                      <div className={styles.statCard}>
+                        <FontAwesomeIcon icon={faChartLine} className={styles.statIcon} />
+                        <div className={styles.statContent}>
+                          <div className={styles.statValue}>
+                            {analysisResults.metadata?.totalKeys || analysisResults.columns?.length || 0}
+                          </div>
+                          <div className={styles.statLabel}>Fields/Keys</div>
+                        </div>
+                      </div>
+                      <div className={styles.statCard}>
+                        <FontAwesomeIcon icon={faFileLines} className={styles.statIcon} />
+                        <div className={styles.statContent}>
+                          <div className={styles.statValue}>
+                            {analysisResults.metadata?.nestingLevel || 0}
+                          </div>
+                          <div className={styles.statLabel}>Nesting Levels</div>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                  
+                  {analysisResults.fileType === "CSV" && (
+                    <>
+                      <div className={styles.statCard}>
+                        <FontAwesomeIcon icon={faDatabase} className={styles.statIcon} />
+                        <div className={styles.statContent}>
+                          <div className={styles.statValue}>
+                            {analysisResults.metadata?.totalRows?.toLocaleString() || analysisResults.data?.length || 0}
                           </div>
                           <div className={styles.statLabel}>Total Rows</div>
                         </div>
@@ -203,7 +257,7 @@ const AnalysisPage = () => {
                         <FontAwesomeIcon icon={faChartLine} className={styles.statIcon} />
                         <div className={styles.statContent}>
                           <div className={styles.statValue}>
-                            {analysisResults.columns?.length || 0}
+                            {analysisResults.metadata?.totalColumns || analysisResults.columns?.length || 0}
                           </div>
                           <div className={styles.statLabel}>Columns</div>
                         </div>
@@ -212,9 +266,9 @@ const AnalysisPage = () => {
                         <FontAwesomeIcon icon={faFileLines} className={styles.statIcon} />
                         <div className={styles.statContent}>
                           <div className={styles.statValue}>
-                            {analysisResults.insights?.patterns?.length || 0}
+                            {analysisResults.metadata?.hasHeaders ? 'Yes' : 'No'}
                           </div>
-                          <div className={styles.statLabel}>Patterns Found</div>
+                          <div className={styles.statLabel}>Has Headers</div>
                         </div>
                       </div>
                     </>
@@ -282,20 +336,45 @@ const AnalysisPage = () => {
                   </div>
                 )}
 
-                {(analysisResults.fileType === "CSV" || analysisResults.fileType === "JSON") && analysisResults.data && (
+                {analysisResults.fileType === "JSON" && analysisResults.data && (
+                  <div className={styles.previewSection}>
+                    <h3 className={styles.sectionTitle}>Data Structure Preview</h3>
+                    <div className={styles.dataPreview}>
+                      <div className={styles.columnsList}>
+                        {analysisResults.columns?.slice(0, 8).map((col, idx) => (
+                          <span key={idx} className={styles.columnBadge}>{col}</span>
+                        ))}
+                        {analysisResults.columns?.length > 8 && (
+                          <span className={styles.columnBadge}>+{analysisResults.columns.length - 8} more fields</span>
+                        )}
+                      </div>
+                      <div className={styles.rowsInfo}>
+                        {analysisResults.metadata?.structureType === 'array' 
+                          ? `${analysisResults.data.length} of ${analysisResults.metadata?.totalRecords?.toLocaleString() || analysisResults.data.length} records previewed`
+                          : 'Single object structure with nested data'}
+                        {analysisResults.metadata?.nestingLevel > 1 && ` • ${analysisResults.metadata.nestingLevel} levels of nesting`}
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
+                {analysisResults.fileType === "CSV" && analysisResults.data && (
                   <div className={styles.previewSection}>
                     <h3 className={styles.sectionTitle}>Data Preview</h3>
                     <div className={styles.dataPreview}>
                       <div className={styles.columnsList}>
-                        {analysisResults.columns?.slice(0, 5).map((col, idx) => (
-                          <span key={idx} className={styles.columnBadge}>{col}</span>
+                        {analysisResults.columns?.slice(0, 8).map((col, idx) => (
+                          <span key={idx} className={styles.columnBadge}>
+                            {col || `Column ${idx + 1}`}
+                          </span>
                         ))}
-                        {analysisResults.columns?.length > 5 && (
-                          <span className={styles.columnBadge}>+{analysisResults.columns.length - 5} more</span>
+                        {analysisResults.columns?.length > 8 && (
+                          <span className={styles.columnBadge}>+{analysisResults.columns.length - 8} more columns</span>
                         )}
                       </div>
                       <div className={styles.rowsInfo}>
-                        First {Math.min(10, analysisResults.data.length)} of {analysisResults.data.length} rows ready to explore
+                        {analysisResults.data.length} of {analysisResults.metadata?.totalRows?.toLocaleString() || analysisResults.data.length} rows previewed
+                        {analysisResults.metadata?.hasHeaders && ' • Headers detected'}
                       </div>
                     </div>
                   </div>
