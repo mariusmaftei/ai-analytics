@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useMemo } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
@@ -67,6 +67,50 @@ const SessionPage = () => {
   ]);
   const messagesEndRef = useRef(null);
   const downloadMenuRef = useRef(null);
+
+  // Transform CSV data to table format for CSVPreview component
+  const csvPreviewTables = useMemo(() => {
+    if (analysisData.fileType === "PDF" && analysisData.tables && analysisData.tables.length > 0) {
+      return analysisData.tables;
+    }
+    
+    if (analysisData.fileType === "CSV" && analysisData.data && analysisData.data.length > 0) {
+      const columns = analysisData.columns || Object.keys(analysisData.data[0] || {});
+      const tableData = [
+        columns,
+        ...analysisData.data.map(row => columns.map(col => row[col] || ''))
+      ];
+      
+      return [{
+        data: tableData,
+        rows: analysisData.data.length,
+        columns: columns.length,
+        page: 'N/A'
+      }];
+    }
+    
+    return null;
+  }, [analysisData]);
+
+  // Prepare JSON preview data - show actual data for CSV, metadata for others
+  const jsonPreviewData = useMemo(() => {
+    if (analysisData.fileType === "CSV" && analysisData.data) {
+      return analysisData.data;
+    }
+    
+    return {
+      fileInfo: {
+        fileName: fileData.fileName,
+        fileSize: fileData.fileSize,
+        fileType: fileData.fileType,
+      },
+      metadata: analysisData.metadata || {},
+      insights: analysisData.insights || {},
+      tables: analysisData.tables || [],
+      chapters: extractedChapters || [],
+      text: analysisData.text ? analysisData.text.substring(0, 1000) + '...' : '',
+    };
+  }, [analysisData, fileData, extractedChapters]);
 
   // Scroll to bottom when messages change or typing indicator appears
   useEffect(() => {
@@ -590,8 +634,9 @@ Now extract and list all chapters and sections:`;
           </button>
         )}
 
-        {/* CSV Preview for PDFs with tables */}
-        {analysisData.fileType === "PDF" && analysisData.hasTables && analysisData.tables && analysisData.tables.length > 0 && (
+        {/* CSV Preview for PDFs with tables and CSV files */}
+        {((analysisData.fileType === "PDF" && analysisData.hasTables && analysisData.tables && analysisData.tables.length > 0) ||
+          (analysisData.fileType === "CSV" && analysisData.data && analysisData.data.length > 0)) && (
           <button
             className={`${styles.actionButton} ${
               showCSVPreview ? styles.active : ""
@@ -664,10 +709,10 @@ Now extract and list all chapters and sections:`;
         </div>
       )}
 
-      {/* CSV Preview - Show when tables are available and button is active */}
-      {showCSVPreview && analysisData.tables && analysisData.tables.length > 0 && (
+      {/* CSV Preview - Show when tables are available (PDF) or data is available (CSV) and button is active */}
+      {showCSVPreview && csvPreviewTables && (
         <div className={styles.csvPreviewSection}>
-          <CSVPreview tables={analysisData.tables} />
+          <CSVPreview tables={csvPreviewTables} />
         </div>
       )}
 
@@ -675,18 +720,7 @@ Now extract and list all chapters and sections:`;
       {showJSONPreview && (
         <div className={styles.jsonPreviewSection}>
           <JSONPreview 
-            data={{
-              fileInfo: {
-                fileName: fileData.fileName,
-                fileSize: fileData.fileSize,
-                fileType: fileData.fileType,
-              },
-              metadata: analysisData.metadata || {},
-              insights: analysisData.insights || {},
-              tables: analysisData.tables || [],
-              chapters: extractedChapters || [],
-              text: analysisData.text ? analysisData.text.substring(0, 1000) + '...' : '',
-            }} 
+            data={jsonPreviewData}
           />
         </div>
       )}

@@ -11,9 +11,11 @@ import {
   faCheckCircle,
   faPaperclip,
   faChartLine,
+  faExclamationTriangle,
 } from "@fortawesome/free-solid-svg-icons";
 import { useSession } from "../../context/SessionContext";
 import { generateAIResponseStream } from "../../services/aiService";
+import Modal from "../../components/UI/Modal/Modal";
 import styles from "./HomePage.module.css";
 
 const HomePage = () => {
@@ -22,11 +24,16 @@ const HomePage = () => {
   const [chatStarted, setChatStarted] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
   const [isFirstMessage, setIsFirstMessage] = useState(true);
-  const fileInputRef = useRef(null);
+  const [showErrorModal, setShowErrorModal] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [expectedFileType, setExpectedFileType] = useState("");
+  const pdfInputRef = useRef(null);
+  const csvInputRef = useRef(null);
+  const jsonInputRef = useRef(null);
   const messagesEndRef = useRef(null);
   const navigate = useNavigate();
   const { currentSessionId, createNewSession, addFileToSession } = useSession();
-  
+
   // Smooth streaming refs
   const streamingBufferRef = useRef("");
   const displayedTextRef = useRef("");
@@ -44,55 +51,66 @@ const HomePage = () => {
     const timeSinceLastUpdate = now - lastUpdateTimeRef.current;
     const targetBuffer = streamingBufferRef.current;
     const currentDisplayed = displayedTextRef.current;
-    
+
     // Update every 50ms for natural typing speed (~20-25 chars per second)
     if (timeSinceLastUpdate >= 50) {
       const remaining = targetBuffer.length - currentDisplayed.length;
-      
+
       if (remaining > 0) {
         // Calculate base characters to reveal
         const baseChars = Math.max(1, Math.floor(timeSinceLastUpdate / 40));
-        
+
         // Try to reveal up to the end of the next word for smoother appearance
         let charsToReveal = Math.min(baseChars, remaining);
         const nextCharIndex = currentDisplayed.length + charsToReveal;
-        
+
         // If we're in the middle of a word and there's more text, try to complete the word
         if (nextCharIndex < targetBuffer.length) {
           const nextChar = targetBuffer[nextCharIndex];
           const isWordChar = /[a-zA-Z0-9]/.test(nextChar);
           const currentChar = targetBuffer[nextCharIndex - 1];
           const isCurrentWordChar = /[a-zA-Z0-9]/.test(currentChar);
-          
+
           // If we're in a word, try to complete it (up to reasonable limit)
           if (isCurrentWordChar && isWordChar && charsToReveal < 15) {
-            const nextSpace = targetBuffer.indexOf(' ', nextCharIndex);
-            const nextNewline = targetBuffer.indexOf('\n', nextCharIndex);
-            const nextBreak = nextSpace === -1 ? nextNewline : 
-                            (nextNewline === -1 ? nextSpace : Math.min(nextSpace, nextNewline));
-            
+            const nextSpace = targetBuffer.indexOf(" ", nextCharIndex);
+            const nextNewline = targetBuffer.indexOf("\n", nextCharIndex);
+            const nextBreak =
+              nextSpace === -1
+                ? nextNewline
+                : nextNewline === -1
+                ? nextSpace
+                : Math.min(nextSpace, nextNewline);
+
             if (nextBreak !== -1 && nextBreak - currentDisplayed.length <= 20) {
               charsToReveal = nextBreak - currentDisplayed.length + 1;
             }
           }
         }
-        
+
         charsToReveal = Math.min(charsToReveal, remaining);
-        displayedTextRef.current = targetBuffer.substring(0, currentDisplayed.length + charsToReveal);
-        
+        displayedTextRef.current = targetBuffer.substring(
+          0,
+          currentDisplayed.length + charsToReveal
+        );
+
         setMessages((prev) => {
           const newMessages = [...prev];
           const lastMessage = newMessages[newMessages.length - 1];
-          if (lastMessage && lastMessage.type === "ai" && lastMessage.isStreaming) {
+          if (
+            lastMessage &&
+            lastMessage.type === "ai" &&
+            lastMessage.isStreaming
+          ) {
             lastMessage.text = displayedTextRef.current;
           }
           return newMessages;
         });
-        
+
         lastUpdateTimeRef.current = now;
       }
     }
-    
+
     // Continue updating if there's more to reveal or more chunks coming
     if (isStreamingActiveRef.current) {
       animationFrameRef.current = requestAnimationFrame(updateStreamingMessage);
@@ -119,10 +137,64 @@ const HomePage = () => {
     setInputValue(e.target.value);
   };
 
-  const handleFileSelect = (e) => {
+  // Validate file type
+  const validateFileType = (file, expectedType) => {
+    const fileName = file.name.toLowerCase();
+    const fileExtension = fileName.substring(fileName.lastIndexOf(".") + 1);
+
+    const validExtensions = {
+      pdf: ["pdf"],
+      csv: ["csv"],
+      json: ["json"],
+    };
+
+    const validMimeTypes = {
+      pdf: ["application/pdf"],
+      csv: ["text/csv", "application/vnd.ms-excel", "text/plain"],
+      json: ["application/json", "text/json"],
+    };
+
+    const extensions = validExtensions[expectedType] || [];
+    const mimeTypes = validMimeTypes[expectedType] || [];
+
+    // Check extension
+    const hasValidExtension = extensions.includes(fileExtension);
+
+    // Check MIME type (if available)
+    const hasValidMimeType =
+      file.type &&
+      mimeTypes.some((mime) =>
+        file.type.toLowerCase().includes(mime.toLowerCase())
+      );
+
+    // For CSV, also check if it's a text file with .csv extension
+    const isCSVTextFile =
+      expectedType === "csv" &&
+      (file.type === "text/plain" || !file.type) &&
+      fileExtension === "csv";
+
+    return hasValidExtension || hasValidMimeType || isCSVTextFile;
+  };
+
+  const handleFileSelect = (e, expectedType) => {
     const file = e.target.files[0];
     if (file) {
-      handleFileUpload(file);
+      if (validateFileType(file, expectedType)) {
+        handleFileUpload(file);
+      } else {
+        const typeNames = {
+          pdf: "PDF",
+          csv: "CSV",
+          json: "JSON",
+        };
+        setExpectedFileType(typeNames[expectedType]);
+        setErrorMessage(
+          `Please upload a ${typeNames[expectedType]} file. You selected "${file.name}" which is not a valid ${typeNames[expectedType]} file.`
+        );
+        setShowErrorModal(true);
+        // Reset the input
+        e.target.value = "";
+      }
     }
   };
 
@@ -155,7 +227,24 @@ const HomePage = () => {
     e.preventDefault();
     const file = e.dataTransfer.files[0];
     if (file) {
-      handleFileUpload(file);
+      // Try to detect file type from extension
+      const fileName = file.name.toLowerCase();
+      const fileExtension = fileName.substring(fileName.lastIndexOf(".") + 1);
+
+      let expectedType = null;
+      if (fileExtension === "pdf") expectedType = "pdf";
+      else if (fileExtension === "csv") expectedType = "csv";
+      else if (fileExtension === "json") expectedType = "json";
+
+      if (expectedType && validateFileType(file, expectedType)) {
+        handleFileUpload(file);
+      } else {
+        setExpectedFileType("PDF, CSV, or JSON");
+        setErrorMessage(
+          `Please upload a PDF, CSV, or JSON file. You dropped "${file.name}" which is not a supported file type.`
+        );
+        setShowErrorModal(true);
+      }
     }
   };
 
@@ -218,10 +307,10 @@ const HomePage = () => {
       displayedTextRef.current = "";
       lastUpdateTimeRef.current = Date.now();
       isStreamingActiveRef.current = true;
-      
+
       // Start the smooth streaming animation loop
       animationFrameRef.current = requestAnimationFrame(updateStreamingMessage);
-      
+
       // Send only the user message to backend
       // Backend will build the full prompt with system context
       const response = await generateAIResponseStream(
@@ -237,7 +326,7 @@ const HomePage = () => {
           is_greeting: isFirstMessage,
         }
       );
-      
+
       // After first message, set to false
       if (isFirstMessage) {
         setIsFirstMessage(false);
@@ -250,10 +339,10 @@ const HomePage = () => {
 
       // Stop streaming animation
       isStreamingActiveRef.current = false;
-      
+
       // Wait a bit for any remaining characters to be revealed smoothly
       await new Promise((resolve) => setTimeout(resolve, 100));
-      
+
       // Cancel animation frame
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
@@ -263,7 +352,7 @@ const HomePage = () => {
       // Final update - ensure all text is displayed and mark streaming as complete
       const finalText = streamingBufferRef.current || response;
       displayedTextRef.current = finalText;
-      
+
       setMessages((prev) => {
         const newMessages = [...prev];
         const lastMessage = newMessages[newMessages.length - 1];
@@ -273,7 +362,7 @@ const HomePage = () => {
         }
         return newMessages;
       });
-      
+
       // Clear buffers
       streamingBufferRef.current = "";
       displayedTextRef.current = "";
@@ -397,30 +486,44 @@ const HomePage = () => {
               {/* File Upload Icons */}
               <div className={styles.bottomUploadOptions}>
                 <input
-                  ref={fileInputRef}
+                  ref={pdfInputRef}
                   type="file"
-                  onChange={handleFileSelect}
+                  onChange={(e) => handleFileSelect(e, "pdf")}
                   className={styles.fileInput}
-                  accept=".pdf,.csv,.json"
+                  accept=".pdf,application/pdf"
+                />
+                <input
+                  ref={csvInputRef}
+                  type="file"
+                  onChange={(e) => handleFileSelect(e, "csv")}
+                  className={styles.fileInput}
+                  accept=".csv,text/csv,application/vnd.ms-excel"
+                />
+                <input
+                  ref={jsonInputRef}
+                  type="file"
+                  onChange={(e) => handleFileSelect(e, "json")}
+                  className={styles.fileInput}
+                  accept=".json,application/json"
                 />
                 <button
                   className={styles.bottomUploadIcon}
-                  onClick={() => fileInputRef.current?.click()}
-                  title="Upload PDF"
+                  onClick={() => pdfInputRef.current?.click()}
+                  title="Upload PDF - Document analysis"
                 >
                   <FontAwesomeIcon icon={faFilePdf} />
                 </button>
                 <button
                   className={styles.bottomUploadIcon}
-                  onClick={() => fileInputRef.current?.click()}
-                  title="Upload CSV"
+                  onClick={() => csvInputRef.current?.click()}
+                  title="Upload CSV - Spreadsheet data"
                 >
                   <FontAwesomeIcon icon={faFileCsv} />
                 </button>
                 <button
                   className={styles.bottomUploadIcon}
-                  onClick={() => fileInputRef.current?.click()}
-                  title="Upload JSON"
+                  onClick={() => jsonInputRef.current?.click()}
+                  title="Upload JSON - Structured data"
                 >
                   <FontAwesomeIcon icon={faFileCode} />
                 </button>
@@ -481,35 +584,54 @@ const HomePage = () => {
             {/* File Upload Icons */}
             <div className={styles.uploadOptions}>
               <input
-                ref={fileInputRef}
+                ref={pdfInputRef}
                 type="file"
-                onChange={handleFileSelect}
+                onChange={(e) => handleFileSelect(e, "pdf")}
                 className={styles.fileInput}
-                accept=".pdf,.csv,.json"
+                accept=".pdf,application/pdf"
+              />
+              <input
+                ref={csvInputRef}
+                type="file"
+                onChange={(e) => handleFileSelect(e, "csv")}
+                className={styles.fileInput}
+                accept=".csv,text/csv,application/vnd.ms-excel"
+              />
+              <input
+                ref={jsonInputRef}
+                type="file"
+                onChange={(e) => handleFileSelect(e, "json")}
+                className={styles.fileInput}
+                accept=".json,application/json"
               />
               <button
                 className={styles.uploadIcon}
-                onClick={() => fileInputRef.current?.click()}
-                title="Upload PDF"
+                onClick={() => pdfInputRef.current?.click()}
+                title="Upload PDF - Document analysis and text extraction"
               >
                 <FontAwesomeIcon icon={faFilePdf} className={styles.iconSvg} />
                 <span className={styles.iconLabel}>PDF</span>
+                <span className={styles.iconDescription}>
+                  Document analysis
+                </span>
               </button>
               <button
                 className={styles.uploadIcon}
-                onClick={() => fileInputRef.current?.click()}
-                title="Upload CSV"
+                onClick={() => csvInputRef.current?.click()}
+                title="Upload CSV - Spreadsheet data analysis"
               >
                 <FontAwesomeIcon icon={faFileCsv} className={styles.iconSvg} />
                 <span className={styles.iconLabel}>CSV</span>
+                <span className={styles.iconDescription}>Spreadsheet data</span>
               </button>
               <button
                 className={styles.uploadIcon}
-                onClick={() => fileInputRef.current?.click()}
-                title="Upload JSON"
+                onClick={() => jsonInputRef.current?.click()}
+                title="Upload JSON - Structured data analysis"
               >
                 <FontAwesomeIcon icon={faFileCode} className={styles.iconSvg} />
                 <span className={styles.iconLabel}>JSON</span>
+                <span className={styles.iconDescription}>Structured data</span>
               </button>
             </div>
           </div>
@@ -543,6 +665,19 @@ const HomePage = () => {
           </div>
         </div>
       )}
+
+      {/* Error Modal */}
+      <Modal
+        isOpen={showErrorModal}
+        onClose={() => setShowErrorModal(false)}
+        onConfirm={() => setShowErrorModal(false)}
+        title="Invalid File Type"
+        message={errorMessage}
+        type="warning"
+        icon={faExclamationTriangle}
+        confirmText="OK"
+        cancelText={null}
+      />
     </div>
   );
 };

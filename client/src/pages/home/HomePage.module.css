@@ -474,6 +474,17 @@
   color: var(--primary-color);
 }
 
+.iconDescription {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-weight: 400;
+  margin-top: 0.25rem;
+}
+
+.uploadIcon:hover .iconDescription {
+  color: var(--text-secondary);
+}
+
 /* Suggestions Box */
 .suggestionsBox {
   margin-top: 2rem;

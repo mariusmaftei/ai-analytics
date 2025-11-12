@@ -141,6 +141,14 @@
   justify-content: center;
 }
 
+.actions:has(button:only-child) {
+  justify-content: center;
+}
+
+.actions:has(button:only-child) .confirmButton {
+  max-width: 200px;
+}
+
 .cancelButton,
 .confirmButton {
   flex: 1;

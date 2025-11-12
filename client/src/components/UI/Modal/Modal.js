@@ -48,9 +48,11 @@ const Modal = ({
 
         {/* Actions */}
         <div className={styles.actions}>
-          <button className={styles.cancelButton} onClick={onClose}>
-            {cancelText}
-          </button>
+          {cancelText && (
+            <button className={styles.cancelButton} onClick={onClose}>
+              {cancelText}
+            </button>
+          )}
           <button
             className={`${styles.confirmButton} ${styles[type]}`}
             onClick={handleConfirm}

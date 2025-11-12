@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 import os
 from config import init_db, close_db, get_db, generate_text, generate_text_stream, analyze_content
 from routes import pdf_bp
+from services.insight_service import build_csv_insight_prompt, build_document_insight_prompt
 
 # Load environment variables
 load_dotenv()
@@ -258,6 +259,100 @@ def ai_test():
             'status': 'error',
             'message': str(e)
         }, 500
+
+@app.route('/api/ai/generate-insights-stream', methods=['POST'])
+def ai_generate_insights_stream():
+    """Generate insights with streaming - prompts built server-side for security"""
+    try:
+        data = request.json
+        if not data:
+            return jsonify({
+                'status': 'error',
+                'message': 'Request body is required'
+            }), 400
+        
+        file_type = data.get('fileType', '').upper()
+        print(f"[INSIGHT] Generating insights for file type: {file_type}")
+        
+        if file_type == 'CSV':
+            # CSV insight generation
+            csv_data = data.get('data', [])
+            columns = data.get('columns', [])
+            metadata = data.get('metadata', {})
+            
+            print(f"[INSIGHT] CSV data: {len(csv_data) if csv_data else 0} rows, {len(columns) if columns else 0} columns")
+            
+            if not csv_data or not columns:
+                return jsonify({
+                    'status': 'error',
+                    'message': 'CSV data and columns are required'
+                }), 400
+            
+            # Build prompt server-side
+            try:
+                prompt = build_csv_insight_prompt(csv_data, columns, metadata)
+                print(f"[INSIGHT] Prompt built successfully, length: {len(prompt)}")
+            except Exception as e:
+                print(f"[INSIGHT] Error building CSV prompt: {str(e)}")
+                return jsonify({
+                    'status': 'error',
+                    'message': f'Error building prompt: {str(e)}'
+                }), 500
+        else:
+            # Document insight generation
+            document_text = data.get('text', '')
+            metadata = data.get('metadata', {})
+            tables = data.get('tables', [])
+            
+            print(f"[INSIGHT] Document text length: {len(document_text) if document_text else 0}, tables: {len(tables) if tables else 0}")
+            
+            if not document_text:
+                return jsonify({
+                    'status': 'error',
+                    'message': 'Document text is required for non-CSV files'
+                }), 400
+            
+            # Build prompt server-side
+            try:
+                prompt = build_document_insight_prompt(document_text, metadata, tables)
+                print(f"[INSIGHT] Prompt built successfully, length: {len(prompt)}")
+            except Exception as e:
+                print(f"[INSIGHT] Error building document prompt: {str(e)}")
+                return jsonify({
+                    'status': 'error',
+                    'message': f'Error building prompt: {str(e)}'
+                }), 500
+        
+        # Optional parameters
+        temperature = data.get('temperature', 0.7)
+        max_tokens = data.get('max_tokens', 2048)
+        
+        print(f"[INSIGHT] Starting generation with temperature={temperature}, max_tokens={max_tokens}")
+        
+        def generate():
+            try:
+                chunk_count = 0
+                for chunk in generate_text_stream(prompt, temperature=temperature, max_output_tokens=max_tokens):
+                    if chunk:
+                        chunk_count += 1
+                        yield f"data: {chunk}\n\n"
+                print(f"[INSIGHT] Generation complete. Sent {chunk_count} chunks")
+            except Exception as e:
+                error_msg = f"[ERROR] {str(e)}"
+                print(f"[INSIGHT] Generation error: {error_msg}")
+                yield f"data: {error_msg}\n\n"
+        
+        return Response(generate(), mimetype='text/event-stream')
+        
+    except Exception as e:
+        import traceback
+        error_trace = traceback.format_exc()
+        print(f"[INSIGHT] Endpoint error: {str(e)}")
+        print(f"[INSIGHT] Traceback: {error_trace}")
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
 
 # Cleanup database connection on shutdown
 @app.teardown_appcontext

@@ -181,8 +181,32 @@ export const generateCSVExport = (
 ) => {
   let csvContent = "";
 
-  // If tables exist, export them as the primary CSV data
-  if (analysisData.tables && analysisData.tables.length > 0) {
+  // For CSV files, export the actual CSV data (rows and columns)
+  if (analysisData.fileType === "CSV" && analysisData.data && analysisData.data.length > 0) {
+    const columns = analysisData.columns || Object.keys(analysisData.data[0] || {});
+    
+    // Write header row
+    const headerRow = columns
+      .map((col) => {
+        const cellValue = String(col || "").replace(/"/g, '""');
+        return `"${cellValue}"`;
+      })
+      .join(",");
+    csvContent += headerRow + "\n";
+    
+    // Write data rows
+    analysisData.data.forEach((row) => {
+      const csvRow = columns
+        .map((col) => {
+          const cellValue = String(row[col] || "").replace(/"/g, '""');
+          return `"${cellValue}"`;
+        })
+        .join(",");
+      csvContent += csvRow + "\n";
+    });
+  }
+  // If tables exist (for PDFs), export them as the primary CSV data
+  else if (analysisData.tables && analysisData.tables.length > 0) {
     analysisData.tables.forEach((table, tableIndex) => {
       if (tableIndex > 0) {
         csvContent += "\n\n";
@@ -205,7 +229,7 @@ export const generateCSVExport = (
       }
     });
   } else {
-    // If no tables, export metadata and other structured data
+    // If no tables and not CSV, export metadata and other structured data
     csvContent += "Document Information\n";
     csvContent += `File Name,${fileData.fileName}\n`;
     csvContent += `File Size,${(fileData.fileSize / 1024).toFixed(2)} KB\n`;
@@ -251,10 +275,13 @@ export const generateCSVExport = (
   const link = document.createElement("a");
   const url = URL.createObjectURL(blob);
   link.setAttribute("href", url);
-  link.setAttribute(
-    "download",
-    fileData.fileName.replace(/\.[^/.]+$/, "") + "_data.csv"
-  );
+  
+  // For CSV files, use the original filename; for others, append "_data"
+  const downloadFileName = analysisData.fileType === "CSV" 
+    ? fileData.fileName 
+    : fileData.fileName.replace(/\.[^/.]+$/, "") + "_data.csv";
+  
+  link.setAttribute("download", downloadFileName);
   link.style.visibility = "hidden";
   document.body.appendChild(link);
   link.click();
@@ -279,6 +306,12 @@ export const generateJSONExport = (
     chapters: chapters || [],
     exportedAt: new Date().toISOString(),
   };
+
+  // For CSV files, include the actual data
+  if (analysisData.fileType === "CSV" && analysisData.data && analysisData.data.length > 0) {
+    exportData.columns = analysisData.columns || Object.keys(analysisData.data[0] || {});
+    exportData.data = analysisData.data;
+  }
 
   const jsonString = JSON.stringify(exportData, null, 2);
   const blob = new Blob([jsonString], {
