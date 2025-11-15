@@ -5,6 +5,7 @@ import {
   faFilePdf,
   faFileCsv,
   faFileCode,
+  faImage,
   faMagnifyingGlass,
   faBolt,
   faLock,
@@ -27,9 +28,13 @@ const HomePage = () => {
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [expectedFileType, setExpectedFileType] = useState("");
+  const [isInputExpanded, setIsInputExpanded] = useState(false);
   const pdfInputRef = useRef(null);
   const csvInputRef = useRef(null);
   const jsonInputRef = useRef(null);
+  const imageInputRef = useRef(null);
+  const mainTextareaRef = useRef(null);
+  const bottomTextareaRef = useRef(null);
   const messagesEndRef = useRef(null);
   const navigate = useNavigate();
   const { currentSessionId, createNewSession, addFileToSession } = useSession();
@@ -135,6 +140,17 @@ const HomePage = () => {
 
   const handleInputChange = (e) => {
     setInputValue(e.target.value);
+    
+    // Auto-resize textarea up to 6 lines, then show scrollbar
+    const textarea = e.target;
+    textarea.style.height = "auto";
+    const maxHeight = parseFloat(getComputedStyle(textarea).maxHeight);
+    const currentHeight = Math.min(textarea.scrollHeight, maxHeight);
+    textarea.style.height = `${currentHeight}px`;
+    
+    // Check if input has reached 6+ lines (when scrollHeight >= maxHeight)
+    const hasReachedMaxLines = textarea.scrollHeight >= maxHeight;
+    setIsInputExpanded(hasReachedMaxLines);
   };
 
   // Validate file type
@@ -146,12 +162,14 @@ const HomePage = () => {
       pdf: ["pdf"],
       csv: ["csv"],
       json: ["json"],
+      image: ["png", "jpg", "jpeg", "gif", "bmp", "webp", "tiff", "tif"],
     };
 
     const validMimeTypes = {
       pdf: ["application/pdf"],
       csv: ["text/csv", "application/vnd.ms-excel", "text/plain"],
       json: ["application/json", "text/json"],
+      image: ["image/png", "image/jpeg", "image/jpg", "image/gif", "image/bmp", "image/webp", "image/tiff"],
     };
 
     const extensions = validExtensions[expectedType] || [];
@@ -186,6 +204,7 @@ const HomePage = () => {
           pdf: "PDF",
           csv: "CSV",
           json: "JSON",
+          image: "Image",
         };
         setExpectedFileType(typeNames[expectedType]);
         setErrorMessage(
@@ -235,13 +254,14 @@ const HomePage = () => {
       if (fileExtension === "pdf") expectedType = "pdf";
       else if (fileExtension === "csv") expectedType = "csv";
       else if (fileExtension === "json") expectedType = "json";
+      else if (["png", "jpg", "jpeg", "gif", "bmp", "webp", "tiff", "tif"].includes(fileExtension)) expectedType = "image";
 
       if (expectedType && validateFileType(file, expectedType)) {
         handleFileUpload(file);
       } else {
-        setExpectedFileType("PDF, CSV, or JSON");
+        setExpectedFileType("PDF, CSV, JSON, or Image");
         setErrorMessage(
-          `Please upload a PDF, CSV, or JSON file. You dropped "${file.name}" which is not a supported file type.`
+          `Please upload a PDF, CSV, JSON, or Image file. You dropped "${file.name}" which is not a supported file type.`
         );
         setShowErrorModal(true);
       }
@@ -253,7 +273,7 @@ const HomePage = () => {
   };
 
   const handleKeyPress = (e) => {
-    if (e.key === "Enter" && inputValue.trim()) {
+    if (e.key === "Enter" && !e.shiftKey && inputValue.trim()) {
       e.preventDefault();
       handleSendMessage();
     }
@@ -280,6 +300,15 @@ const HomePage = () => {
 
     // Clear input
     setInputValue("");
+    setIsInputExpanded(false);
+
+    // Reset textarea height
+    if (mainTextareaRef.current) {
+      mainTextareaRef.current.style.height = "auto";
+    }
+    if (bottomTextareaRef.current) {
+      bottomTextareaRef.current.style.height = "auto";
+    }
 
     // Show typing indicator
     setIsTyping(true);
@@ -506,6 +535,13 @@ const HomePage = () => {
                   className={styles.fileInput}
                   accept=".json,application/json"
                 />
+                <input
+                  ref={imageInputRef}
+                  type="file"
+                  onChange={(e) => handleFileSelect(e, "image")}
+                  className={styles.fileInput}
+                  accept="image/*"
+                />
                 <button
                   className={styles.bottomUploadIcon}
                   onClick={() => pdfInputRef.current?.click()}
@@ -527,17 +563,25 @@ const HomePage = () => {
                 >
                   <FontAwesomeIcon icon={faFileCode} />
                 </button>
+                <button
+                  className={styles.bottomUploadIcon}
+                  onClick={() => imageInputRef.current?.click()}
+                  title="Upload Image - Visual analysis"
+                >
+                  <FontAwesomeIcon icon={faImage} />
+                </button>
               </div>
 
               {/* Input Box */}
               <div className={styles.bottomSearchBox}>
-                <input
-                  type="text"
-                  className={styles.bottomInput}
+                <textarea
+                  ref={bottomTextareaRef}
+                  className={`${styles.bottomInput} ${isInputExpanded ? styles.expanded : ""}`}
                   placeholder="Ask me anything..."
                   value={inputValue}
                   onChange={handleInputChange}
                   onKeyPress={handleKeyPress}
+                  rows={1}
                 />
                 <button
                   className={styles.bottomSendButton}
@@ -564,13 +608,14 @@ const HomePage = () => {
           {/* Main Input Area */}
           <div className={styles.inputSection}>
             <div className={styles.searchBox}>
-              <input
-                type="text"
-                className={styles.mainInput}
-                placeholder="Ask me anything... (e.g., What can you do?)"
+              <textarea
+                ref={mainTextareaRef}
+                className={`${styles.mainInput} ${isInputExpanded ? styles.expanded : ""}`}
+                placeholder="Ask me anything..."
                 value={inputValue}
                 onChange={handleInputChange}
                 onKeyPress={handleKeyPress}
+                rows={1}
               />
               <button
                 className={styles.searchButton}
@@ -580,9 +625,9 @@ const HomePage = () => {
                 <FontAwesomeIcon icon={faMagnifyingGlass} />
               </button>
             </div>
-
-            {/* File Upload Icons */}
-            <div className={styles.uploadOptions}>
+            
+            {/* File Upload Icons - Positioned below input */}
+            <div className={styles.uploadOptionsInline}>
               <input
                 ref={pdfInputRef}
                 type="file"
@@ -604,34 +649,40 @@ const HomePage = () => {
                 className={styles.fileInput}
                 accept=".json,application/json"
               />
+              <input
+                ref={imageInputRef}
+                type="file"
+                onChange={(e) => handleFileSelect(e, "image")}
+                className={styles.fileInput}
+                accept="image/*"
+              />
               <button
-                className={styles.uploadIcon}
+                className={styles.uploadIconInline}
                 onClick={() => pdfInputRef.current?.click()}
-                title="Upload PDF - Document analysis and text extraction"
+                title="Upload PDF - Document analysis"
               >
-                <FontAwesomeIcon icon={faFilePdf} className={styles.iconSvg} />
-                <span className={styles.iconLabel}>PDF</span>
-                <span className={styles.iconDescription}>
-                  Document analysis
-                </span>
+                <FontAwesomeIcon icon={faFilePdf} />
               </button>
               <button
-                className={styles.uploadIcon}
+                className={styles.uploadIconInline}
                 onClick={() => csvInputRef.current?.click()}
-                title="Upload CSV - Spreadsheet data analysis"
+                title="Upload CSV - Spreadsheet data"
               >
-                <FontAwesomeIcon icon={faFileCsv} className={styles.iconSvg} />
-                <span className={styles.iconLabel}>CSV</span>
-                <span className={styles.iconDescription}>Spreadsheet data</span>
+                <FontAwesomeIcon icon={faFileCsv} />
               </button>
               <button
-                className={styles.uploadIcon}
+                className={styles.uploadIconInline}
                 onClick={() => jsonInputRef.current?.click()}
-                title="Upload JSON - Structured data analysis"
+                title="Upload JSON - Structured data"
               >
-                <FontAwesomeIcon icon={faFileCode} className={styles.iconSvg} />
-                <span className={styles.iconLabel}>JSON</span>
-                <span className={styles.iconDescription}>Structured data</span>
+                <FontAwesomeIcon icon={faFileCode} />
+              </button>
+              <button
+                className={styles.uploadIconInline}
+                onClick={() => imageInputRef.current?.click()}
+                title="Upload Image - Visual analysis (PNG, JPG, GIF, etc.)"
+              >
+                <FontAwesomeIcon icon={faImage} />
               </button>
             </div>
           </div>

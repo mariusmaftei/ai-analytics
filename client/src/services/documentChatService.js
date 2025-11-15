@@ -1,15 +1,17 @@
 /**
  * Document Chat Service - AI chat with document context
- * Allows users to ask questions about their uploaded documents
+ * Uses RAG when document_id is available, falls back to simple context injection
  */
+
+import { ragQuery } from './ragService';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8080';
 
 /**
  * Chat with AI about a document
  * @param {string} message - User's question
- * @param {string} documentText - The extracted text from the document
- * @param {Object} metadata - Document metadata (title, author, pages, etc.)
+ * @param {string} documentText - The extracted text from the document (fallback if no RAG)
+ * @param {Object} metadata - Document metadata (title, author, pages, document_id, etc.)
  * @param {Function} onChunk - Callback for streaming chunks
  * @param {Object} options - Additional options
  * @returns {Promise<string>} Complete AI response
@@ -22,7 +24,24 @@ export const chatAboutDocument = async (
   options = {}
 ) => {
   try {
-    // Build context-aware prompt
+    // Use RAG if document_id is available
+    const documentId = metadata.document_id || options.document_id;
+    
+    if (documentId) {
+      // Use RAG for better retrieval
+      return await ragQuery(
+        message,
+        documentId,
+        onChunk,
+        {
+          temperature: options.temperature || 0.7,
+          max_tokens: options.max_tokens || 2048,
+          top_k: options.top_k || 5,
+        }
+      );
+    }
+    
+    // Fallback to simple context injection (old method)
     const contextPrompt = buildDocumentPrompt(message, documentText, metadata);
 
     const response = await fetch(`${API_BASE_URL}/api/ai/generate-stream`, {

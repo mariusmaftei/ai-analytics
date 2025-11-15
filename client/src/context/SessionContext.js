@@ -13,7 +13,7 @@ export const useSession = () => {
 export const SessionProvider = ({ children }) => {
   const [sessions, setSessions] = useState([]);
   const [currentSessionId, setCurrentSessionId] = useState(null);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   // Load sessions from localStorage on mount
   useEffect(() => {

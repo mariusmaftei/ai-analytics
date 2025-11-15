@@ -4,6 +4,8 @@ from dotenv import load_dotenv
 import os
 from config import init_db, close_db, get_db, generate_text, generate_text_stream, analyze_content
 from routes import pdf_bp
+from routes.rag_routes import rag_bp
+from routes.image_routes import image_bp
 from services.insight_service import build_csv_insight_prompt, build_document_insight_prompt
 
 # Load environment variables
@@ -16,6 +18,8 @@ CORS(app)  # Enable CORS for all routes
 
 # Register blueprints
 app.register_blueprint(pdf_bp)
+app.register_blueprint(rag_bp)
+app.register_blueprint(image_bp)
 
 # Initialize database connection
 try:

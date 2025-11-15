@@ -13,11 +13,14 @@ import {
   faHeading,
   faUser,
   faLightbulb,
+  faImage,
 } from "@fortawesome/free-solid-svg-icons";
 import { useSession } from "../../context/SessionContext";
 import { analyzePDFFile } from "../../services/pdfAnalysisService";
 import { analyzeJSONFile } from "../../services/jsonAnalysisService";
 import { analyzeCSVFile } from "../../services/csvAnalysisService";
+import { analyzeImageFile } from "../../services/imageAnalysisService";
+import ImagePreview from "../../components/ImagePreview/ImagePreview";
 import styles from "./AnalysisPage.module.css";
 
 const AnalysisPage = () => {
@@ -27,6 +30,7 @@ const AnalysisPage = () => {
   const [isAnalyzing, setIsAnalyzing] = useState(true);
   const [progress, setProgress] = useState(0);
   const [analysisResults, setAnalysisResults] = useState(null);
+  const [showLongAnalysisMessage, setShowLongAnalysisMessage] = useState(false);
 
   const fileData = useMemo(() => location.state || {
     fileName: "sample.pdf",
@@ -40,6 +44,7 @@ const AnalysisPage = () => {
   useEffect(() => {
     if (isAnalyzing && fileData.file) {
       let progressInterval;
+      let longAnalysisTimeout;
       let analysisComplete = false;
 
       // Start the actual analysis based on file type
@@ -48,10 +53,23 @@ const AnalysisPage = () => {
           let results;
           
           // Check file type and call appropriate analysis function
-          if (fileData.fileType === 'application/json' || fileData.fileName.endsWith('.json')) {
+          const fileName = fileData.fileName.toLowerCase();
+          const fileType = fileData.fileType.toLowerCase();
+          
+          if (fileType.includes('image') || /\.(png|jpg|jpeg|gif|bmp|webp|tiff|tif)$/i.test(fileName)) {
+            // Analyze Image file
+            results = await analyzeImageFile(fileData.file, {
+              analysisType: 'general',
+              saveToDb: false,
+            });
+            // Create object URL for image preview
+            if (fileData.file) {
+              results.imageUrl = URL.createObjectURL(fileData.file);
+            }
+          } else if (fileType === 'application/json' || fileName.endsWith('.json')) {
             // Analyze JSON file
             results = await analyzeJSONFile(fileData.file);
-          } else if (fileData.fileType === 'text/csv' || fileData.fileName.endsWith('.csv')) {
+          } else if (fileType === 'text/csv' || fileName.endsWith('.csv')) {
             // Analyze CSV file
             results = await analyzeCSVFile(fileData.file);
           } else {
@@ -75,10 +93,14 @@ const AnalysisPage = () => {
           setIsAnalyzing(false);
           
           // Show error state
+          const fileName = fileData.fileName.toLowerCase();
+          const fileTypeStr = fileData.fileType.toLowerCase();
           let fileType = 'PDF';
-          if (fileData.fileType === 'application/json' || fileData.fileName.endsWith('.json')) {
+          if (fileTypeStr.includes('image') || /\.(png|jpg|jpeg|gif|bmp|webp|tiff|tif)$/i.test(fileName)) {
+            fileType = 'Image';
+          } else if (fileTypeStr === 'application/json' || fileName.endsWith('.json')) {
             fileType = 'JSON';
-          } else if (fileData.fileType === 'text/csv' || fileData.fileName.endsWith('.csv')) {
+          } else if (fileTypeStr === 'text/csv' || fileName.endsWith('.csv')) {
             fileType = 'CSV';
           }
           
@@ -87,8 +109,21 @@ const AnalysisPage = () => {
             error: true,
             message: error.message || `Failed to analyze ${fileType}. Please try again.`,
           });
+        } finally {
+          // Clear timeout if analysis completes before 12 seconds
+          if (longAnalysisTimeout) {
+            clearTimeout(longAnalysisTimeout);
+          }
+          setShowLongAnalysisMessage(false);
         }
       };
+
+      // Show message after 12 seconds if analysis is still running
+      longAnalysisTimeout = setTimeout(() => {
+        if (!analysisComplete) {
+          setShowLongAnalysisMessage(true);
+        }
+      }, 12000); // 12 seconds (middle of 10-15 range)
 
       // Simulate progress while waiting for backend
       progressInterval = setInterval(() => {
@@ -106,6 +141,7 @@ const AnalysisPage = () => {
 
       return () => {
         if (progressInterval) clearInterval(progressInterval);
+        if (longAnalysisTimeout) clearTimeout(longAnalysisTimeout);
       };
     }
   }, [isAnalyzing, fileData]);
@@ -150,6 +186,15 @@ const AnalysisPage = () => {
             <p className={styles.progressSubtitle}>
               Extracting data, identifying patterns, and preparing insights
             </p>
+            {showLongAnalysisMessage && (
+              <div className={styles.longAnalysisMessage}>
+                <FontAwesomeIcon icon={faClock} className={styles.messageIcon} />
+                <p>
+                  <strong>Large document detected.</strong> This file is taking longer to process. 
+                  Please wait while we analyze all the content...
+                </p>
+              </div>
+            )}
             <div className={styles.progressBar}>
               <div
                 className={styles.progressFill}
@@ -203,6 +248,40 @@ const AnalysisPage = () => {
                             {analysisResults.metadata?.wordCount?.toLocaleString() || 0}
                           </div>
                           <div className={styles.statLabel}>Total Words</div>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                  
+                  {analysisResults.fileType === "IMAGE" && (
+                    <>
+                      <div className={styles.statCard}>
+                        <FontAwesomeIcon icon={faImage} className={styles.statIcon} />
+                        <div className={styles.statContent}>
+                          <div className={styles.statValue}>
+                            {analysisResults.metadata?.width || 0} × {analysisResults.metadata?.height || 0}
+                          </div>
+                          <div className={styles.statLabel}>Dimensions (px)</div>
+                        </div>
+                      </div>
+                      <div className={styles.statCard}>
+                        <FontAwesomeIcon icon={faFile} className={styles.statIcon} />
+                        <div className={styles.statContent}>
+                          <div className={styles.statValue}>
+                            {analysisResults.metadata?.format || 'Unknown'}
+                          </div>
+                          <div className={styles.statLabel}>Format</div>
+                        </div>
+                      </div>
+                      <div className={styles.statCard}>
+                        <FontAwesomeIcon icon={faDatabase} className={styles.statIcon} />
+                        <div className={styles.statContent}>
+                          <div className={styles.statValue}>
+                            {analysisResults.metadata?.file_size 
+                              ? `${(analysisResults.metadata.file_size / 1024).toFixed(1)} KB`
+                              : 'N/A'}
+                          </div>
+                          <div className={styles.statLabel}>File Size</div>
                         </div>
                       </div>
                     </>
@@ -314,6 +393,18 @@ const AnalysisPage = () => {
                     })}
                   </div>
                 </div>
+
+                {/* Image Preview */}
+                {analysisResults.fileType === "IMAGE" && analysisResults.imageUrl && (
+                  <div className={styles.previewSection}>
+                    <h3 className={styles.sectionTitle}>Image Preview</h3>
+                    <ImagePreview
+                      imageUrl={analysisResults.imageUrl}
+                      metadata={analysisResults.metadata}
+                      alt={fileData.fileName}
+                    />
+                  </div>
+                )}
 
                 {/* Preview Data */}
                 {analysisResults.fileType === "PDF" && analysisResults.chapters && (

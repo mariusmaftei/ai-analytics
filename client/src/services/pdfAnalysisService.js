@@ -82,6 +82,7 @@ function transformPDFResponse(backendData) {
     extractedAt: backendData.extracted_at,
     filename: backendData.filename,
     dbId: backendData.db_id || null,
+    documentId: backendData.rag?.document_id || backendData.db_id || null, // RAG document ID
     
     // Tables data
     tables: backendData.tables || [],

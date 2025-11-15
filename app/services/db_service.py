@@ -17,6 +17,11 @@ def save_pdf_data(pdf_data):
     try:
         # Get PDF collection
         pdf_collection = get_collection('pdfs')
+        if pdf_collection is None:
+            return {
+                'success': False,
+                'error': 'Database not connected'
+            }
         
         # Prepare document
         document = {
@@ -50,6 +55,8 @@ def get_pdf_by_id(pdf_id):
     try:
         from bson import ObjectId
         pdf_collection = get_collection('pdfs')
+        if pdf_collection is None:
+            return {'success': False, 'error': 'Database not connected'}
         
         pdf = pdf_collection.find_one({'_id': ObjectId(pdf_id)})
         
@@ -67,6 +74,8 @@ def get_all_pdfs(limit=50):
     """Get all PDFs (metadata only, not full text)"""
     try:
         pdf_collection = get_collection('pdfs')
+        if pdf_collection is None:
+            return {'success': False, 'error': 'Database not connected'}
         
         pdfs = list(pdf_collection.find(
             {},
@@ -95,6 +104,8 @@ def delete_pdf(pdf_id):
     try:
         from bson import ObjectId
         pdf_collection = get_collection('pdfs')
+        if pdf_collection is None:
+            return {'success': False, 'error': 'Database not connected'}
         
         result = pdf_collection.delete_one({'_id': ObjectId(pdf_id)})
         

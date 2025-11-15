@@ -7,6 +7,7 @@ import {
   faFilePdf,
   faFileCsv,
   faFileCode,
+  faImage,
   faArrowLeft,
   faBook,
   faTable,
@@ -17,6 +18,7 @@ import { chatAboutDocument } from "../../services/documentChatService";
 import ChaptersView from "../../components/ChaptersView/ChaptersView";
 import CSVPreview from "../../components/CSVPreview/CSVPreview";
 import JSONPreview from "../../components/JSONPreview/JSONPreview";
+import ImagePreview from "../../components/ImagePreview/ImagePreview";
 import InsightGenerator from "../../components/InsightGenerator/InsightGenerator";
 import { generatePDFReport, generateCSVExport, generateJSONExport } from "../../utils/pdfGenerator";
 import styles from "./SessionPage.module.css";
@@ -48,6 +50,7 @@ const SessionPage = () => {
   const [showChapters, setShowChapters] = useState(false);
   const [showCSVPreview, setShowCSVPreview] = useState(false);
   const [showJSONPreview, setShowJSONPreview] = useState(false);
+  const [showImagePreview, setShowImagePreview] = useState(false);
   const [showInsightGenerator, setShowInsightGenerator] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
   const [showDownloadMenu, setShowDownloadMenu] = useState(false);
@@ -178,7 +181,7 @@ const SessionPage = () => {
     ]);
 
     try {
-      // Use REAL AI chat with document context
+      // Use REAL AI chat with document context (RAG if available)
       await chatAboutDocument(
         currentInput,
         analysisData.text || '',
@@ -188,6 +191,7 @@ const SessionPage = () => {
           wordCount: analysisData.metadata?.wordCount,
           title: analysisData.metadata?.title,
           author: analysisData.metadata?.author,
+          document_id: analysisData.documentId || analysisData.dbId, // Use RAG document ID if available
         },
         (chunk) => {
           // Hide typing indicator on first chunk
@@ -586,6 +590,8 @@ Now extract and list all chapters and sections:`;
                 ? faFilePdf
                 : fileData.fileType.includes("csv")
                 ? faFileCsv
+                : fileData.fileType.includes("image") || analysisData.fileType === "IMAGE"
+                ? faImage
                 : faFileCode
             }
             className={styles.fileIcon}
@@ -631,6 +637,19 @@ Now extract and list all chapters and sections:`;
           >
             <FontAwesomeIcon icon={faBook} />
             <span>{showChapters ? "Hide" : "Show"} Chapters</span>
+          </button>
+        )}
+
+        {/* Image Preview for Image files */}
+        {analysisData.fileType === "IMAGE" && analysisData.imageUrl && (
+          <button
+            className={`${styles.actionButton} ${
+              showImagePreview ? styles.active : ""
+            }`}
+            onClick={() => setShowImagePreview(!showImagePreview)}
+          >
+            <FontAwesomeIcon icon={faImage} />
+            <span>{showImagePreview ? "Hide" : "Show"} Image Preview</span>
           </button>
         )}
 
@@ -713,6 +732,17 @@ Now extract and list all chapters and sections:`;
       {showCSVPreview && csvPreviewTables && (
         <div className={styles.csvPreviewSection}>
           <CSVPreview tables={csvPreviewTables} />
+        </div>
+      )}
+
+      {/* Image Preview - Show when button is active */}
+      {showImagePreview && analysisData.imageUrl && (
+        <div className={styles.imagePreviewSection}>
+          <ImagePreview
+            imageUrl={analysisData.imageUrl}
+            metadata={analysisData.metadata}
+            alt={fileData.fileName}
+          />
         </div>
       )}
 

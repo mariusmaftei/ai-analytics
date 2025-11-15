@@ -101,6 +101,7 @@ def upload_pdf():
         # Optional: Save to database
         save_to_db = request.form.get('save_to_db', 'false').lower() == 'true'
         
+        document_id = None
         if save_to_db:
             from services.db_service import save_pdf_data
             db_result = save_pdf_data({
@@ -110,7 +111,84 @@ def upload_pdf():
                 'metadata': extraction_result['metadata'],
                 'uploaded_at': datetime.now()
             })
-            response_data['db_id'] = str(db_result['id']) if db_result['success'] else None
+            document_id = str(db_result['id']) if db_result['success'] else None
+            response_data['db_id'] = document_id
+        
+        # RAG: Chunk and embed document for vector search
+        enable_rag = request.form.get('enable_rag', 'true').lower() == 'true'
+        if enable_rag and extraction_result['text']:
+            try:
+                from services.chunking_service import chunk_document
+                from services.embedding_service import generate_embeddings_batch
+                from services.pinecone_service import store_chunks
+                
+                # Generate document ID if not saved to DB
+                if not document_id:
+                    import uuid
+                    document_id = str(uuid.uuid4())
+                
+                # Chunk the document
+                chunks = chunk_document(
+                    text=extraction_result['text'],
+                    metadata={
+                        'filename': filename,
+                        'page_count': extraction_result['page_count'],
+                        **extraction_result['metadata']
+                    },
+                    chunk_size=500,
+                    overlap=50
+                )
+                
+                # Check embedding configuration
+                from services.pinecone_service import pinecone_service
+                use_pinecone_embeddings = pinecone_service.use_pinecone_embeddings
+                index_dimension = pinecone_service.dimension
+                
+                # Generate embeddings for chunks
+                chunk_texts = [chunk['text'] for chunk in chunks]
+                
+                if use_pinecone_embeddings and index_dimension == 1024:
+                    # Use Pinecone Inference API to generate 1024-dim embeddings
+                    try:
+                        from services.pinecone_embedding_service import generate_pinecone_embeddings_batch
+                        print("[INFO] Using Pinecone Inference API for embeddings (1024 dimensions)")
+                        embeddings = generate_pinecone_embeddings_batch(chunk_texts)
+                    except Exception as e:
+                        print(f"[WARN] Pinecone Inference API failed: {e}")
+                        print(f"[WARN] Error details: {str(e)}")
+                        raise ValueError(f"Failed to generate Pinecone embeddings: {str(e)}")
+                else:
+                    # Use Google embeddings (768 dimensions) - default
+                    print(f"[INFO] Using Google text-embedding-004 for embeddings ({index_dimension} dimensions)")
+                    embeddings = generate_embeddings_batch(chunk_texts)
+                
+                # Validate embeddings match chunks
+                if len(embeddings) != len(chunks):
+                    print(f"[ERROR] Embedding count mismatch: {len(embeddings)} embeddings for {len(chunks)} chunks")
+                    raise ValueError(f"Failed to generate embeddings: got {len(embeddings)} embeddings for {len(chunks)} chunks")
+                
+                # Store in Pinecone (will use integrated embeddings if enabled)
+                rag_result = store_chunks(
+                    document_id=document_id,
+                    chunks=chunks,
+                    embeddings=embeddings  # None if using integrated embeddings
+                )
+                
+                response_data['rag'] = {
+                    'enabled': True,
+                    'document_id': document_id,
+                    'chunks_created': len(chunks),
+                    'vectors_stored': rag_result.get('vectors_stored', 0) if rag_result.get('success') else 0,
+                    'success': rag_result.get('success', False)
+                }
+                
+            except Exception as e:
+                print(f"[WARNING] RAG processing failed: {e}")
+                response_data['rag'] = {
+                    'enabled': True,
+                    'error': str(e),
+                    'success': False
+                }
         
         return jsonify(response_data), 200
         
