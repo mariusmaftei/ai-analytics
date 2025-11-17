@@ -5,6 +5,9 @@ import {
   faSpinner,
   faChevronDown,
   faChevronUp,
+  faChartLine,
+  faFileAlt,
+  faSearch,
 } from "@fortawesome/free-solid-svg-icons";
 import { useInsightGenerator } from "./hooks/useInsightGenerator";
 import DocumentOverview from "./components/DocumentOverview";
@@ -36,7 +39,10 @@ const InsightGenerator = ({ fileData, analysisData, tables = [] }) => {
       <div className={styles.header}>
         <div className={styles.headerLeft}>
           <FontAwesomeIcon icon={faLightbulb} className={styles.icon} />
-          <h3>Insight Generator</h3>
+          <div>
+            <h3>Insight Generator</h3>
+            <p className={styles.headerSubtitle}>AI-powered document analysis and insights</p>
+          </div>
         </div>
         {insights && (
           <button
@@ -54,6 +60,20 @@ const InsightGenerator = ({ fileData, analysisData, tables = [] }) => {
             Generate intelligent insights and summaries from your document data,
             including statistics, patterns, and key findings.
           </p>
+          <div className={styles.promptFeatures}>
+            <div className={styles.promptFeature}>
+              <FontAwesomeIcon icon={faChartLine} className={styles.promptFeatureIcon} />
+              <span className={styles.promptFeatureText}>Data Analysis</span>
+            </div>
+            <div className={styles.promptFeature}>
+              <FontAwesomeIcon icon={faFileAlt} className={styles.promptFeatureIcon} />
+              <span className={styles.promptFeatureText}>Pattern Detection</span>
+            </div>
+            <div className={styles.promptFeature}>
+              <FontAwesomeIcon icon={faSearch} className={styles.promptFeatureIcon} />
+              <span className={styles.promptFeatureText}>Key Insights</span>
+            </div>
+          </div>
           <button
             className={styles.generateButton}
             onClick={generateInsights}
@@ -67,8 +87,13 @@ const InsightGenerator = ({ fileData, analysisData, tables = [] }) => {
 
       {isGenerating && (
         <div className={styles.loadingSection}>
-          <FontAwesomeIcon icon={faSpinner} spin className={styles.spinner} />
+          <FontAwesomeIcon icon={faSpinner} className={styles.spinner} />
           <p>Analyzing document and generating insights...</p>
+          <div className={styles.loadingDots}>
+            <div className={styles.loadingDot}></div>
+            <div className={styles.loadingDot}></div>
+            <div className={styles.loadingDot}></div>
+          </div>
         </div>
       )}
 

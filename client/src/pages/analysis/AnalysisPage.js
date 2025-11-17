@@ -23,6 +23,102 @@ import { analyzeImageFile } from "../../services/imageAnalysisService";
 import ImagePreview from "../../components/ImagePreview/ImagePreview";
 import styles from "./AnalysisPage.module.css";
 
+// Helper function to parse and structure insights text
+const parseInsightsText = (text) => {
+  if (!text) return [];
+  
+  const sections = [];
+  const lines = text.split('\n').filter(line => line.trim());
+  
+  let currentSection = null;
+  let currentContent = [];
+  
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    
+    // Check for numbered sections like "1. **Title**: content"
+    const numberedMatch = line.match(/^(\d+)\.\s*\*\*(.*?)\*\*:\s*(.*)$/);
+    if (numberedMatch) {
+      // Save previous section if exists
+      if (currentSection) {
+        sections.push({
+          ...currentSection,
+          content: currentContent.join(' ').trim()
+        });
+      }
+      // Start new section
+      currentSection = {
+        number: numberedMatch[1],
+        title: numberedMatch[2].trim(),
+        content: numberedMatch[3].trim()
+      };
+      currentContent = numberedMatch[3].trim() ? [numberedMatch[3].trim()] : [];
+      continue;
+    }
+    
+    // Check for bold titles without numbers like "**Title**: content"
+    const boldMatch = line.match(/^\*\*(.*?)\*\*:\s*(.*)$/);
+    if (boldMatch) {
+      // Save previous section if exists
+      if (currentSection) {
+        sections.push({
+          ...currentSection,
+          content: currentContent.join(' ').trim()
+        });
+      }
+      // Start new section
+      currentSection = {
+        title: boldMatch[1].trim(),
+        content: boldMatch[2].trim()
+      };
+      currentContent = boldMatch[2].trim() ? [boldMatch[2].trim()] : [];
+      continue;
+    }
+    
+    // If we have a current section, add line to content
+    if (currentSection) {
+      // Check if this line starts a new section (next line starts with number or bold)
+      const nextLine = i < lines.length - 1 ? lines[i + 1] : '';
+      const isNextSection = /^(\d+)\.\s*\*\*/.test(nextLine) || /^\*\*/.test(nextLine);
+      
+      if (!isNextSection) {
+        // Clean up markdown bold markers and add to content
+        const cleanedLine = line.replace(/\*\*(.*?)\*\*/g, '$1').trim();
+        if (cleanedLine) {
+          currentContent.push(cleanedLine);
+        }
+      } else {
+        // Next line is a new section, save current and reset
+        sections.push({
+          ...currentSection,
+          content: currentContent.join(' ').trim()
+        });
+        currentSection = null;
+        currentContent = [];
+      }
+    } else {
+      // No section yet, treat as standalone content
+      const cleanedLine = line.replace(/\*\*(.*?)\*\*/g, '$1').trim();
+      if (cleanedLine) {
+        sections.push({
+          title: null,
+          content: cleanedLine
+        });
+      }
+    }
+  }
+  
+  // Save last section
+  if (currentSection) {
+    sections.push({
+      ...currentSection,
+      content: currentContent.join(' ').trim() || currentSection.content
+    });
+  }
+  
+  return sections;
+};
+
 const AnalysisPage = () => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -358,16 +454,52 @@ const AnalysisPage = () => {
                 <div className={styles.insightsSection}>
                   <h3 className={styles.sectionTitle}>Key Insights</h3>
                   <div className={styles.insightsList}>
-                    {analysisResults.insights?.summary && (
-                      <div className={styles.insightItem}>
-                        <div className={styles.insightIcon}>
-                          <FontAwesomeIcon icon={faLightbulb} />
-                        </div>
-                        <div className={styles.insightText}>
-                          {analysisResults.insights.summary}
-                        </div>
-                      </div>
-                    )}
+                    {analysisResults.insights?.summary && (() => {
+                      const parsedSections = parseInsightsText(analysisResults.insights.summary);
+                      
+                      // If we have structured sections, render them
+                      if (parsedSections.length > 0) {
+                        return parsedSections.map((section, idx) => (
+                          <div key={idx} className={styles.insightItem}>
+                            <div className={styles.insightContent}>
+                              {section.title && (
+                                <div className={styles.insightTitle}>
+                                  {section.number && <span className={styles.insightNumber}>{section.number}.</span>}
+                                  <strong>{section.title}</strong>
+                                </div>
+                              )}
+                              {section.content && (
+                                <div className={styles.insightDescription}>
+                                  {section.content}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        ));
+                      }
+                      
+                      // Fallback: render as simple text if parsing didn't work
+                      // Parse markdown bold and split by lines
+                      const lines = analysisResults.insights.summary.split('\n').filter(l => l.trim());
+                      return lines.map((line, lineIdx) => {
+                        // Parse bold text
+                        const parts = line.split(/(\*\*.*?\*\*)/g);
+                        return (
+                          <div key={lineIdx} className={styles.insightItem}>
+                            <div className={styles.insightContent}>
+                              <div className={styles.insightDescription}>
+                                {parts.map((part, partIdx) => {
+                                  if (part.startsWith('**') && part.endsWith('**')) {
+                                    return <strong key={partIdx}>{part.slice(2, -2)}</strong>;
+                                  }
+                                  return <span key={partIdx}>{part}</span>;
+                                })}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      });
+                    })()}
                     {analysisResults.insights?.patterns?.slice(0, 3).map((pattern, idx) => {
                       // Determine icon based on pattern content
                       let icon = faChartLine; // Default icon
@@ -384,10 +516,9 @@ const AnalysisPage = () => {
                       
                       return (
                         <div key={idx} className={styles.insightItem}>
-                          <div className={styles.insightIcon}>
-                            <FontAwesomeIcon icon={icon} />
+                          <div className={styles.insightContent}>
+                            <div className={styles.insightDescription}>{pattern}</div>
                           </div>
-                          <div className={styles.insightText}>{pattern}</div>
                         </div>
                       );
                     })}
@@ -402,6 +533,7 @@ const AnalysisPage = () => {
                       imageUrl={analysisResults.imageUrl}
                       metadata={analysisResults.metadata}
                       alt={fileData.fileName}
+                      showControls={false}
                     />
                   </div>
                 )}

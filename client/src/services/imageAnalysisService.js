@@ -140,7 +140,17 @@ export const analyzeImageStream = async (file, options = {}, onChunk = null) => 
     });
 
     if (!response.ok) {
-      throw new Error(`Streaming analysis failed: ${response.status}`);
+      const errorText = await response.text().catch(() => 'Unknown error');
+      let errorMessage = `Streaming analysis failed: ${response.status}`;
+      try {
+        const errorData = JSON.parse(errorText);
+        errorMessage = errorData.message || errorMessage;
+      } catch {
+        if (errorText) {
+          errorMessage = errorText;
+        }
+      }
+      throw new Error(errorMessage);
     }
 
     const reader = response.body.getReader();

@@ -168,9 +168,16 @@ def analyze_image_stream_endpoint():
         analysis_type = request.form.get('analysis_type', 'general')
         custom_prompt = request.form.get('custom_prompt', None)
         
+        # Read file into memory to avoid "I/O operation on closed file" error
+        # Flask's FileStorage can only be read once, so we need to copy it
+        from io import BytesIO
+        file.seek(0)
+        file_data = file.read()
+        file_stream = BytesIO(file_data)
+        
         def generate():
             try:
-                for chunk in analyze_image_stream(file, analysis_type, custom_prompt):
+                for chunk in analyze_image_stream(file_stream, analysis_type, custom_prompt):
                     yield f"data: {chunk}\n\n"
                 yield "data: [DONE]\n\n"
             except Exception as e:

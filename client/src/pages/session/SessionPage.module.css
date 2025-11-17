@@ -358,9 +358,18 @@
   padding: 1.25rem 1.5rem;
   border-radius: var(--radius-lg);
   font-size: 0.9375rem;
-  line-height: 1.7;
+  line-height: 1.8;
   word-wrap: break-word;
   white-space: pre-wrap;
+}
+
+.messageText strong {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.aiMessage .messageText strong {
+  color: var(--primary-color);
 }
 
 .userMessage {

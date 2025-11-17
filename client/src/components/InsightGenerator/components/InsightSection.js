@@ -1,4 +1,14 @@
 import React from "react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import {
+  faLightbulb,
+  faChartLine,
+  faCheckCircle,
+  faTable,
+  faFileAlt,
+  faBrain,
+  faExclamationTriangle,
+} from "@fortawesome/free-solid-svg-icons";
 import NumberedSections from "./NumberedSections";
 import CheckmarksList from "./CheckmarksList";
 import KeyValueTable from "./KeyValueTable";
@@ -45,9 +55,42 @@ const InsightSection = ({ category }) => {
   const isPatternsTrends = categoryLower.includes("patterns") || 
                           categoryLower.includes("trends");
 
+  // Get icon based on section type
+  const getSectionIcon = () => {
+    if (categoryLower.includes("key insights") || categoryLower.includes("insights")) {
+      return faLightbulb;
+    } else if (isPatternsTrends || categoryLower.includes("trend")) {
+      return faChartLine;
+    } else if (categoryLower.includes("data quality") || categoryLower.includes("quality")) {
+      return faCheckCircle;
+    } else if (categoryLower.includes("regional") || categoryLower.includes("table")) {
+      return faTable;
+    } else if (categoryLower.includes("summary") || categoryLower.includes("ai summary")) {
+      return faBrain;
+    } else if (categoryLower.includes("recommendation")) {
+      return faExclamationTriangle;
+    } else if (isStructural || isProduct || isStatistical || isSemantic) {
+      return faFileAlt;
+    }
+    return faLightbulb; // Default icon
+  };
+
+  const sectionIcon = getSectionIcon();
+  const iconColor = isPatternsTrends ? "#10b981" : 
+                   categoryLower.includes("data quality") ? "#10b981" :
+                   categoryLower.includes("regional") ? "#3b82f6" :
+                   categoryLower.includes("summary") ? "var(--primary-color)" :
+                   categoryLower.includes("recommendation") ? "#ef4444" :
+                   "var(--primary-color)";
+
   return (
     <div className={containerClass}>
       <div className={styles.sectionHeader}>
+        <FontAwesomeIcon 
+          icon={sectionIcon} 
+          className={styles.sectionIcon}
+          style={{ color: iconColor }}
+        />
         <h3 className={styles.sectionTitle}>{category.category}</h3>
       </div>
 

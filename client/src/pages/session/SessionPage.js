@@ -20,6 +20,7 @@ import CSVPreview from "../../components/CSVPreview/CSVPreview";
 import JSONPreview from "../../components/JSONPreview/JSONPreview";
 import ImagePreview from "../../components/ImagePreview/ImagePreview";
 import InsightGenerator from "../../components/InsightGenerator/InsightGenerator";
+import ImageInsightGenerator from "../../components/ImageInsightGenerator/ImageInsightGenerator";
 import { generatePDFReport, generateCSVExport, generateJSONExport } from "../../utils/pdfGenerator";
 import styles from "./SessionPage.module.css";
 
@@ -46,25 +47,80 @@ const SessionPage = () => {
     insights: { summary: 'No analysis available', patterns: [] },
   };
 
+  const isImage = analysisData.fileType === "IMAGE";
+  
   const [inputValue, setInputValue] = useState("");
   const [showChapters, setShowChapters] = useState(false);
   const [showCSVPreview, setShowCSVPreview] = useState(false);
   const [showJSONPreview, setShowJSONPreview] = useState(false);
-  const [showImagePreview, setShowImagePreview] = useState(false);
+  const [showImagePreview, setShowImagePreview] = useState(isImage && !!analysisData.imageUrl);
   const [showInsightGenerator, setShowInsightGenerator] = useState(false);
+  const [showImageInsightGenerator, setShowImageInsightGenerator] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
   const [showDownloadMenu, setShowDownloadMenu] = useState(false);
   const [extractedChapters, setExtractedChapters] = useState([]);
+  // Generate a concise, professional welcome message
+  const getWelcomeMessage = () => {
+    const fileType = analysisData.fileType || 'document';
+    const fileName = fileData.fileName || 'your file';
+    
+    if (isImage) {
+      let message = `✅ **Image Analysis Complete**\n\n`;
+      message += `I've successfully analyzed your image: **${fileName}**\n\n`;
+      
+      const stats = [];
+      if (analysisData.metadata?.width && analysisData.metadata?.height) {
+        stats.push(`${analysisData.metadata.width} × ${analysisData.metadata.height} px`);
+      }
+      if (analysisData.metadata?.format) {
+        stats.push(`${analysisData.metadata.format.toUpperCase()}`);
+      }
+      if (fileData.fileSize) {
+        stats.push(`${(fileData.fileSize / 1024).toFixed(2)} KB`);
+      }
+      
+      if (stats.length > 0) {
+        message += `📊 **Image Info:** ${stats.join(' • ')}\n\n`;
+      }
+      
+      message += `**What would you like to do next?**\n\n`;
+      message += `🖼️ **Image Analysis** - Click the "Image Analysis" button above to get detailed visual analysis, object detection, text extraction, or scene understanding.\n\n`;
+      message += `💬 **Ask Questions** - Type your question below to get specific information about the image content.\n\n`;
+      message += `👁️ **View Image** - Use the "Show Image Preview" button to view the image with metadata.`;
+      
+      return message;
+    }
+    
+    let message = `✅ **Document Analysis Complete**\n\n`;
+    message += `I've successfully analyzed your ${fileType} file: **${fileName}**\n\n`;
+    
+    const stats = [];
+    if (analysisData.metadata?.totalPages) {
+      stats.push(`${analysisData.metadata.totalPages} page${analysisData.metadata.totalPages !== 1 ? 's' : ''}`);
+    }
+    if (analysisData.metadata?.wordCount) {
+      stats.push(`${analysisData.metadata.wordCount.toLocaleString()} words`);
+    }
+    if (analysisData.data && analysisData.fileType === 'CSV') {
+      stats.push(`${analysisData.data.length} row${analysisData.data.length !== 1 ? 's' : ''}`);
+    }
+    
+    if (stats.length > 0) {
+      message += `📊 **Quick Stats:** ${stats.join(' • ')}\n\n`;
+    }
+    
+    message += `**What would you like to do next?**\n\n`;
+    message += `💡 **Generate Insights** - Click the "Generate Insights" button above to get AI-powered analysis, patterns, and key findings.\n\n`;
+    message += `💬 **Ask Questions** - Type your question below to get specific information about the document content.\n\n`;
+    message += `📋 **Explore Data** - Use the preview buttons above to view tables, JSON data, or document structure.`;
+    
+    return message;
+  };
+
   const [messages, setMessages] = useState([
     {
       type: "ai",
-      text: `I've analyzed your ${analysisData.fileType || 'PDF'} file. Here's what I found:\n\n${
-        analysisData.insights?.summary || 'Analysis complete'
-      }\n\n${
-        analysisData.metadata?.totalPages
-          ? `📄 This document has ${analysisData.metadata.totalPages} pages with approximately ${analysisData.metadata.wordCount?.toLocaleString()} words.`
-          : ''
-      }\n\nYou can ask me questions about the content, request specific information, or explore the data using the buttons above!`,
+      text: getWelcomeMessage(),
       timestamp: new Date(),
     },
   ]);
@@ -605,27 +661,51 @@ Now extract and list all chapters and sections:`;
 
       {/* Action Buttons - Contextual based on file type */}
       <div className={styles.actionBar}>
-        {/* Insight Generator - Available for all file types - FIRST */}
-        <button
-          className={`${styles.actionButton} ${
-            showInsightGenerator ? styles.active : ""
-          }`}
-          onClick={() => {
-            setShowInsightGenerator(!showInsightGenerator);
-            if (!showInsightGenerator) {
-              // Scroll to section after a brief delay to allow render
-              setTimeout(() => {
-                const insightSection = document.getElementById('insight-generator-section');
-                if (insightSection) {
-                  insightSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                }
-              }, 100);
-            }
-          }}
-        >
-          <FontAwesomeIcon icon={faLightbulb} />
-          <span>{showInsightGenerator ? "Hide" : "Generate"} Insights</span>
-        </button>
+        {/* Image Analysis - For images only */}
+        {isImage && (
+          <button
+            className={`${styles.actionButton} ${
+              showImageInsightGenerator ? styles.active : ""
+            }`}
+            onClick={() => {
+              setShowImageInsightGenerator(!showImageInsightGenerator);
+              if (!showImageInsightGenerator) {
+                setTimeout(() => {
+                  const insightSection = document.getElementById('image-insight-generator-section');
+                  if (insightSection) {
+                    insightSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                  }
+                }, 100);
+              }
+            }}
+          >
+            <FontAwesomeIcon icon={faImage} />
+            <span>{showImageInsightGenerator ? "Hide" : "Image"} Analysis</span>
+          </button>
+        )}
+
+        {/* Insight Generator - For PDF, CSV, JSON files only */}
+        {!isImage && (
+          <button
+            className={`${styles.actionButton} ${
+              showInsightGenerator ? styles.active : ""
+            }`}
+            onClick={() => {
+              setShowInsightGenerator(!showInsightGenerator);
+              if (!showInsightGenerator) {
+                setTimeout(() => {
+                  const insightSection = document.getElementById('insight-generator-section');
+                  if (insightSection) {
+                    insightSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                  }
+                }, 100);
+              }
+            }}
+          >
+            <FontAwesomeIcon icon={faLightbulb} />
+            <span>{showInsightGenerator ? "Hide" : "Generate"} Insights</span>
+          </button>
+        )}
 
         {/* Show Chapters for PDF documents - SECOND */}
         {analysisData.fileType === "PDF" && (
@@ -653,8 +733,8 @@ Now extract and list all chapters and sections:`;
           </button>
         )}
 
-        {/* CSV Preview for PDFs with tables and CSV files */}
-        {((analysisData.fileType === "PDF" && analysisData.hasTables && analysisData.tables && analysisData.tables.length > 0) ||
+        {/* CSV Preview for PDFs with tables and CSV files - Hidden for images */}
+        {!isImage && ((analysisData.fileType === "PDF" && analysisData.hasTables && analysisData.tables && analysisData.tables.length > 0) ||
           (analysisData.fileType === "CSV" && analysisData.data && analysisData.data.length > 0)) && (
           <button
             className={`${styles.actionButton} ${
@@ -667,53 +747,57 @@ Now extract and list all chapters and sections:`;
           </button>
         )}
 
-        {/* JSON Preview - Always available for all file types */}
-        <button
-          className={`${styles.actionButton} ${
-            showJSONPreview ? styles.active : ""
-          }`}
-          onClick={() => setShowJSONPreview(!showJSONPreview)}
-        >
-          <FontAwesomeIcon icon={faFileCode} />
-          <span>{showJSONPreview ? "Hide" : "Show"} JSON Preview</span>
-        </button>
-
-        {/* Download always available */}
-        <div className={styles.downloadContainer} ref={downloadMenuRef}>
+        {/* JSON Preview - Hidden for images */}
+        {!isImage && (
           <button
-            className={styles.actionButton}
-            onClick={() => setShowDownloadMenu(!showDownloadMenu)}
+            className={`${styles.actionButton} ${
+              showJSONPreview ? styles.active : ""
+            }`}
+            onClick={() => setShowJSONPreview(!showJSONPreview)}
           >
-            <FontAwesomeIcon icon={faDownload} />
-            <span>Download</span>
+            <FontAwesomeIcon icon={faFileCode} />
+            <span>{showJSONPreview ? "Hide" : "Show"} JSON Preview</span>
           </button>
+        )}
 
-          {showDownloadMenu && (
-            <div className={styles.downloadMenu}>
-              <button
-                className={styles.downloadOption}
-                onClick={() => handleDownload("pdf")}
-              >
-                <FontAwesomeIcon icon={faFilePdf} />
-                <span>PDF Data</span>
-              </button>
-              <button
-                className={styles.downloadOption}
-                onClick={() => handleDownload("csv")}
-              >
-                <FontAwesomeIcon icon={faFileCsv} />
-                <span>CSV Data</span>
-              </button>
-              <button
-                className={styles.downloadOption}
-                onClick={() => handleDownload("json")}
-              >
-                <FontAwesomeIcon icon={faFileCode} />
-                <span>JSON Data</span>
-              </button>
-            </div>
-          )}
-        </div>
+        {/* Download - Hidden for images */}
+        {!isImage && (
+          <div className={styles.downloadContainer} ref={downloadMenuRef}>
+            <button
+              className={styles.actionButton}
+              onClick={() => setShowDownloadMenu(!showDownloadMenu)}
+            >
+              <FontAwesomeIcon icon={faDownload} />
+              <span>Download</span>
+            </button>
+
+            {showDownloadMenu && (
+              <div className={styles.downloadMenu}>
+                <button
+                  className={styles.downloadOption}
+                  onClick={() => handleDownload("pdf")}
+                >
+                  <FontAwesomeIcon icon={faFilePdf} />
+                  <span>PDF Data</span>
+                </button>
+                <button
+                  className={styles.downloadOption}
+                  onClick={() => handleDownload("csv")}
+                >
+                  <FontAwesomeIcon icon={faFileCsv} />
+                  <span>CSV Data</span>
+                </button>
+                <button
+                  className={styles.downloadOption}
+                  onClick={() => handleDownload("json")}
+                >
+                  <FontAwesomeIcon icon={faFileCode} />
+                  <span>JSON Data</span>
+                </button>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
 
@@ -755,8 +839,19 @@ Now extract and list all chapters and sections:`;
         </div>
       )}
 
-      {/* Insight Generator Section - Show when button is clicked */}
-      {showInsightGenerator && (
+      {/* Image Insight Generator Section - Show for images */}
+      {showImageInsightGenerator && isImage && (
+        <div id="image-insight-generator-section" className={styles.insightGeneratorSection}>
+          <ImageInsightGenerator 
+            fileData={fileData}
+            analysisData={analysisData}
+            imageFile={fileData.file || session?.files?.find(f => f.fileName === fileData.fileName)?.file}
+          />
+        </div>
+      )}
+
+      {/* Insight Generator Section - Show for PDF, CSV, JSON files */}
+      {showInsightGenerator && !isImage && (
         <div id="insight-generator-section" className={styles.insightGeneratorSection}>
           <InsightGenerator 
             fileData={fileData}
@@ -783,12 +878,21 @@ Now extract and list all chapters and sections:`;
                   </strong>
                 </div>
                 <div className={styles.messageText}>
-                  {message.text.split("\n").map((line, i) => (
-                    <React.Fragment key={i}>
-                      {line}
-                      {i < message.text.split("\n").length - 1 && <br />}
-                    </React.Fragment>
-                  ))}
+                  {message.text.split("\n").map((line, i) => {
+                    // Parse markdown-style bold (**text**)
+                    const parts = line.split(/(\*\*.*?\*\*)/g);
+                    return (
+                      <React.Fragment key={i}>
+                        {parts.map((part, j) => {
+                          if (part.startsWith('**') && part.endsWith('**')) {
+                            return <strong key={j}>{part.slice(2, -2)}</strong>;
+                          }
+                          return <span key={j}>{part}</span>;
+                        })}
+                        {i < message.text.split("\n").length - 1 && <br />}
+                      </React.Fragment>
+                    );
+                  })}
                   {message.isStreaming && (
                     <span className={styles.streamingCursor}>▊</span>
                   )}
