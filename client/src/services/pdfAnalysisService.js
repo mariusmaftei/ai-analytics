@@ -1,9 +1,9 @@
 /**
- * PDF Analysis Service - Real backend integration
- * Replaces dummy data with actual PDF extraction and AI analysis
+ * PDF Analysis Service - Backend integration
+ * Handles PDF extraction and AI analysis
  */
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8080';
+import api, { API_BASE_URL } from './api';
 
 /**
  * Upload and analyze PDF file with real backend
@@ -26,16 +26,11 @@ export const analyzePDFFile = async (file, options = {}) => {
       formData.append('save_to_db', 'true');
     }
 
-    const response = await fetch(`${API_BASE_URL}/api/pdf/upload`, {
-      method: 'POST',
-      body: formData,
+    const { data } = await api.post('/api/pdf/upload', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
     });
-
-    if (!response.ok) {
-      throw new Error(`Upload failed: ${response.status}`);
-    }
-
-    const data = await response.json();
 
     if (data.status === 'error') {
       throw new Error(data.message || 'PDF analysis failed');
@@ -134,12 +129,11 @@ export const getPDFMetadata = async (file) => {
     const formData = new FormData();
     formData.append('file', file);
 
-    const response = await fetch(`${API_BASE_URL}/api/pdf/metadata`, {
-      method: 'POST',
-      body: formData,
+    const { data } = await api.post('/api/pdf/metadata', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
     });
-
-    const data = await response.json();
 
     if (data.status === 'error') {
       throw new Error(data.message);
@@ -162,12 +156,11 @@ export const analyzePDFWithAI = async (file, analysisType = 'summary') => {
     formData.append('file', file);
     formData.append('analysis_type', analysisType);
 
-    const response = await fetch(`${API_BASE_URL}/api/pdf/analyze`, {
-      method: 'POST',
-      body: formData,
+    const { data } = await api.post('/api/pdf/analyze', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
     });
-
-    const data = await response.json();
 
     if (data.status === 'error') {
       throw new Error(data.message);

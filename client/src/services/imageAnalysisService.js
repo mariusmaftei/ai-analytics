@@ -3,7 +3,7 @@
  * Handles image upload and AI analysis using Gemini Vision
  */
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8080';
+import api, { API_BASE_URL } from './api';
 
 /**
  * Upload and analyze image file with real backend
@@ -31,17 +31,11 @@ export const analyzeImageFile = async (file, options = {}) => {
       formData.append('save_to_db', 'true');
     }
 
-    const response = await fetch(`${API_BASE_URL}/api/image/upload`, {
-      method: 'POST',
-      body: formData,
+    const { data } = await api.post('/api/image/upload', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
     });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.message || `Upload failed: ${response.status}`);
-    }
-
-    const data = await response.json();
 
     if (data.status === 'error') {
       throw new Error(data.message || 'Image analysis failed');
@@ -91,16 +85,11 @@ export const getImageMetadata = async (file) => {
     const formData = new FormData();
     formData.append('file', file);
 
-    const response = await fetch(`${API_BASE_URL}/api/image/metadata`, {
-      method: 'POST',
-      body: formData,
+    const { data } = await api.post('/api/image/metadata', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
     });
-
-    if (!response.ok) {
-      throw new Error(`Metadata extraction failed: ${response.status}`);
-    }
-
-    const data = await response.json();
 
     if (data.status === 'error') {
       throw new Error(data.message || 'Metadata extraction failed');

@@ -3,8 +3,9 @@ flask-cors==4.0.0
 python-dotenv==1.0.0
 pymongo==4.6.0
 google-generativeai==0.8.3
-pymupdf==1.23.8  # Better than PyPDF2 - faster and more features
-Pillow==10.1.0  # For image extraction from PDFs
-pinecone>=3.0.0  # Pinecone SDK with Inference API support (use 'pinecone' not 'pinecone-client')
-requests==2.31.0  # For Pinecone Inference API calls
+pymupdf==1.23.8
+Pillow==10.1.0
+pinecone>=3.0.0
+requests==2.31.0
+gunicorn==21.2.0
 

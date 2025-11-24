@@ -1,6 +1,6 @@
 // AI Service - Handles communication with Gemini AI backend
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:8080";
+import api, { API_BASE_URL } from './api';
 
 /**
  * Generate text response from AI (non-streaming)
@@ -10,25 +10,13 @@ const API_BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:8080";
  */
 export const generateAIResponse = async (message, options = {}) => {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/ai/generate`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        message: message,  // Send as 'message' not 'prompt'
-        user_name: options.user_name || "User",  // Send user context
-        is_greeting: options.is_greeting || false,  // Is this the first message?
-        temperature: options.temperature || 0.7,
-        max_output_tokens: options.max_tokens || 8192,
-      }),
+    const { data } = await api.post('/api/ai/generate', {
+      message: message,
+      user_name: options.user_name || "User",
+      is_greeting: options.is_greeting || false,
+      temperature: options.temperature || 0.7,
+      max_output_tokens: options.max_tokens || 8192,
     });
-
-    if (!response.ok) {
-      throw new Error(`API error: ${response.status}`);
-    }
-
-    const data = await response.json();
 
     if (data.status === "error") {
       throw new Error(data.message || "AI generation failed");
@@ -120,22 +108,10 @@ export const generateAIResponseStream = async (
  */
 export const analyzeContent = async (content, analysisType = "general") => {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/ai/analyze`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        content,
-        type: analysisType,
-      }),
+    const { data } = await api.post('/api/ai/analyze', {
+      content,
+      type: analysisType,
     });
-
-    if (!response.ok) {
-      throw new Error(`API error: ${response.status}`);
-    }
-
-    const data = await response.json();
 
     if (data.status === "error") {
       throw new Error(data.message || "Analysis failed");
@@ -154,8 +130,7 @@ export const analyzeContent = async (content, analysisType = "general") => {
  */
 export const testAIConnection = async () => {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/ai/test`);
-    const data = await response.json();
+    const { data } = await api.get('/api/ai/test');
     return data;
   } catch (error) {
     console.error("AI Test Error:", error);

@@ -8,8 +8,8 @@ from routes.rag_routes import rag_bp
 from routes.image_routes import image_bp
 from services.insight_service import build_csv_insight_prompt, build_document_insight_prompt
 
-# Load environment variables
-load_dotenv()
+# Load environment variables (silently fail if .env doesn't exist - env vars may be set in container)
+load_dotenv(verbose=False)
 
 port = int(os.getenv('PORT', 8080))
 
@@ -172,15 +172,20 @@ def ai_generate_stream():
             }, 400
         
         # Get optional user context from request
-        user_name = data.get('user_name', 'User')
+        user_name = data.get('user_name')
         is_greeting = data.get('is_greeting', False)  # Frontend tells us if this is the first message
         
         # Build the full prompt with system context (SERVER-SIDE)
         if is_greeting:
-            # This is the first message - use name in greeting
+            # This is the first message - use generic greeting
+            if user_name:
+                greeting = f"Hello {user_name}! How can I help you?"
+            else:
+                greeting = "Hello! How can I help you today?"
+            
             system_prompt = f"""You are an AI Analysis Assistant specializing in PDF, CSV, and JSON file analysis.
 
-The user's name is {user_name}. This is the FIRST message - greet them warmly: "Hello {user_name}! How can I help you?"
+This is the FIRST message - greet them warmly with: "{greeting}"
 
 Keep it simple, don't mention PDF/CSV/JSON yet.
 
@@ -191,7 +196,7 @@ Greet them naturally:"""
             # Continuing conversation - DON'T use name unless asked
             system_prompt = f"""You are an AI Analysis Assistant specializing in PDF, CSV, and JSON file analysis.
 
-The user's name is {user_name}. This is a CONTINUING conversation.
+This is a CONTINUING conversation.
 - DO NOT greet again
 - DO NOT use their name unless they ask "Who am I?" or say goodbye
 - Just respond naturally to their message
@@ -283,8 +288,9 @@ def ai_generate_insights_stream():
             csv_data = data.get('data', [])
             columns = data.get('columns', [])
             metadata = data.get('metadata', {})
+            analysis_type = data.get('analysisType', 'overview')
             
-            print(f"[INSIGHT] CSV data: {len(csv_data) if csv_data else 0} rows, {len(columns) if columns else 0} columns")
+            print(f"[INSIGHT] CSV data: {len(csv_data) if csv_data else 0} rows, {len(columns) if columns else 0} columns, analysis_type: {analysis_type}")
             
             if not csv_data or not columns:
                 return jsonify({
@@ -294,8 +300,8 @@ def ai_generate_insights_stream():
             
             # Build prompt server-side
             try:
-                prompt = build_csv_insight_prompt(csv_data, columns, metadata)
-                print(f"[INSIGHT] Prompt built successfully, length: {len(prompt)}")
+                prompt = build_csv_insight_prompt(csv_data, columns, metadata, analysis_type)
+                print(f"[INSIGHT] Prompt built successfully, length: {len(prompt)}, type: {analysis_type}")
             except Exception as e:
                 print(f"[INSIGHT] Error building CSV prompt: {str(e)}")
                 return jsonify({
@@ -365,5 +371,6 @@ def shutdown_session(exception=None):
 
 if __name__ == '__main__':
     print(f"Server is running on port {port}")
-    app.run(host='0.0.0.0', port=port, debug=True)
+    debug_mode = os.getenv('FLASK_ENV') != 'production'
+    app.run(host='0.0.0.0', port=port, debug=debug_mode)
 

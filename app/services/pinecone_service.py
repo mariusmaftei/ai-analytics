@@ -6,7 +6,7 @@ import os
 from pinecone import Pinecone, ServerlessSpec
 from dotenv import load_dotenv
 
-load_dotenv()
+load_dotenv(verbose=False)
 
 
 class PineconeService:

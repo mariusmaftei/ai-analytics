@@ -3,8 +3,8 @@ from pymongo import MongoClient
 from pymongo.errors import ConnectionFailure, ServerSelectionTimeoutError
 from dotenv import load_dotenv
 
-# Load environment variables
-load_dotenv()
+# Load environment variables (silently fail if .env doesn't exist)
+load_dotenv(verbose=False)
 
 class Database:
     """MongoDB Database Configuration and Connection Handler"""

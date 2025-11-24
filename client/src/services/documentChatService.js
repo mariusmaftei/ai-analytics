@@ -4,8 +4,7 @@
  */
 
 import { ragQuery } from './ragService';
-
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8080';
+import api, { API_BASE_URL } from './api';
 
 /**
  * Chat with AI about a document
@@ -142,19 +141,11 @@ ${documentText.substring(0, 8000)}
 
 Provide a clear, concise summary:`;
 
-    const response = await fetch(`${API_BASE_URL}/api/ai/generate`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        message: prompt,
-        temperature: 0.7,
-        max_output_tokens: 500,
-      }),
+    const { data } = await api.post('/api/ai/generate', {
+      message: prompt,
+      temperature: 0.7,
+      max_output_tokens: 500,
     });
-
-    const data = await response.json();
 
     if (data.status === 'error') {
       throw new Error(data.message);
@@ -181,19 +172,11 @@ Question: ${question}
 
 Answer:`;
 
-    const response = await fetch(`${API_BASE_URL}/api/ai/generate`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        message: prompt,
-        temperature: 0.7,
-        max_output_tokens: 1024,
-      }),
+    const { data } = await api.post('/api/ai/generate', {
+      message: prompt,
+      temperature: 0.7,
+      max_output_tokens: 1024,
     });
-
-    const data = await response.json();
 
     if (data.status === 'error') {
       throw new Error(data.message);

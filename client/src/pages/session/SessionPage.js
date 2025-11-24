@@ -21,6 +21,7 @@ import JSONPreview from "../../components/JSONPreview/JSONPreview";
 import ImagePreview from "../../components/ImagePreview/ImagePreview";
 import InsightGenerator from "../../components/InsightGenerator/InsightGenerator";
 import ImageInsightGenerator from "../../components/ImageInsightGenerator/ImageInsightGenerator";
+import CSVInsightGenerator from "../../components/CSVInsightGenerator/CSVInsightGenerator";
 import { generatePDFReport, generateCSVExport, generateJSONExport } from "../../utils/pdfGenerator";
 import styles from "./SessionPage.module.css";
 
@@ -48,6 +49,7 @@ const SessionPage = () => {
   };
 
   const isImage = analysisData.fileType === "IMAGE";
+  const isCSV = analysisData.fileType === "CSV";
   
   const [inputValue, setInputValue] = useState("");
   const [showChapters, setShowChapters] = useState(false);
@@ -264,7 +266,7 @@ const SessionPage = () => {
           });
         },
         {
-          user_name: 'Marius',
+          user_name: null,
           temperature: 0.7,
           max_tokens: 2048,
         }
@@ -483,7 +485,7 @@ Now extract and list all chapters and sections:`;
             });
           },
           {
-            user_name: 'Marius',
+            user_name: null,
             temperature: 0.3,
             max_tokens: 2048,
             is_greeting: false,
@@ -684,8 +686,8 @@ Now extract and list all chapters and sections:`;
           </button>
         )}
 
-        {/* Insight Generator - For PDF, CSV, JSON files only */}
-        {!isImage && (
+        {/* Insight Generator - For PDF, JSON files only (CSV has its own generator) */}
+        {!isImage && !isCSV && (
           <button
             className={`${styles.actionButton} ${
               showInsightGenerator ? styles.active : ""
@@ -695,6 +697,29 @@ Now extract and list all chapters and sections:`;
               if (!showInsightGenerator) {
                 setTimeout(() => {
                   const insightSection = document.getElementById('insight-generator-section');
+                  if (insightSection) {
+                    insightSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                  }
+                }, 100);
+              }
+            }}
+          >
+            <FontAwesomeIcon icon={faLightbulb} />
+            <span>{showInsightGenerator ? "Hide" : "Generate"} Insights</span>
+          </button>
+        )}
+
+        {/* CSV Insight Generator - For CSV files only */}
+        {isCSV && (
+          <button
+            className={`${styles.actionButton} ${
+              showInsightGenerator ? styles.active : ""
+            }`}
+            onClick={() => {
+              setShowInsightGenerator(!showInsightGenerator);
+              if (!showInsightGenerator) {
+                setTimeout(() => {
+                  const insightSection = document.getElementById('csv-insight-generator-section');
                   if (insightSection) {
                     insightSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
                   }
@@ -850,8 +875,18 @@ Now extract and list all chapters and sections:`;
         </div>
       )}
 
-      {/* Insight Generator Section - Show for PDF, CSV, JSON files */}
-      {showInsightGenerator && !isImage && (
+      {/* CSV Insight Generator Section - Show for CSV files */}
+      {showInsightGenerator && isCSV && (
+        <div id="csv-insight-generator-section" className={styles.insightGeneratorSection}>
+          <CSVInsightGenerator 
+            fileData={fileData}
+            analysisData={analysisData}
+          />
+        </div>
+      )}
+
+      {/* Insight Generator Section - Show for PDF, JSON files */}
+      {showInsightGenerator && !isImage && !isCSV && (
         <div id="insight-generator-section" className={styles.insightGeneratorSection}>
           <InsightGenerator 
             fileData={fileData}

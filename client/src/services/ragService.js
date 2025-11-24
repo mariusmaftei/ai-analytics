@@ -2,7 +2,7 @@
  * RAG Service - Retrieval-Augmented Generation for document queries
  */
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8080';
+import api, { API_BASE_URL } from './api';
 
 /**
  * Query documents using RAG (streaming)
@@ -77,25 +77,13 @@ export const ragQuery = async (query, documentId = null, onChunk, options = {}) 
  */
 export const ragQuerySync = async (query, documentId = null, options = {}) => {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/rag/query-sync`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        query: query,
-        document_id: documentId,
-        top_k: options.top_k || 5,
-        temperature: options.temperature || 0.7,
-        max_tokens: options.max_tokens || 2048,
-      }),
+    const { data } = await api.post('/api/rag/query-sync', {
+      query: query,
+      document_id: documentId,
+      top_k: options.top_k || 5,
+      temperature: options.temperature || 0.7,
+      max_tokens: options.max_tokens || 2048,
     });
-
-    if (!response.ok) {
-      throw new Error(`API error: ${response.status}`);
-    }
-
-    const data = await response.json();
 
     if (data.status === 'error') {
       throw new Error(data.message || 'RAG query failed');

@@ -6,7 +6,7 @@ import os
 import google.generativeai as genai
 from dotenv import load_dotenv
 
-load_dotenv()
+load_dotenv(verbose=False)
 
 class EmbeddingService:
     """Service for generating text embeddings"""

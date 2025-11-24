@@ -2,8 +2,8 @@ import os
 from dotenv import load_dotenv
 import google.generativeai as genai
 
-# Load environment variables
-load_dotenv()
+# Load environment variables (silently fail if .env doesn't exist)
+load_dotenv(verbose=False)
 
 class GeminiConfig:
     """Google Gemini AI Configuration and Helper"""

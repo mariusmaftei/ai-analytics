@@ -140,14 +140,14 @@ const HomePage = () => {
 
   const handleInputChange = (e) => {
     setInputValue(e.target.value);
-    
+
     // Auto-resize textarea up to 6 lines, then show scrollbar
     const textarea = e.target;
     textarea.style.height = "auto";
     const maxHeight = parseFloat(getComputedStyle(textarea).maxHeight);
     const currentHeight = Math.min(textarea.scrollHeight, maxHeight);
     textarea.style.height = `${currentHeight}px`;
-    
+
     // Check if input has reached 6+ lines (when scrollHeight >= maxHeight)
     const hasReachedMaxLines = textarea.scrollHeight >= maxHeight;
     setIsInputExpanded(hasReachedMaxLines);
@@ -169,7 +169,15 @@ const HomePage = () => {
       pdf: ["application/pdf"],
       csv: ["text/csv", "application/vnd.ms-excel", "text/plain"],
       json: ["application/json", "text/json"],
-      image: ["image/png", "image/jpeg", "image/jpg", "image/gif", "image/bmp", "image/webp", "image/tiff"],
+      image: [
+        "image/png",
+        "image/jpeg",
+        "image/jpg",
+        "image/gif",
+        "image/bmp",
+        "image/webp",
+        "image/tiff",
+      ],
     };
 
     const extensions = validExtensions[expectedType] || [];
@@ -254,7 +262,12 @@ const HomePage = () => {
       if (fileExtension === "pdf") expectedType = "pdf";
       else if (fileExtension === "csv") expectedType = "csv";
       else if (fileExtension === "json") expectedType = "json";
-      else if (["png", "jpg", "jpeg", "gif", "bmp", "webp", "tiff", "tif"].includes(fileExtension)) expectedType = "image";
+      else if (
+        ["png", "jpg", "jpeg", "gif", "bmp", "webp", "tiff", "tif"].includes(
+          fileExtension
+        )
+      )
+        expectedType = "image";
 
       if (expectedType && validateFileType(file, expectedType)) {
         handleFileUpload(file);
@@ -351,7 +364,7 @@ const HomePage = () => {
         {
           temperature: 0.7,
           max_tokens: 2048,
-          user_name: "Marius",
+          user_name: null,
           is_greeting: isFirstMessage,
         }
       );
@@ -576,7 +589,9 @@ const HomePage = () => {
               <div className={styles.bottomSearchBox}>
                 <textarea
                   ref={bottomTextareaRef}
-                  className={`${styles.bottomInput} ${isInputExpanded ? styles.expanded : ""}`}
+                  className={`${styles.bottomInput} ${
+                    isInputExpanded ? styles.expanded : ""
+                  }`}
                   placeholder="Ask me anything..."
                   value={inputValue}
                   onChange={handleInputChange}
@@ -610,7 +625,9 @@ const HomePage = () => {
             <div className={styles.searchBox}>
               <textarea
                 ref={mainTextareaRef}
-                className={`${styles.mainInput} ${isInputExpanded ? styles.expanded : ""}`}
+                className={`${styles.mainInput} ${
+                  isInputExpanded ? styles.expanded : ""
+                }`}
                 placeholder="Ask me anything..."
                 value={inputValue}
                 onChange={handleInputChange}
@@ -625,7 +642,7 @@ const HomePage = () => {
                 <FontAwesomeIcon icon={faMagnifyingGlass} />
               </button>
             </div>
-            
+
             {/* File Upload Icons - Positioned below input */}
             <div className={styles.uploadOptionsInline}>
               <input

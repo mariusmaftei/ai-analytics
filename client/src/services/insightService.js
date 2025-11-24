@@ -3,7 +3,7 @@
  * Calls backend endpoint that builds prompts server-side for security
  */
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8080';
+import { API_BASE_URL } from './api';
 
 /**
  * Generate insights for a document/CSV file
@@ -50,6 +50,7 @@ export const generateInsights = async (params, onChunk) => {
       payload.data = csvData;
       payload.columns = columns;
       payload.metadata = metadata || {};
+      payload.analysisType = params.analysisType || 'overview';
     } else {
       // For non-CSV files, text is required
       if (!text) {

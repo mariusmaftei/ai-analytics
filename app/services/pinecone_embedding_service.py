@@ -6,7 +6,7 @@ import os
 from pinecone import Pinecone
 from dotenv import load_dotenv
 
-load_dotenv()
+load_dotenv(verbose=False)
 
 class PineconeEmbeddingService:
     """Service for generating embeddings using Pinecone's Inference API"""
