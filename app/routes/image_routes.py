@@ -99,7 +99,9 @@ def upload_image():
             },
             'analysis': {
                 'type': analysis_type,
-                'result': analysis_result['analysis']
+                'result': analysis_result['analysis'],
+                'cleaned': analysis_result.get('cleaned_analysis'),
+                'textContext': analysis_result.get('text_context')
             },
             'uploaded_at': datetime.now().isoformat()
         }

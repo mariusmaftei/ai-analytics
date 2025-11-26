@@ -55,7 +55,7 @@ const SessionPage = () => {
   const [showChapters, setShowChapters] = useState(false);
   const [showCSVPreview, setShowCSVPreview] = useState(false);
   const [showJSONPreview, setShowJSONPreview] = useState(false);
-  const [showImagePreview, setShowImagePreview] = useState(isImage && !!analysisData.imageUrl);
+  const [showImagePreview, setShowImagePreview] = useState(false);
   const [showInsightGenerator, setShowInsightGenerator] = useState(false);
   const [showImageInsightGenerator, setShowImageInsightGenerator] = useState(false);
   const [isTyping, setIsTyping] = useState(false);

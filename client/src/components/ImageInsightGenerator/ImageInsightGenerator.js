@@ -16,6 +16,14 @@ import {
   faLayerGroup,
 } from "@fortawesome/free-solid-svg-icons";
 import { analyzeImageStream } from "../../services/imageAnalysisService";
+import { parseImageInsights } from "./utils/imageInsightParser";
+import ImageGeneralAnalysis from "../ImageAnalysisPreview/ImageGeneralAnalysis/ImageGeneralAnalysis";
+import ImageDetailedAnalysis from "../ImageAnalysisPreview/ImageDetailedAnalysis/ImageDetailedAnalysis";
+import ImageTextExtraction from "../ImageAnalysisPreview/ImageTextExtraction/ImageTextExtraction";
+import ImageObjectDetection from "../ImageAnalysisPreview/ImageObjectDetection/ImageObjectDetection";
+import ImageSceneAnalysis from "../ImageAnalysisPreview/ImageSceneAnalysis/ImageSceneAnalysis";
+import ImageChartAnalysis from "../ImageAnalysisPreview/ImageChartAnalysis/ImageChartAnalysis";
+import ImageDocumentAnalysis from "../ImageAnalysisPreview/ImageDocumentAnalysis/ImageDocumentAnalysis";
 import styles from "./ImageInsightGenerator.module.css";
 
 // Helper function to convert blob URL to File object
@@ -63,31 +71,52 @@ const ALL_ANALYSIS_TYPES = ANALYSIS_TYPES.filter(type => type.id !== "all");
 const ImageInsightGenerator = ({ fileData, analysisData, imageFile }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [selectedAnalysisType, setSelectedAnalysisType] = useState("all");
+  const [selectedAnalysisType, setSelectedAnalysisType] = useState("general");
   const [insights, setInsights] = useState(null);
+  const [parsedInsights, setParsedInsights] = useState(null);
   const [allInsights, setAllInsights] = useState(null);
+  const [ocrContext, setOcrContext] = useState(null);
+  const [ocrRawText, setOcrRawText] = useState(null);
+  const [objectsJson, setObjectsJson] = useState(null);
+  const [generalStructuredData, setGeneralStructuredData] = useState(null);
   const [error, setError] = useState(null);
   const [cachedImageFile, setCachedImageFile] = useState(null);
   const isLoadingFileRef = useRef(false);
+  const hasInitializedRef = useRef(false);
 
   // Generate a unique cache key based on file name and size
   const cacheKey = `image_insights_${fileData.fileName}_${fileData.fileSize}`;
 
-  // Load cached insights on mount
+  // Load cached insights on mount (but NOT from analysisData - user must click button)
   useEffect(() => {
+    if (hasInitializedRef.current) return;
+    
     try {
       const cached = sessionStorage.getItem(cacheKey);
       if (cached) {
         const parsed = JSON.parse(cached);
-        if (parsed.allInsights) {
+          if (parsed.allInsights) {
           setAllInsights(parsed.allInsights);
           setIsExpanded(true);
+          hasInitializedRef.current = true;
         } else if (parsed.insights) {
           setInsights(parsed.insights);
-          setSelectedAnalysisType(parsed.analysisType || "all");
+          const cachedType = parsed.analysisType || "general";
+          setSelectedAnalysisType(cachedType);
+          if (parsed.parsedInsights) {
+            setParsedInsights(parsed.parsedInsights);
+          } else {
+            const parsedData = parseImageInsights(parsed.insights);
+            setParsedInsights(parsedData);
+          }
+            if (parsed.ocrContext) {
+              setOcrContext(parsed.ocrContext);
+            }
           setIsExpanded(true);
+          hasInitializedRef.current = true;
         }
       }
+      // Removed automatic loading from analysisData - user must click button to analyze
     } catch (err) {
       console.error('Failed to load cached insights:', err);
     }
@@ -99,8 +128,10 @@ const ImageInsightGenerator = ({ fileData, analysisData, imageFile }) => {
       try {
         const toCache = {
           insights,
+          parsedInsights,
           allInsights,
           analysisType: selectedAnalysisType,
+          ocrContext,
           timestamp: Date.now(),
         };
         sessionStorage.setItem(cacheKey, JSON.stringify(toCache));
@@ -108,7 +139,7 @@ const ImageInsightGenerator = ({ fileData, analysisData, imageFile }) => {
         console.error('Failed to cache insights:', err);
       }
     }
-  }, [insights, allInsights, selectedAnalysisType, cacheKey]);
+  }, [insights, parsedInsights, allInsights, selectedAnalysisType, cacheKey, ocrContext]);
 
   useEffect(() => {
     if ((insights || allInsights) && !isGenerating && !error) {
@@ -188,7 +219,10 @@ const ImageInsightGenerator = ({ fileData, analysisData, imageFile }) => {
     setIsGenerating(true);
     setError(null);
     setInsights(null);
+    setParsedInsights(null);
     setAllInsights(null);
+    setOcrRawText(null);
+    setOcrContext(null);
 
     try {
       // Log file info for debugging
@@ -210,7 +244,10 @@ const ImageInsightGenerator = ({ fileData, analysisData, imageFile }) => {
         for (const type of ALL_ANALYSIS_TYPES) {
           try {
             let fullResponse = "";
-            await analyzeImageStream(
+            let rawTextResponse = "";
+            let latestContext = null;
+            let objectsData = null;
+            const result = await analyzeImageStream(
               fileToUse,
               {
                 analysisType: type.id,
@@ -224,13 +261,38 @@ const ImageInsightGenerator = ({ fileData, analysisData, imageFile }) => {
                   content: fullResponse,
                 };
                 setAllInsights({ ...results });
+              },
+              (meta) => {
+                latestContext = meta;
+                if (type.id === "ocr") {
+                  setOcrContext(meta);
+                }
+              },
+              null,
+              (jsonData) => {
+                objectsData = jsonData;
+                if (type.id === "objects") {
+                  setObjectsJson(jsonData);
+                }
               }
             );
+            if (typeof result === 'object' && result.rawText) {
+              rawTextResponse = result.rawText;
+              fullResponse = result.text || fullResponse;
+            } else if (typeof result === 'string') {
+              fullResponse = result;
+            }
             results[type.id] = {
               type: type.label,
               icon: type.icon,
               content: fullResponse,
+              rawText: rawTextResponse || fullResponse,
+              objectsJson: objectsData,
+              context: latestContext,
             };
+            if (type.id === "ocr" && rawTextResponse) {
+              setOcrRawText(rawTextResponse);
+            }
             completedCount++;
             setAllInsights({ ...results });
           } catch (err) {
@@ -248,19 +310,56 @@ const ImageInsightGenerator = ({ fileData, analysisData, imageFile }) => {
       } else {
         // Single analysis type
         let fullResponse = "";
+        let rawTextResponse = "";
+        let latestContext = null;
 
-        await analyzeImageStream(
-          fileToUse,
-          {
-            analysisType: selectedAnalysisType,
+        const result = await analyzeImageStream(
+              fileToUse,
+              {
+                analysisType: selectedAnalysisType,
+              },
+              (chunk) => {
+                fullResponse += chunk;
+                setInsights(fullResponse);
+                const parsed = parseImageInsights(fullResponse);
+                setParsedInsights(parsed);
           },
-          (chunk) => {
-            fullResponse += chunk;
-            setInsights(fullResponse);
+          (meta) => {
+            latestContext = meta;
+            setOcrContext(meta);
+          },
+          (rawText) => {
+            rawTextResponse = rawText;
+            if (selectedAnalysisType === "ocr") {
+              setOcrRawText(rawText);
+            }
+          },
+          (jsonData) => {
+            // Handle both objects JSON and general structured data
+            if (selectedAnalysisType === "objects") {
+              setObjectsJson(jsonData);
+            } else if (selectedAnalysisType === "general") {
+              setGeneralStructuredData(jsonData);
+            }
           }
-        );
+            );
+
+        if (typeof result === 'object' && result.rawText) {
+          rawTextResponse = result.rawText;
+          fullResponse = result.text || fullResponse;
+        } else if (typeof result === 'string') {
+          fullResponse = result;
+        }
 
         setInsights(fullResponse);
+        const parsed = parseImageInsights(fullResponse);
+        setParsedInsights(parsed);
+        if (rawTextResponse && selectedAnalysisType === "ocr") {
+          setOcrRawText(rawTextResponse);
+        }
+        if (selectedAnalysisType === "ocr" && !latestContext) {
+          setOcrContext(null);
+        }
       }
     } catch (err) {
       console.error("Image insight generation error:", err);
@@ -383,74 +482,12 @@ const ImageInsightGenerator = ({ fileData, analysisData, imageFile }) => {
 
       {(insights || allInsights) && isExpanded && (
         <div className={styles.insightsContent}>
-          {allInsights ? (
-            // Display all analyses
-            <div className={styles.allInsightsContainer}>
-              <div className={styles.analysisTypeBadge}>
-                <FontAwesomeIcon icon={faLayerGroup} />
-                <span>All Analyses ({Object.keys(allInsights).length} completed)</span>
-              </div>
-              
-              {Object.entries(allInsights).map(([typeId, result]) => {
-                const typeInfo = ALL_ANALYSIS_TYPES.find(t => t.id === typeId);
-                return (
-                  <div key={typeId} className={styles.singleAnalysisSection}>
-                    <div className={styles.analysisSectionHeader}>
-                      <FontAwesomeIcon icon={typeInfo?.icon || faEye} />
-                      <h4>{result.type}</h4>
-                    </div>
-                    <div className={`${styles.insightsText} ${result.error ? styles.errorText : ''}`}>
-                      {result.content.split("\n").map((line, i) => {
-                        const parts = line.split(/(\*\*.*?\*\*)/g);
-                        return (
-                          <React.Fragment key={i}>
-                            {parts.map((part, j) => {
-                              if (part.startsWith("**") && part.endsWith("**")) {
-                                return <strong key={j}>{part.slice(2, -2)}</strong>;
-                              }
-                              return <span key={j}>{part}</span>;
-                            })}
-                            {i < result.content.split("\n").length - 1 && <br />}
-                          </React.Fragment>
-                        );
-                      })}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          ) : (
-            // Display single analysis
-            <>
-              <div className={styles.analysisTypeBadge}>
-                <FontAwesomeIcon icon={selectedType.icon} />
-                <span>{selectedType.label}</span>
-              </div>
-              
-              <div className={styles.insightsText}>
-                {insights.split("\n").map((line, i) => {
-                  const parts = line.split(/(\*\*.*?\*\*)/g);
-                  return (
-                    <React.Fragment key={i}>
-                      {parts.map((part, j) => {
-                        if (part.startsWith("**") && part.endsWith("**")) {
-                          return <strong key={j}>{part.slice(2, -2)}</strong>;
-                        }
-                        return <span key={j}>{part}</span>;
-                      })}
-                      {i < insights.split("\n").length - 1 && <br />}
-                    </React.Fragment>
-                  );
-                })}
-              </div>
-            </>
-          )}
-
-          <div className={styles.actionsRow}>
+          <div className={styles.previewActions}>
             <button
               className={styles.changeTypeButton}
               onClick={() => {
                 setInsights(null);
+                setParsedInsights(null);
                 setAllInsights(null);
                 setError(null);
                 // Clear cache when changing type
@@ -463,6 +500,130 @@ const ImageInsightGenerator = ({ fileData, analysisData, imageFile }) => {
             >
               Change Analysis Type
             </button>
+          </div>
+          {allInsights ? (
+            // Display all analyses
+            <div className={styles.allInsightsContainer}>
+              <div className={styles.analysisTypeBadge}>
+                <FontAwesomeIcon icon={faLayerGroup} />
+                <span>All Analyses ({Object.keys(allInsights).length} completed)</span>
+              </div>
+              
+              {Object.entries(allInsights).map(([typeId, result]) => {
+                const typeInfo = ALL_ANALYSIS_TYPES.find(t => t.id === typeId);
+                const parsed = parseImageInsights(result.content);
+                return (
+                  <div key={typeId} className={styles.singleAnalysisSection}>
+                    <div className={styles.analysisSectionHeader}>
+                      <FontAwesomeIcon icon={typeInfo?.icon || faEye} />
+                      <h4>{result.type}</h4>
+                    </div>
+                    {typeId === "general" && <ImageGeneralAnalysis data={parsed} rawText={result.content} />}
+                    {typeId === "detailed" && <ImageDetailedAnalysis data={parsed} rawText={result.content} />}
+                    {typeId === "ocr" && (
+                      <ImageTextExtraction
+                        data={parsed}
+                        rawText={result.rawText || result.content}
+                        contextMeta={result.context || ocrContext}
+                      />
+                    )}
+                    {typeId === "objects" && (
+                      <ImageObjectDetection
+                        data={parsed}
+                        rawText={result.objectsJson ? JSON.stringify(result.objectsJson) : result.content}
+                        imageUrl={analysisData.imageUrl}
+                        imageFile={cachedImageFile || imageFile}
+                      />
+                    )}
+                    {typeId === "scene" && <ImageSceneAnalysis data={parsed} rawText={result.content} />}
+                    {typeId === "chart" && <ImageChartAnalysis data={parsed} rawText={result.content} />}
+                    {typeId === "document" && <ImageDocumentAnalysis data={parsed} rawText={result.content} />}
+                    {!["general", "detailed", "ocr", "objects", "scene", "chart", "document"].includes(typeId) && (
+                      <div className={`${styles.insightsText} ${result.error ? styles.errorText : ''}`}>
+                        {result.content.split("\n").map((line, i) => {
+                          const parts = line.split(/(\*\*.*?\*\*)/g);
+                          return (
+                            <React.Fragment key={i}>
+                              {parts.map((part, j) => {
+                                if (part.startsWith("**") && part.endsWith("**")) {
+                                  return <strong key={j}>{part.slice(2, -2)}</strong>;
+                                }
+                                return <span key={j}>{part}</span>;
+                              })}
+                              {i < result.content.split("\n").length - 1 && <br />}
+                            </React.Fragment>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            // Display single analysis with preview component
+            <>
+              <div className={styles.analysisTypeBadge}>
+                <FontAwesomeIcon icon={selectedType.icon} />
+                <span>{selectedType.label}</span>
+              </div>
+              
+              {selectedAnalysisType === "general" && parsedInsights && (
+                <ImageGeneralAnalysis 
+                  data={parsedInsights} 
+                  rawText={insights}
+                  structuredData={generalStructuredData}
+                />
+              )}
+              {selectedAnalysisType === "detailed" && parsedInsights && (
+                <ImageDetailedAnalysis data={parsedInsights} rawText={insights} />
+              )}
+              {selectedAnalysisType === "ocr" && parsedInsights && (
+                <ImageTextExtraction
+                  data={parsedInsights}
+                  rawText={ocrRawText || insights}
+                  contextMeta={ocrContext || analysisData.textContext}
+                />
+              )}
+              {selectedAnalysisType === "objects" && parsedInsights && (
+                <ImageObjectDetection
+                  data={parsedInsights}
+                  rawText={objectsJson ? JSON.stringify(objectsJson) : insights}
+                  imageUrl={analysisData.imageUrl}
+                  imageFile={cachedImageFile || imageFile}
+                />
+              )}
+              {selectedAnalysisType === "scene" && parsedInsights && (
+                <ImageSceneAnalysis data={parsedInsights} rawText={insights} />
+              )}
+              {selectedAnalysisType === "chart" && parsedInsights && (
+                <ImageChartAnalysis data={parsedInsights} rawText={insights} />
+              )}
+              {selectedAnalysisType === "document" && parsedInsights && (
+                <ImageDocumentAnalysis data={parsedInsights} rawText={insights} />
+              )}
+              {!parsedInsights && insights && (
+                <div className={styles.insightsText}>
+                  {insights.split("\n").map((line, i) => {
+                    const parts = line.split(/(\*\*.*?\*\*)/g);
+                    return (
+                      <React.Fragment key={i}>
+                        {parts.map((part, j) => {
+                          if (part.startsWith("**") && part.endsWith("**")) {
+                            return <strong key={j}>{part.slice(2, -2)}</strong>;
+                          }
+                          return <span key={j}>{part}</span>;
+                        })}
+                        {i < insights.split("\n").length - 1 && <br />}
+                      </React.Fragment>
+                    );
+                  })}
+                </div>
+              )}
+            </>
+          )}
+
+          <div className={styles.actionsRow}>
             <button
               className={styles.regenerateButton}
               onClick={handleGenerateInsights}
@@ -470,24 +631,6 @@ const ImageInsightGenerator = ({ fileData, analysisData, imageFile }) => {
             >
               <FontAwesomeIcon icon={selectedType.icon} />
               <span>Regenerate Analysis</span>
-            </button>
-            <button
-              className={styles.clearCacheButton}
-              onClick={() => {
-                setInsights(null);
-                setAllInsights(null);
-                setError(null);
-                setIsExpanded(false);
-                // Clear cache
-                try {
-                  sessionStorage.removeItem(cacheKey);
-                } catch (err) {
-                  console.error('Failed to clear cache:', err);
-                }
-              }}
-              title="Clear cached results"
-            >
-              Clear Cache
             </button>
           </div>
         </div>

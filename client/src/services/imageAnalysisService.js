@@ -54,6 +54,9 @@ export const analyzeImageFile = async (file, options = {}) => {
  * Transform backend response to match AnalysisPage expectations
  */
 function transformImageResponse(backendData) {
+  const rawResult = backendData.analysis?.result ?? '';
+  const cleanedResult = backendData.analysis?.cleaned ?? rawResult;
+
   return {
     fileType: 'IMAGE',
     metadata: {
@@ -61,13 +64,15 @@ function transformImageResponse(backendData) {
       totalPages: 1, // Images are single "page"
       wordCount: 0, // Images don't have word count
     },
-    text: backendData.analysis?.result || '',
+    text: cleanedResult,
     insights: {
-      summary: backendData.analysis?.result || 'Image analysis complete',
+      summary: cleanedResult || 'Image analysis complete',
       patterns: [],
       analysisType: backendData.analysis?.type || 'general',
     },
-    analysis: backendData.analysis?.result || '',
+    textContext: backendData.analysis?.textContext || null,
+    analysis: rawResult,
+    cleanedAnalysis: cleanedResult,
     imageUrl: null, // Will be set from file object URL
     width: backendData.metadata?.width || 0,
     height: backendData.metadata?.height || 0,
@@ -110,7 +115,14 @@ export const getImageMetadata = async (file) => {
  * @param {Function} onChunk - Callback for each chunk
  * @returns {Promise<string>} Full analysis text
  */
-export const analyzeImageStream = async (file, options = {}, onChunk = null) => {
+export const analyzeImageStream = async (
+  file,
+  options = {},
+  onChunk = null,
+  onMetadata = null,
+  onRawText = null,
+  onObjectsJson = null
+) => {
   try {
     const formData = new FormData();
     formData.append('file', file);
@@ -145,6 +157,7 @@ export const analyzeImageStream = async (file, options = {}, onChunk = null) => 
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
     let fullText = '';
+    let rawText = '';
 
     while (true) {
       const { done, value } = await reader.read();
@@ -159,11 +172,61 @@ export const analyzeImageStream = async (file, options = {}, onChunk = null) => 
           const data = line.slice(6);
           
           if (data === '[DONE]') {
-            return fullText;
+            return { text: fullText, rawText: rawText || fullText };
           }
           
           if (data.startsWith('[ERROR]')) {
             throw new Error(data);
+          }
+
+          if (data.startsWith('[RAW_TEXT]')) {
+            rawText = data.slice('[RAW_TEXT]'.length);
+            continue;
+          }
+
+          if (data.startsWith('[TEXT_CONTEXT]')) {
+            const payload = data.slice('[TEXT_CONTEXT]'.length);
+            try {
+              const parsed = JSON.parse(payload);
+              if (onMetadata) {
+                onMetadata(parsed);
+              }
+            } catch (err) {
+              console.error('Failed to parse OCR context payload:', err);
+            }
+            continue;
+          }
+
+          if (data.startsWith('[OBJECTS_JSON]')) {
+            const payload = data.slice('[OBJECTS_JSON]'.length);
+            try {
+              const parsed = JSON.parse(payload);
+              console.log('[imageAnalysisService] Parsed objects JSON:', parsed);
+              if (onObjectsJson) {
+                onObjectsJson(parsed);
+              }
+              // Set as fullText so component can access it
+              fullText = JSON.stringify(parsed);
+            } catch (err) {
+              console.error('Failed to parse objects JSON payload:', err, 'Payload:', payload.substring(0, 200));
+            }
+            continue;
+          }
+
+          if (data.startsWith('[GENERAL_JSON]')) {
+            const payload = data.slice('[GENERAL_JSON]'.length);
+            try {
+              const parsed = JSON.parse(payload);
+              console.log('[imageAnalysisService] Parsed general analysis JSON:', parsed);
+              // Store structured data for component access
+              if (onObjectsJson) {
+                // Reuse onObjectsJson callback for general structured data
+                onObjectsJson(parsed);
+              }
+            } catch (err) {
+              console.error('Failed to parse general JSON payload:', err, 'Payload:', payload.substring(0, 200));
+            }
+            continue;
           }
           
           fullText += data;
@@ -175,7 +238,7 @@ export const analyzeImageStream = async (file, options = {}, onChunk = null) => 
       }
     }
 
-    return fullText;
+    return { text: fullText, rawText: rawText || fullText };
 
   } catch (error) {
     console.error('Image Streaming Analysis Error:', error);

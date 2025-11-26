@@ -346,16 +346,13 @@
   word-wrap: break-word;
 }
 
-.actionsRow {
+.previewActions {
   display: flex;
-  gap: 1rem;
-  flex-wrap: wrap;
-  align-items: center;
+  justify-content: flex-end;
+  margin-bottom: 1rem;
 }
 
 .changeTypeButton {
-  flex: 1;
-  min-width: 150px;
   padding: 0.75rem 1.5rem;
   background: var(--background-color);
   color: #3b82f6;
@@ -372,6 +369,14 @@
   color: white;
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+.actionsRow {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-top: 1.5rem;
 }
 
 .regenerateButton {
