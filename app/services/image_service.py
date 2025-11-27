@@ -434,6 +434,30 @@ def _parse_chart_analysis_response(text):
                 result['structure']['Notes'].append(line)
             continue
 
+    summary_text = (result.get('summary') or '').lower()
+    chart_type_values = ' '.join(result.get('chartType', {}).values()).lower()
+    possible_no_chart = [
+        'no chart',
+        'not a chart',
+        'no graph',
+        'no diagram',
+        'image contains no chart',
+        'no chart present'
+    ]
+    has_chart_data = bool(result.get('dataPoints'))
+    chart_present = True
+
+    if any(phrase in summary_text for phrase in possible_no_chart):
+        chart_present = False
+    elif chart_type_values in ('n/a', 'none', 'not applicable', 'not present', 'unknown'):
+        if not has_chart_data:
+            chart_present = False
+
+    if not chart_present:
+        summary_value = result.get('summary') or "Model reported no chart present in this image."
+        print("[ChartAnalysis Parser] Model indicated no chart present.")
+        return {'chartPresent': False, 'summary': summary_value}
+
     # Cleanup
     if not result['summary']:
         result.pop('summary')
@@ -454,8 +478,130 @@ def _parse_chart_analysis_response(text):
         print("[ChartAnalysis Parser] No structured data parsed")
         return None
 
+    result['chartPresent'] = True
     print(f"[ChartAnalysis Parser] Extracted keys: {list(result.keys())}")
     return result
+
+def _parse_document_analysis_response(text):
+    """Parse structured document analysis."""
+    if not text:
+        return None
+
+    structured_data = _parse_json_response(text)
+    if structured_data and isinstance(structured_data, dict):
+        print(f"[DocumentAnalysis Parser] Found JSON data keys: {list(structured_data.keys())}")
+        return structured_data
+
+    sections = {
+        'summary': None,
+        'metadata': {},
+        'structure': [],
+        'fields': [],
+        'quality': [],
+        'recommendations': [],
+        'notes': []
+    }
+
+    current_section = None
+    lines = text.split('\n')
+
+    print(f"[DocumentAnalysis Parser] Parsing {len(lines)} lines")
+
+    for raw_line in lines:
+        line = raw_line.strip()
+        if not line:
+            continue
+
+        if line.upper().startswith('SECTION:'):
+            current_section = line[8:].strip().lower()
+            print(f"[DocumentAnalysis Parser] Found section: {current_section}")
+            continue
+
+        heading_with_number = re.match(r'^\s*\*{0,2}\d+\.?\s*(.+?)\*{0,2}:?\s*$', line)
+        bold_heading = re.match(r'^\s*\*\*(.+?)\*\*:?$', line)
+        if heading_with_number or bold_heading:
+            heading_text = heading_with_number.group(1) if heading_with_number else bold_heading.group(1)
+            current_section = heading_text.strip().lower()
+            print(f"[DocumentAnalysis Parser] Found heading section: {current_section}")
+            continue
+
+        if not current_section:
+            continue
+
+        key_value_match = re.match(r'^([^:\-–]+?)\s*[:\-–]\s*(.+)$', line)
+
+        if 'document summary' in current_section or current_section == 'document summary':
+            if sections['summary']:
+                sections['summary'] += ' ' + line
+            else:
+                sections['summary'] = line
+            continue
+
+        if 'document metadata' in current_section or 'metadata' in current_section:
+            if key_value_match:
+                key = key_value_match.group(1).strip()
+                value = key_value_match.group(2).strip()
+                sections['metadata'][key] = value
+            elif line:
+                sections['metadata'].setdefault(current_section.title(), line)
+            continue
+
+        if 'document type' in current_section:
+            if line:
+                existing = sections['metadata'].get('Document Type')
+                sections['metadata']['Document Type'] = f"{existing} {line}".strip() if existing else line
+            continue
+
+        if 'language' in current_section:
+            if line:
+                existing = sections['metadata'].get('Language')
+                sections['metadata']['Language'] = f"{existing} {line}".strip() if existing else line
+            continue
+
+        target_list = None
+        if 'structure' in current_section:
+            target_list = sections['structure']
+        elif 'field' in current_section:
+            target_list = sections['fields']
+        elif 'quality' in current_section or 'completeness' in current_section:
+            target_list = sections['quality']
+        elif 'recommendation' in current_section or 'next step' in current_section:
+            target_list = sections['recommendations']
+        elif 'additional note' in current_section or 'notes' in current_section:
+            target_list = sections['notes']
+
+        if target_list is not None:
+            if key_value_match and target_list is sections['fields']:
+                target_list.append({
+                    'label': key_value_match.group(1).strip(),
+                    'value': key_value_match.group(2).strip()
+                })
+            else:
+                cleaned = line.lstrip('-•*').strip()
+                if cleaned:
+                    target_list.append(cleaned)
+
+    if not sections['summary']:
+        sections['summary'] = text.strip()
+    if not sections['metadata']:
+        sections.pop('metadata')
+    if not sections['structure']:
+        sections.pop('structure')
+    if not sections['fields']:
+        sections.pop('fields')
+    if not sections['quality']:
+        sections.pop('quality')
+    if not sections['recommendations']:
+        sections.pop('recommendations')
+    if not sections['notes']:
+        sections.pop('notes')
+
+    if not sections:
+        print("[DocumentAnalysis Parser] No structured data parsed")
+        return None
+
+    print(f"[DocumentAnalysis Parser] Extracted keys: {list(sections.keys())}")
+    return sections
 
 def get_image_metadata(image_file):
     """
@@ -707,13 +853,39 @@ Axis Readability: <Excellent | Good | Fair | Poor>
 Color Grouping Accuracy: <Excellent | Good | Fair | Poor>
 Overall Notes: <one sentence on limitations>""",
             
-            'document': """Analyze this document image:
-1. Document type (form, letter, invoice, etc.)
-2. All text content
-3. Structure and layout
-4. Key information (dates, names, numbers)
-5. Fields or sections present
-6. Any signatures or stamps"""
+            'document': """You are a document analysis engine. Examine the uploaded document image and return the findings using the exact template below.
+
+SECTION: Document Summary
+<Concise overview including document type, purpose, notable contents, and general condition>
+
+SECTION: Document Metadata
+Document Type: <invoice, contract, letter, ID, etc.>
+Pages: <number if visible, otherwise estimate or "Unknown">
+Language: <English, Spanish, etc.>
+Capture Quality: <Excellent | Good | Fair | Poor + short reason>
+Confidence: <0.00-1.00>
+
+SECTION: Structure & Layout
+- Bullet describing page layout (columns, margins, headers, footers)
+- Bullet describing main sections or hierarchy
+- Bullet describing notable visual elements (tables, stamps, logos)
+
+SECTION: Extracted Fields
+Field 1: <Field Label> — <Value>
+Field 2: ...
+(Provide at least 5 key/value pairs when visible. Use "Field: N/A" if truly unreadable.)
+
+SECTION: Quality & Completeness
+- Bullet about readability issues, glare, skew, or occlusions
+- Bullet about missing sections or incomplete capture
+- Bullet about legibility of handwriting/signatures
+
+SECTION: Recommendations
+- Bullet describing suggested next action (e.g., re-scan, verify signature, extract totals)
+- Bullet describing formatting or filing steps
+
+SECTION: Additional Notes
+<Any other context such as stamps, signatures, handwriting, dates, or warnings>"""
         }
         
         # Use custom prompt or default based on analysis type
@@ -724,6 +896,7 @@ Overall Notes: <one sentence on limitations>""",
 
         text_context = None
         chart_structured_data = None
+        document_structured_data = None
 
         if analysis_type == 'ocr':
             analysis_text, cleaned_text = _extract_ocr_text(model, image_bytes, prompt)
@@ -778,6 +951,14 @@ Overall Notes: <one sentence on limitations>""",
                 chart_structured_data = _parse_chart_analysis_response(analysis_text)
                 if chart_structured_data:
                     print(f"[ChartAnalysis] Parsed structured chart data keys: {list(chart_structured_data.keys())}")
+            elif analysis_type == 'document':
+                response = model.generate_content([prompt, image_obj])
+                analysis_text = response.text or ""
+                print(f"[DocumentAnalysis] Response length: {len(analysis_text)}")
+                print(f"[DocumentAnalysis] Response preview: {analysis_text[:500] if analysis_text else 'Empty'}")
+                document_structured_data = _parse_document_analysis_response(analysis_text)
+                if document_structured_data:
+                    print(f"[DocumentAnalysis] Parsed structured doc data keys: {list(document_structured_data.keys())}")
             else:
                 response = model.generate_content([prompt, image_obj])
                 analysis_text = response.text or ""
@@ -810,6 +991,8 @@ Overall Notes: <one sentence on limitations>""",
                     result['structured_data'] = structured_data
         elif analysis_type == 'chart' and chart_structured_data:
             result['structured_data'] = chart_structured_data
+        elif analysis_type == 'document' and document_structured_data:
+            result['structured_data'] = document_structured_data
         
         return result
         
@@ -1139,6 +1322,27 @@ Overall Notes: <one sentence on limitations>""",
                     print("[ChartAnalysis Stream] Sent structured chart data via CHART_JSON marker")
                 else:
                     print("[ChartAnalysis Stream] WARNING: Failed to parse chart data from response")
+            elif analysis_type == 'document':
+                full_response = ""
+                response = model.generate_content(
+                    [prompt, image_obj],
+                    stream=True
+                )
+                for chunk in response:
+                    if chunk.text:
+                        full_response += chunk.text
+                        yield chunk.text
+
+                print(f"[DocumentAnalysis Stream] Full response length: {len(full_response)}")
+                print(f"[DocumentAnalysis Stream] Response preview: {full_response[:500] if full_response else 'Empty'}")
+
+                document_data = _parse_document_analysis_response(full_response)
+                if document_data:
+                    print(f"[DocumentAnalysis Stream] Parsed document data keys: {list(document_data.keys())}")
+                    yield f"[DOCUMENT_JSON]{json.dumps(document_data)}"
+                    print("[DocumentAnalysis Stream] Sent structured doc data via DOCUMENT_JSON marker")
+                else:
+                    print("[DocumentAnalysis Stream] WARNING: Failed to parse document data from response")
             else:
                 response = model.generate_content(
                     [prompt, image_obj],

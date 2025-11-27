@@ -344,8 +344,12 @@ const ImageInsightGenerator = ({ fileData, analysisData, imageFile }) => {
               setObjectsJson(jsonData);
             } else if (selectedAnalysisType === "general") {
               setGeneralStructuredData(jsonData);
-            } else if (selectedAnalysisType === "scene" || selectedAnalysisType === "chart") {
-              setObjectsJson(jsonData); // Reuse objectsJson bucket for structured scene/chart data
+            } else if (
+              selectedAnalysisType === "scene" ||
+              selectedAnalysisType === "chart" ||
+              selectedAnalysisType === "document"
+            ) {
+              setObjectsJson(jsonData); // Reuse objectsJson bucket for structured scene/chart/document data
             }
           }
             );
@@ -568,7 +572,16 @@ const ImageInsightGenerator = ({ fileData, analysisData, imageFile }) => {
                         }
                       />
                     )}
-                    {typeId === "document" && <ImageDocumentAnalysis data={parsed} rawText={result.content || result.text} />}
+                    {typeId === "document" && (
+                      <ImageDocumentAnalysis
+                        data={parsed}
+                        rawText={
+                          result.objectsJson
+                            ? JSON.stringify(result.objectsJson)
+                            : result.content || result.text
+                        }
+                      />
+                    )}
                     {!["general", "detailed", "ocr", "objects", "scene", "chart", "document"].includes(typeId) && (
                       <div className={`${styles.insightsText} ${result.error ? styles.errorText : ''}`}>
                         {result.content.split("\n").map((line, i) => {
@@ -639,7 +652,10 @@ const ImageInsightGenerator = ({ fileData, analysisData, imageFile }) => {
                 />
               )}
               {selectedAnalysisType === "document" && parsedInsights && (
-                <ImageDocumentAnalysis data={parsedInsights} rawText={insights} />
+                <ImageDocumentAnalysis
+                  data={parsedInsights}
+                  rawText={objectsJson ? JSON.stringify(objectsJson) : insights}
+                />
               )}
               {!parsedInsights && insights && (
                 <div className={styles.insightsText}>

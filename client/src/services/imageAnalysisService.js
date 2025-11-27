@@ -260,6 +260,21 @@ export const analyzeImageStream = async (
             }
             continue;
           }
+
+          if (data.startsWith('[DOCUMENT_JSON]')) {
+            const payload = data.slice('[DOCUMENT_JSON]'.length);
+            try {
+              const parsed = JSON.parse(payload);
+              console.log('[imageAnalysisService] Parsed document analysis JSON:', parsed);
+              if (onObjectsJson) {
+                onObjectsJson(parsed);
+              }
+              fullText = JSON.stringify(parsed);
+            } catch (err) {
+              console.error('Failed to parse document JSON payload:', err, 'Payload:', payload.substring(0, 200));
+            }
+            continue;
+          }
           
           fullText += data;
           

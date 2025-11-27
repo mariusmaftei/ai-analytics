@@ -11,10 +11,11 @@
 
 .header {
   display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
   border-bottom: 1px solid var(--border-color);
-  padding-bottom: 1rem;
+  padding-bottom: 1.25rem;
 }
 
 .header h3 {
@@ -29,67 +30,138 @@
   font-size: 0.95rem;
 }
 
-.sectionCard,
-.highlightCard {
-  padding: 1.5rem;
-  background: var(--background-color);
+.eyebrow {
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  margin: 0 0 0.35rem 0;
+}
+
+.summaryBanner {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  padding: 1.75rem;
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
+  background: linear-gradient(135deg, rgba(248, 250, 252, 0.05), rgba(59, 130, 246, 0.08));
+}
+
+.summaryTextBlock {
+  flex: 1;
+  min-width: 220px;
+}
+
+.summaryTextBlock span {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.summaryTextBlock p {
+  margin: 0.5rem 0 0;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.metricsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 0.75rem;
+  min-width: 250px;
+}
+
+.metricsGrid div {
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: rgba(15, 23, 42, 0.35);
+  padding: 0.85rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.metricsGrid span {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.metricsGrid strong {
+  color: var(--text-primary);
+  font-size: 1.05rem;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(240px, 1fr);
+  gap: 1.5rem;
+}
+
+.primaryColumn,
+.secondaryColumn {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.card {
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  background: var(--background-color);
+  padding: 1.5rem;
   display: flex;
   flex-direction: column;
   gap: 1rem;
 }
 
-.highlightCard {
-  border-left: 4px solid var(--info-color, #3b82f6);
-  background: rgba(59, 130, 246, 0.05);
-}
-
-.sectionHeader {
+.cardHeader {
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
 }
 
-.sectionHeader h4 {
+.cardHeader h4 {
   margin: 0;
-  font-size: 1.125rem;
+  font-size: 1.1rem;
   color: var(--text-primary);
 }
 
-.sectionHeader span {
+.cardHeader span {
   color: var(--text-secondary);
   font-size: 0.85rem;
 }
 
-.keyValueGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 0.75rem;
-}
-
-.keyValueRow {
-  padding: 0.9rem;
+.tableWrapper {
+  width: 100%;
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-  background: rgba(255, 255, 255, 0.02);
+  overflow: hidden;
 }
 
-.keyLabel {
-  font-size: 0.85rem;
+.tableWrapper table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.tableWrapper td {
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid var(--border-color);
+  color: var(--text-primary);
+}
+
+.tableWrapper td:first-child {
+  width: 35%;
   font-weight: 600;
   color: var(--text-secondary);
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.04em;
+  font-size: 0.8rem;
 }
 
-.value {
-  font-size: 0.95rem;
-  color: var(--text-primary);
-  font-weight: 600;
+.tableWrapper tr:last-child td {
+  border-bottom: none;
 }
 
 .list {
@@ -98,23 +170,14 @@
   margin: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.85rem;
-}
-
-.list li {
-  display: flex;
   gap: 0.75rem;
   color: var(--text-primary);
-  line-height: 1.55;
 }
 
-.marker {
-  width: 0.45rem;
-  height: 0.45rem;
-  border-radius: 50%;
-  background: var(--info-color, #3b82f6);
-  margin-top: 0.6rem;
-  flex-shrink: 0;
+.placeholderText {
+  margin: 0;
+  color: var(--text-secondary);
+  font-style: italic;
 }
 
 .sectionText {
@@ -142,9 +205,19 @@
   color: var(--text-secondary);
 }
 
+@media (max-width: 1024px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (max-width: 768px) {
   .container {
     padding: 1.5rem;
+  }
+
+  .summaryBanner {
+    padding: 1.25rem;
   }
 }
 

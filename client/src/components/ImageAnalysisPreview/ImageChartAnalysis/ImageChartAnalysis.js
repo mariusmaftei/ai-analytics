@@ -26,8 +26,16 @@ ChartJS.register(
 
 const parseJsonFromRaw = (rawText = "") => {
   if (!rawText || typeof rawText !== "string") return null;
+  const trimmed = rawText.trim();
+  const looksLikeJson =
+    trimmed.startsWith("{") ||
+    trimmed.startsWith("[") ||
+    trimmed.startsWith("```");
+  if (!looksLikeJson) {
+    return null;
+  }
   try {
-    let jsonText = rawText.trim();
+    let jsonText = trimmed;
     if (jsonText.startsWith("```")) {
       jsonText = jsonText
         .replace(/```json?/gi, "")
@@ -36,13 +44,14 @@ const parseJsonFromRaw = (rawText = "") => {
     }
     return JSON.parse(jsonText);
   } catch (err) {
-    console.warn("[ImageChartAnalysis] Failed to parse structured JSON:", err);
+    console.debug("[ImageChartAnalysis] Failed to parse structured JSON:", err);
     return null;
   }
 };
 
 const convertJsonToSections = (jsonData) => {
   if (!jsonData || typeof jsonData !== "object") return [];
+  if (jsonData.chartPresent === false) return [];
   const sections = [];
 
   if (jsonData.summary) {
@@ -272,6 +281,9 @@ const ImageChartAnalysis = ({ data = {}, rawText = "" }) => {
     [structuredJson]
   );
   const sections = jsonSections.length ? jsonSections : data?.sections || [];
+  const structuredSummary = structuredJson?.summary || "";
+  const noChartDetected = structuredJson?.chartPresent === false;
+  const hasSections = sections.length > 0;
 
   const findSection = (keywords = []) =>
     sections.find((section) => {
@@ -286,10 +298,12 @@ const ImageChartAnalysis = ({ data = {}, rawText = "" }) => {
   const insightsSection = findSection(["insight", "interpretation", "trend"]);
   const accuracySection = findSection(["accuracy", "quality", "confidence"]);
 
-  const summaryText =
-    normalizeText(summarySection) ||
-    normalizeText(chartTypeSection) ||
-    "This analysis detects and interprets charts within the image.";
+  const summaryText = summarySection
+    ? normalizeText(summarySection)
+    : structuredSummary;
+  const displaySummary =
+    summaryText ||
+    "The model has not provided a chart-specific summary for this image.";
 
   const dataRows = useMemo(
     () => parseDataRows(pointsSection),
@@ -365,13 +379,47 @@ const ImageChartAnalysis = ({ data = {}, rawText = "" }) => {
     [];
 
   const hasStructured =
-    summaryText ||
-    dataRows.length ||
-    insightsList.length ||
-    structureDetails.length ||
-    confidenceMetrics.length ||
-    chartData;
+    !!summarySection ||
+    dataRows.length > 0 ||
+    insightsList.length > 0 ||
+    structureDetails.length > 0 ||
+    confidenceMetrics.length > 0 ||
+    !!chartData;
 
+  if (!hasSections) {
+    const trimmedRaw = rawText?.trim();
+    return (
+      <div className={styles.container}>
+        <header className={styles.header}>
+          <div>
+            <p className={styles.eyebrow}>Visual Analytics</p>
+            <h3>Chart Analysis</h3>
+          </div>
+          <p>Awaiting structured chart details</p>
+        </header>
+        <div className={styles.emptyState}>
+          {trimmedRaw ? (
+            <>
+              <p>
+                {noChartDetected
+                  ? structuredSummary ||
+                    "The model indicated there is no chart in this image."
+                  : "The model did not return chart-specific data for this image."}
+              </p>
+              <div className={styles.rawCard}>
+                <div className={styles.cardHeader}>
+                  <h4>Model Response</h4>
+                </div>
+                <pre className={styles.rawText}>{trimmedRaw}</pre>
+              </div>
+            </>
+          ) : (
+            "No chart analysis available yet."
+          )}
+        </div>
+      </div>
+    );
+  }
   if (!hasStructured && !rawText.trim()) {
     return (
       <div className={styles.emptyState}>
@@ -393,7 +441,7 @@ const ImageChartAnalysis = ({ data = {}, rawText = "" }) => {
       <section className={styles.summaryBanner}>
         <div className={styles.summaryTextBlock}>
           <span>Chart Summary</span>
-          <p>{summaryText}</p>
+          <p>{displaySummary}</p>
         </div>
         <div className={styles.summaryMetrics}>
           {summaryMetrics.map((metric) => (
