@@ -228,6 +228,38 @@ export const analyzeImageStream = async (
             }
             continue;
           }
+
+          if (data.startsWith('[SCENE_JSON]')) {
+            const payload = data.slice('[SCENE_JSON]'.length);
+            try {
+              const parsed = JSON.parse(payload);
+              console.log('[imageAnalysisService] Parsed scene analysis JSON:', parsed);
+              if (onObjectsJson) {
+                // Reuse onObjectsJson callback for scene structured data
+                onObjectsJson(parsed);
+              }
+              // Set as fullText so component can access it
+              fullText = JSON.stringify(parsed);
+            } catch (err) {
+              console.error('Failed to parse scene JSON payload:', err, 'Payload:', payload.substring(0, 200));
+            }
+            continue;
+          }
+
+          if (data.startsWith('[CHART_JSON]')) {
+            const payload = data.slice('[CHART_JSON]'.length);
+            try {
+              const parsed = JSON.parse(payload);
+              console.log('[imageAnalysisService] Parsed chart analysis JSON:', parsed);
+              if (onObjectsJson) {
+                onObjectsJson(parsed);
+              }
+              fullText = JSON.stringify(parsed);
+            } catch (err) {
+              console.error('Failed to parse chart JSON payload:', err, 'Payload:', payload.substring(0, 200));
+            }
+            continue;
+          }
           
           fullText += data;
           

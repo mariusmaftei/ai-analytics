@@ -321,8 +321,12 @@ const ImageInsightGenerator = ({ fileData, analysisData, imageFile }) => {
               (chunk) => {
                 fullResponse += chunk;
                 setInsights(fullResponse);
-                const parsed = parseImageInsights(fullResponse);
-                setParsedInsights(parsed);
+                // Only parse on chunk for scene analysis to update UI in real-time
+                // For other types, we'll parse at the end
+                if (selectedAnalysisType === "scene") {
+                  const parsed = parseImageInsights(fullResponse);
+                  setParsedInsights(parsed);
+                }
           },
           (meta) => {
             latestContext = meta;
@@ -335,11 +339,13 @@ const ImageInsightGenerator = ({ fileData, analysisData, imageFile }) => {
             }
           },
           (jsonData) => {
-            // Handle both objects JSON and general structured data
+            // Handle objects JSON, general structured data, and scene structured data
             if (selectedAnalysisType === "objects") {
               setObjectsJson(jsonData);
             } else if (selectedAnalysisType === "general") {
               setGeneralStructuredData(jsonData);
+            } else if (selectedAnalysisType === "scene" || selectedAnalysisType === "chart") {
+              setObjectsJson(jsonData); // Reuse objectsJson bucket for structured scene/chart data
             }
           }
             );
@@ -353,6 +359,12 @@ const ImageInsightGenerator = ({ fileData, analysisData, imageFile }) => {
 
         setInsights(fullResponse);
         const parsed = parseImageInsights(fullResponse);
+        console.log(`[ImageInsightGenerator] ${selectedAnalysisType} analysis complete:`, {
+          fullResponseLength: fullResponse.length,
+          parsedSectionsCount: parsed?.sections?.length || 0,
+          parsedSections: parsed?.sections?.map(s => ({ name: s.name, itemsCount: s.items?.length || 0 })) || [],
+          parsedIntroText: parsed?.introText?.substring(0, 100) || null
+        });
         setParsedInsights(parsed);
         if (rawTextResponse && selectedAnalysisType === "ocr") {
           setOcrRawText(rawTextResponse);
@@ -511,33 +523,52 @@ const ImageInsightGenerator = ({ fileData, analysisData, imageFile }) => {
               
               {Object.entries(allInsights).map(([typeId, result]) => {
                 const typeInfo = ALL_ANALYSIS_TYPES.find(t => t.id === typeId);
-                const parsed = parseImageInsights(result.content);
+                const parsed = parseImageInsights(result.content || result.text || '');
+                console.log(`[ImageInsightGenerator] Rendering ${typeId} analysis:`, {
+                  hasContent: !!(result.content || result.text),
+                  contentLength: (result.content || result.text || '').length,
+                  parsedSectionsCount: parsed?.sections?.length || 0
+                });
                 return (
                   <div key={typeId} className={styles.singleAnalysisSection}>
                     <div className={styles.analysisSectionHeader}>
                       <FontAwesomeIcon icon={typeInfo?.icon || faEye} />
                       <h4>{result.type}</h4>
                     </div>
-                    {typeId === "general" && <ImageGeneralAnalysis data={parsed} rawText={result.content} />}
-                    {typeId === "detailed" && <ImageDetailedAnalysis data={parsed} rawText={result.content} />}
+                    {typeId === "general" && <ImageGeneralAnalysis data={parsed} rawText={result.content || result.text} />}
+                    {typeId === "detailed" && <ImageDetailedAnalysis data={parsed} rawText={result.content || result.text} />}
                     {typeId === "ocr" && (
                       <ImageTextExtraction
                         data={parsed}
-                        rawText={result.rawText || result.content}
+                        rawText={result.rawText || result.content || result.text}
                         contextMeta={result.context || ocrContext}
                       />
                     )}
                     {typeId === "objects" && (
                       <ImageObjectDetection
                         data={parsed}
-                        rawText={result.objectsJson ? JSON.stringify(result.objectsJson) : result.content}
+                        rawText={result.objectsJson ? JSON.stringify(result.objectsJson) : (result.content || result.text)}
                         imageUrl={analysisData.imageUrl}
                         imageFile={cachedImageFile || imageFile}
                       />
                     )}
-                    {typeId === "scene" && <ImageSceneAnalysis data={parsed} rawText={result.content} />}
-                    {typeId === "chart" && <ImageChartAnalysis data={parsed} rawText={result.content} />}
-                    {typeId === "document" && <ImageDocumentAnalysis data={parsed} rawText={result.content} />}
+                    {typeId === "scene" && (
+                      <ImageSceneAnalysis 
+                        data={parsed} 
+                        rawText={result.objectsJson ? JSON.stringify(result.objectsJson) : (result.content || result.text || '')} 
+                      />
+                    )}
+                    {typeId === "chart" && (
+                      <ImageChartAnalysis
+                        data={parsed}
+                        rawText={
+                          result.objectsJson
+                            ? JSON.stringify(result.objectsJson)
+                            : result.content || result.text
+                        }
+                      />
+                    )}
+                    {typeId === "document" && <ImageDocumentAnalysis data={parsed} rawText={result.content || result.text} />}
                     {!["general", "detailed", "ocr", "objects", "scene", "chart", "document"].includes(typeId) && (
                       <div className={`${styles.insightsText} ${result.error ? styles.errorText : ''}`}>
                         {result.content.split("\n").map((line, i) => {
@@ -593,11 +624,19 @@ const ImageInsightGenerator = ({ fileData, analysisData, imageFile }) => {
                   imageFile={cachedImageFile || imageFile}
                 />
               )}
-              {selectedAnalysisType === "scene" && parsedInsights && (
-                <ImageSceneAnalysis data={parsedInsights} rawText={insights} />
+              {selectedAnalysisType === "scene" && (
+                <ImageSceneAnalysis 
+                  data={parsedInsights} 
+                  rawText={objectsJson ? JSON.stringify(objectsJson) : insights} 
+                />
               )}
               {selectedAnalysisType === "chart" && parsedInsights && (
-                <ImageChartAnalysis data={parsedInsights} rawText={insights} />
+                <ImageChartAnalysis
+                  data={parsedInsights}
+                  rawText={
+                    objectsJson ? JSON.stringify(objectsJson) : insights
+                  }
+                />
               )}
               {selectedAnalysisType === "document" && parsedInsights && (
                 <ImageDocumentAnalysis data={parsedInsights} rawText={insights} />
