@@ -4,13 +4,11 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faFilePdf,
   faFileCsv,
-  faFileCode,
   faImage,
   faMagnifyingGlass,
   faBolt,
   faLock,
   faCheckCircle,
-  faPaperclip,
   faChartLine,
   faExclamationTriangle,
 } from "@fortawesome/free-solid-svg-icons";
@@ -27,12 +25,10 @@ const HomePage = () => {
   const [isFirstMessage, setIsFirstMessage] = useState(true);
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
-  const [expectedFileType, setExpectedFileType] = useState("");
   const [isInputExpanded, setIsInputExpanded] = useState(false);
+  const imageInputRef = useRef(null);
   const pdfInputRef = useRef(null);
   const csvInputRef = useRef(null);
-  const jsonInputRef = useRef(null);
-  const imageInputRef = useRef(null);
   const mainTextareaRef = useRef(null);
   const bottomTextareaRef = useRef(null);
   const messagesEndRef = useRef(null);
@@ -161,14 +157,12 @@ const HomePage = () => {
     const validExtensions = {
       pdf: ["pdf"],
       csv: ["csv"],
-      json: ["json"],
       image: ["png", "jpg", "jpeg", "gif", "bmp", "webp", "tiff", "tif"],
     };
 
     const validMimeTypes = {
       pdf: ["application/pdf"],
       csv: ["text/csv", "application/vnd.ms-excel", "text/plain"],
-      json: ["application/json", "text/json"],
       image: [
         "image/png",
         "image/jpeg",
@@ -211,10 +205,8 @@ const HomePage = () => {
         const typeNames = {
           pdf: "PDF",
           csv: "CSV",
-          json: "JSON",
           image: "Image",
         };
-        setExpectedFileType(typeNames[expectedType]);
         setErrorMessage(
           `Please upload a ${typeNames[expectedType]} file. You selected "${file.name}" which is not a valid ${typeNames[expectedType]} file.`
         );
@@ -259,22 +251,20 @@ const HomePage = () => {
       const fileExtension = fileName.substring(fileName.lastIndexOf(".") + 1);
 
       let expectedType = null;
-      if (fileExtension === "pdf") expectedType = "pdf";
-      else if (fileExtension === "csv") expectedType = "csv";
-      else if (fileExtension === "json") expectedType = "json";
-      else if (
+      if (
         ["png", "jpg", "jpeg", "gif", "bmp", "webp", "tiff", "tif"].includes(
           fileExtension
         )
       )
         expectedType = "image";
+      else if (fileExtension === "pdf") expectedType = "pdf";
+      else if (fileExtension === "csv") expectedType = "csv";
 
       if (expectedType && validateFileType(file, expectedType)) {
         handleFileUpload(file);
       } else {
-        setExpectedFileType("PDF, CSV, JSON, or Image");
         setErrorMessage(
-          `Please upload a PDF, CSV, JSON, or Image file. You dropped "${file.name}" which is not a supported file type.`
+          `Please upload an Image, PDF, or CSV file. You dropped "${file.name}" which is not a supported file type.`
         );
         setShowErrorModal(true);
       }
@@ -528,6 +518,13 @@ const HomePage = () => {
               {/* File Upload Icons */}
               <div className={styles.bottomUploadOptions}>
                 <input
+                  ref={imageInputRef}
+                  type="file"
+                  onChange={(e) => handleFileSelect(e, "image")}
+                  className={styles.fileInput}
+                  accept="image/*"
+                />
+                <input
                   ref={pdfInputRef}
                   type="file"
                   onChange={(e) => handleFileSelect(e, "pdf")}
@@ -541,20 +538,13 @@ const HomePage = () => {
                   className={styles.fileInput}
                   accept=".csv,text/csv,application/vnd.ms-excel"
                 />
-                <input
-                  ref={jsonInputRef}
-                  type="file"
-                  onChange={(e) => handleFileSelect(e, "json")}
-                  className={styles.fileInput}
-                  accept=".json,application/json"
-                />
-                <input
-                  ref={imageInputRef}
-                  type="file"
-                  onChange={(e) => handleFileSelect(e, "image")}
-                  className={styles.fileInput}
-                  accept="image/*"
-                />
+                <button
+                  className={styles.bottomUploadIcon}
+                  onClick={() => imageInputRef.current?.click()}
+                  title="Upload Image - Visual analysis"
+                >
+                  <FontAwesomeIcon icon={faImage} />
+                </button>
                 <button
                   className={styles.bottomUploadIcon}
                   onClick={() => pdfInputRef.current?.click()}
@@ -568,20 +558,6 @@ const HomePage = () => {
                   title="Upload CSV - Spreadsheet data"
                 >
                   <FontAwesomeIcon icon={faFileCsv} />
-                </button>
-                <button
-                  className={styles.bottomUploadIcon}
-                  onClick={() => jsonInputRef.current?.click()}
-                  title="Upload JSON - Structured data"
-                >
-                  <FontAwesomeIcon icon={faFileCode} />
-                </button>
-                <button
-                  className={styles.bottomUploadIcon}
-                  onClick={() => imageInputRef.current?.click()}
-                  title="Upload Image - Visual analysis"
-                >
-                  <FontAwesomeIcon icon={faImage} />
                 </button>
               </div>
 
@@ -646,6 +622,13 @@ const HomePage = () => {
             {/* File Upload Icons - Positioned below input */}
             <div className={styles.uploadOptionsInline}>
               <input
+                ref={imageInputRef}
+                type="file"
+                onChange={(e) => handleFileSelect(e, "image")}
+                className={styles.fileInput}
+                accept="image/*"
+              />
+              <input
                 ref={pdfInputRef}
                 type="file"
                 onChange={(e) => handleFileSelect(e, "pdf")}
@@ -659,20 +642,13 @@ const HomePage = () => {
                 className={styles.fileInput}
                 accept=".csv,text/csv,application/vnd.ms-excel"
               />
-              <input
-                ref={jsonInputRef}
-                type="file"
-                onChange={(e) => handleFileSelect(e, "json")}
-                className={styles.fileInput}
-                accept=".json,application/json"
-              />
-              <input
-                ref={imageInputRef}
-                type="file"
-                onChange={(e) => handleFileSelect(e, "image")}
-                className={styles.fileInput}
-                accept="image/*"
-              />
+              <button
+                className={styles.uploadIconInline}
+                onClick={() => imageInputRef.current?.click()}
+                title="Upload Image - Visual analysis (PNG, JPG, GIF, etc.)"
+              >
+                <FontAwesomeIcon icon={faImage} />
+              </button>
               <button
                 className={styles.uploadIconInline}
                 onClick={() => pdfInputRef.current?.click()}
@@ -686,20 +662,6 @@ const HomePage = () => {
                 title="Upload CSV - Spreadsheet data"
               >
                 <FontAwesomeIcon icon={faFileCsv} />
-              </button>
-              <button
-                className={styles.uploadIconInline}
-                onClick={() => jsonInputRef.current?.click()}
-                title="Upload JSON - Structured data"
-              >
-                <FontAwesomeIcon icon={faFileCode} />
-              </button>
-              <button
-                className={styles.uploadIconInline}
-                onClick={() => imageInputRef.current?.click()}
-                title="Upload Image - Visual analysis (PNG, JPG, GIF, etc.)"
-              >
-                <FontAwesomeIcon icon={faImage} />
               </button>
             </div>
           </div>

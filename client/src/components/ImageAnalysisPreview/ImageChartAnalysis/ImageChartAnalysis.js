@@ -44,7 +44,6 @@ const parseJsonFromRaw = (rawText = "") => {
     }
     return JSON.parse(jsonText);
   } catch (err) {
-    console.debug("[ImageChartAnalysis] Failed to parse structured JSON:", err);
     return null;
   }
 };
@@ -92,7 +91,8 @@ const convertJsonToSections = (jsonData) => {
         point.Label ||
         point.label ||
         `Point ${idx + 1}`;
-      const value = point.Value || point.value || point.Amount || point.amount || "Unknown";
+      const value =
+        point.Value || point.value || point.Amount || point.amount || "Unknown";
       const percent = point.Percent || point.percent || "N/A";
       const delta = point.Delta || point.delta || "N/A";
       return `Category: ${category} | Value: ${value} | Percent: ${percent} | Delta: ${delta}`;
@@ -161,10 +161,8 @@ const parseDataRows = (section) => {
   if (!section) return [];
 
   const parseEntry = (item, idx) => {
-    const label =
-      item.label || item.key || item.name || `Series ${idx + 1}`;
-    const raw =
-      (item.value || item.text || item.description || "").trim();
+    const label = item.label || item.key || item.name || `Series ${idx + 1}`;
+    const raw = (item.value || item.text || item.description || "").trim();
 
     if (!label && !raw) return null;
 
@@ -249,17 +247,14 @@ const buildChartData = (rows, chartTypeHint = "") => {
   const chartType = (() => {
     const lower = chartTypeHint.toLowerCase();
     if (lower.includes("line")) return "line";
-    if (lower.includes("pie") || lower.includes("donut"))
-      return "doughnut";
+    if (lower.includes("pie") || lower.includes("donut")) return "doughnut";
     return "bar";
   })();
 
   const dataset = {
     label: "Extracted Values",
     data: dataValues,
-    backgroundColor: labels.map(
-      (_, idx) => palette[idx % palette.length]
-    ),
+    backgroundColor: labels.map((_, idx) => palette[idx % palette.length]),
     borderColor: "#0f172a",
     borderWidth: chartType === "line" ? 2 : 1,
     tension: 0.4,
@@ -305,10 +300,7 @@ const ImageChartAnalysis = ({ data = {}, rawText = "" }) => {
     summaryText ||
     "The model has not provided a chart-specific summary for this image.";
 
-  const dataRows = useMemo(
-    () => parseDataRows(pointsSection),
-    [pointsSection]
-  );
+  const dataRows = useMemo(() => parseDataRows(pointsSection), [pointsSection]);
 
   const chartData = useMemo(
     () =>
@@ -322,8 +314,7 @@ const ImageChartAnalysis = ({ data = {}, rawText = "" }) => {
   const summaryMetrics = [
     {
       label: "Chart Type",
-      value:
-        extractField(chartTypeSection, ["chart type", "visual"]) || "—",
+      value: extractField(chartTypeSection, ["chart type", "visual"]) || "—",
     },
     {
       label: "Data Points Identified",
@@ -341,8 +332,7 @@ const ImageChartAnalysis = ({ data = {}, rawText = "" }) => {
   const structureDetails = [
     {
       label: "Chart Type",
-      value:
-        extractField(chartTypeSection, ["chart type", "style"]) || "—",
+      value: extractField(chartTypeSection, ["chart type", "style"]) || "—",
     },
     {
       label: "X-Axis",
@@ -375,8 +365,7 @@ const ImageChartAnalysis = ({ data = {}, rawText = "" }) => {
       id: item.id || idx,
       label: item.label || item.key || `Metric ${idx + 1}`,
       value: item.value || item.text || "—",
-    })) ||
-    [];
+    })) || [];
 
   const hasStructured =
     !!summarySection ||
@@ -422,9 +411,7 @@ const ImageChartAnalysis = ({ data = {}, rawText = "" }) => {
   }
   if (!hasStructured && !rawText.trim()) {
     return (
-      <div className={styles.emptyState}>
-        No chart analysis available yet.
-      </div>
+      <div className={styles.emptyState}>No chart analysis available yet.</div>
     );
   }
 
@@ -475,9 +462,7 @@ const ImageChartAnalysis = ({ data = {}, rawText = "" }) => {
                       <tr key={row.id}>
                         <td>{row.category}</td>
                         <td>{row.valueText}</td>
-                        <td>
-                          {row.percentText || row.deltaText || "—"}
-                        </td>
+                        <td>{row.percentText || row.deltaText || "—"}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -554,9 +539,7 @@ const ImageChartAnalysis = ({ data = {}, rawText = "" }) => {
                 ))}
               </ul>
             ) : (
-              <p className={styles.cardText}>
-                No structural details detected.
-              </p>
+              <p className={styles.cardText}>No structural details detected.</p>
             )}
           </div>
 
@@ -596,5 +579,3 @@ const ImageChartAnalysis = ({ data = {}, rawText = "" }) => {
 };
 
 export default ImageChartAnalysis;
-
-

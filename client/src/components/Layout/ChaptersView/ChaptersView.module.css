@@ -41,7 +41,6 @@
   border-radius: var(--radius-sm);
 }
 
-/* Chapters */
 .chaptersList {
   padding: 1rem;
   display: flex;
@@ -104,7 +103,6 @@
   line-height: 1.6;
 }
 
-/* Highlights */
 .highlightsList {
   padding: 1rem;
   display: flex;
@@ -139,7 +137,6 @@
   line-height: 1.6;
 }
 
-/* Keywords */
 .keywordsList {
   padding: 1rem 1.5rem;
   display: flex;
@@ -164,7 +161,6 @@
   transform: scale(1.05);
 }
 
-/* Mobile */
 @media (max-width: 768px) {
   .sectionHeader {
     padding: 0.875rem 1rem;

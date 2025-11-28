@@ -12,8 +12,8 @@ import {
   faChevronLeft,
   faChevronRight,
 } from "@fortawesome/free-solid-svg-icons";
-import { useSession } from "../../context/SessionContext";
-import Modal from "../UI/Modal/Modal";
+import { useSession } from "../../../context/SessionContext";
+import Modal from "../../UI/Modal/Modal";
 import styles from "./Sidebar.module.css";
 
 const Sidebar = () => {

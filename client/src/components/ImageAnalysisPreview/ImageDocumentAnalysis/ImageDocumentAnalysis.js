@@ -21,7 +21,6 @@ const parseJsonFromRaw = (rawText = "") => {
     }
     return JSON.parse(jsonText);
   } catch (err) {
-    console.debug("[ImageDocumentAnalysis] Failed to parse structured JSON:", err);
     return null;
   }
 };
@@ -46,37 +45,45 @@ const extractValue = (section, keywords = [], fallback = "") => {
 
 const parseKeyFields = (section) => {
   if (!section) return [];
-  const rows = normalizeItems(section).filter((item) => item.value.trim().length);
+  const rows = normalizeItems(section).filter(
+    (item) => item.value.trim().length
+  );
 
   if (rows.length) return rows;
 
-  return section.text
-    ?.split("\n")
-    .map((line, idx) => {
-      const [label, ...rest] = line.split(/[:\-–]/);
-      if (!rest.length) return null;
-      return {
-        id: `${section.name}-text-${idx}`,
-        label: label.trim(),
-        value: rest.join(":").trim(),
-      };
-    })
-    .filter(Boolean) || [];
+  return (
+    section.text
+      ?.split("\n")
+      .map((line, idx) => {
+        const [label, ...rest] = line.split(/[:\-–]/);
+        if (!rest.length) return null;
+        return {
+          id: `${section.name}-text-${idx}`,
+          label: label.trim(),
+          value: rest.join(":").trim(),
+        };
+      })
+      .filter(Boolean) || []
+  );
 };
 
 const parseList = (section) => {
   if (!section) return [];
-  const items = normalizeItems(section).filter((item) => item.value.trim().length);
+  const items = normalizeItems(section).filter(
+    (item) => item.value.trim().length
+  );
 
   if (items.length) return items;
 
-  return section.text
-    ?.split("\n")
-    .map((line, idx) => ({
-      id: `${section.name}-line-${idx}`,
-      value: line.replace(/^[-•]\s*/, "").trim(),
-    }))
-    .filter((line) => line.value.length) || [];
+  return (
+    section.text
+      ?.split("\n")
+      .map((line, idx) => ({
+        id: `${section.name}-line-${idx}`,
+        value: line.replace(/^[-•]\s*/, "").trim(),
+      }))
+      .filter((line) => line.value.length) || []
+  );
 };
 
 const ImageDocumentAnalysis = ({ data = {}, rawText = "" }) => {
@@ -93,8 +100,16 @@ const ImageDocumentAnalysis = ({ data = {}, rawText = "" }) => {
   const metadataSection = findSection(["metadata", "document info", "details"]);
   const structureSection = findSection(["structure", "layout", "sections"]);
   const fieldsSection = findSection(["field", "key value", "extracted"]);
-  const qualitySection = findSection(["completeness", "quality", "readability"]);
-  const recommendationSection = findSection(["recommendation", "cleanup", "next step"]);
+  const qualitySection = findSection([
+    "completeness",
+    "quality",
+    "readability",
+  ]);
+  const recommendationSection = findSection([
+    "recommendation",
+    "cleanup",
+    "next step",
+  ]);
   const notesSection = findSection(["notes", "comments", "additional"]);
 
   const summaryText =

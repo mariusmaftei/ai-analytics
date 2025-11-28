@@ -256,25 +256,6 @@
   line-height: 1.2;
 }
 
-.objectMarker {
-  padding: 6px 12px;
-  border-radius: 6px;
-  color: white;
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  pointer-events: all;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-  z-index: 10;
-  transition: all 0.2s ease;
-}
-
-.objectMarker:hover {
-  transform: scale(1.1);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-}
-
 .objectsSection {
   display: flex;
   flex-direction: column;

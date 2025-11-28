@@ -18,29 +18,6 @@ const ImageGeneralAnalysis = ({
   const sections = data?.sections || [];
   const metadata = data?.metadata || [];
 
-  console.log("[ImageGeneralAnalysis] ========== DEBUG START ==========");
-  console.log(
-    "[ImageGeneralAnalysis] Full data object:",
-    JSON.stringify(data, null, 2)
-  );
-  console.log(
-    "[ImageGeneralAnalysis] Raw text (first 500 chars):",
-    rawText.substring(0, 500)
-  );
-  console.log("[ImageGeneralAnalysis] Raw text (full):", rawText);
-  console.log("[ImageGeneralAnalysis] Sections array:", sections);
-  console.log("[ImageGeneralAnalysis] Sections count:", sections.length);
-  sections.forEach((section, idx) => {
-    console.log(`[ImageGeneralAnalysis] Section ${idx}:`, {
-      name: section.name,
-      text: section.text?.substring(0, 200),
-      itemsCount: section.items?.length || 0,
-      items: section.items,
-    });
-  });
-  console.log("[ImageGeneralAnalysis] Metadata:", metadata);
-  console.log("[ImageGeneralAnalysis] ========== DEBUG END ==========");
-
   const matchSection = (candidates = []) =>
     sections.find((section) =>
       candidates.some((name) =>
@@ -73,7 +50,6 @@ const ImageGeneralAnalysis = ({
   };
 
   const extractFromRaw = (keys = []) => {
-    // First try to find in sections
     for (const section of sections) {
       if (section.text) {
         for (const key of keys) {
@@ -104,7 +80,6 @@ const ImageGeneralAnalysis = ({
       }
     }
 
-    // Fallback: search entire raw text
     const lines = rawText.split(/\n|•|-/).map((line) => line.trim());
     for (const line of lines) {
       if (!line) continue;
@@ -150,29 +125,22 @@ const ImageGeneralAnalysis = ({
         .trim();
       if (!key) return null;
 
-      // If we have a specific field name, try exact or close match first
       if (fieldName) {
         const fieldNameLower = fieldName.toLowerCase();
-        // Exact match
         if (key === fieldNameLower) {
           return item.value || item.text || item.description;
         }
-        // Field name contains the key (e.g., "Layout Structure" contains "Layout")
         if (fieldNameLower.includes(key) && key.length > 3) {
           return item.value || item.text || item.description;
         }
-        // Key contains field name (e.g., "Layout Structure" in key)
         if (key.includes(fieldNameLower) && fieldNameLower.length > 3) {
           return item.value || item.text || item.description;
         }
       }
 
-      // Fallback: check if any candidate matches
       return candidates.some((candidate) => {
         const candidateLower = candidate.toLowerCase();
-        // Prefer exact match
         if (key === candidateLower) return true;
-        // Then check if key contains candidate (but candidate must be substantial)
         if (key.includes(candidateLower) && candidateLower.length > 3)
           return true;
         return false;
@@ -181,7 +149,6 @@ const ImageGeneralAnalysis = ({
         : null;
     };
 
-    // First check Key Attributes section (most likely to have the data)
     if (keyAttributesSection?.items) {
       for (const item of keyAttributesSection.items) {
         if (typeof item === "string") continue;
@@ -245,44 +212,6 @@ const ImageGeneralAnalysis = ({
   const overviewSection = matchSection(["overview", "general", "summary"]);
   const keyAttributesSection = matchSection(["key attributes", "attributes"]);
 
-  console.log(
-    "[ImageGeneralAnalysis] Key Attributes Section found:",
-    keyAttributesSection
-  );
-  if (keyAttributesSection) {
-    console.log(
-      "[ImageGeneralAnalysis] Key Attributes items:",
-      keyAttributesSection.items
-    );
-    console.log(
-      "[ImageGeneralAnalysis] Key Attributes text:",
-      keyAttributesSection.text
-    );
-  }
-
-  // Debug: Log raw text to see what we're working with
-  console.log("[ImageGeneralAnalysis] Raw text length:", rawText?.length);
-  console.log(
-    "[ImageGeneralAnalysis] Raw text preview (first 500 chars):",
-    rawText?.substring(0, 500)
-  );
-  console.log(
-    "[ImageGeneralAnalysis] Raw text contains 'Key Attributes':",
-    rawText?.includes("Key Attributes")
-  );
-  console.log(
-    "[ImageGeneralAnalysis] Raw text contains 'SECTION:':",
-    rawText?.includes("SECTION:")
-  );
-
-  // Check all section names in data (parsedInsights)
-  if (data?.sections) {
-    console.log(
-      "[ImageGeneralAnalysis] Parsed sections:",
-      data.sections.map((s) => s.name)
-    );
-  }
-
   const summaryFromSection =
     getSectionValue(overviewSection, ["summary", "overall description"]) ||
     getSectionText(overviewSection);
@@ -296,22 +225,18 @@ const ImageGeneralAnalysis = ({
 
   const summaryText = normalizeText(rawSummary);
 
-  // Helper to validate if a value makes sense for a given field
   const isValidValueForField = (fieldId, value) => {
     if (!value || value.length < 1) return false;
     const valueLower = value.toLowerCase();
 
-    // Reject values that are clearly field names or section headers
     if (
       valueLower.includes("section:") ||
       valueLower.includes("key attributes")
     )
       return false;
 
-    // Field-specific validation
     switch (fieldId) {
       case "imageType":
-        // Should be things like "photo", "screenshot", "illustration", not other field values
         const validTypes = [
           "photo",
           "screenshot",
@@ -326,7 +251,6 @@ const ImageGeneralAnalysis = ({
           valueLower.length < 20
         );
       case "lighting":
-        // Should be lighting-related, not "photo" or other field values
         const invalidForLighting = [
           "photo",
           "screenshot",
@@ -347,12 +271,10 @@ const ImageGeneralAnalysis = ({
           "pink",
           "purple",
         ];
-        // Reject if value contains any invalid word (not just exact match)
         return !invalidForLighting.some(
           (invalid) => valueLower === invalid || valueLower.includes(invalid)
         );
       case "mainSubject":
-        // Should be a subject, not a color or type
         const invalidForSubject = [
           "photo",
           "natural",
@@ -363,7 +285,6 @@ const ImageGeneralAnalysis = ({
         ];
         return !invalidForSubject.some((invalid) => valueLower === invalid);
       case "colors":
-        // Should contain color words or be comma-separated
         const colorWords = [
           "black",
           "white",
@@ -467,11 +388,7 @@ const ImageGeneralAnalysis = ({
   };
 
   const keyAttributes = CARD_DEFINITIONs.map((card) => {
-    console.log(`\n[ImageGeneralAnalysis] Processing card: ${card.label}`);
-
     let value = null;
-
-    // Strategy -1: Use structured data from backend if available (MOST RELIABLE - like Object Detection)
     if (structuredData && structuredData.keyAttributes) {
       const keyAttrs = structuredData.keyAttributes;
       const fieldMap = {
@@ -486,10 +403,6 @@ const ImageGeneralAnalysis = ({
       const mappedValue = fieldMap[card.id];
       if (mappedValue && mappedValue.trim()) {
         value = normalizeText(mappedValue);
-        console.log(
-          `[ImageGeneralAnalysis] ${card.label} - Found in structured data from backend: "${value}"`
-        );
-        // Return early with structured data - no need to continue parsing
         return {
           id: card.id,
           label: card.label,
@@ -500,20 +413,12 @@ const ImageGeneralAnalysis = ({
       }
     }
 
-    // Strategy 0: First, try to get value from parsed items in Key Attributes section (FALLBACK)
     if (keyAttributesSection?.items && keyAttributesSection.items.length > 0) {
-      console.log(
-        `[ImageGeneralAnalysis] ${card.label} - Checking ${keyAttributesSection.items.length} items in Key Attributes section`
-      );
-
-      // Build field name variations to match - prioritize exact matches
       const fieldNameVariations = [
-        card.label, // "Image Type", "Main Subject", "Lighting", etc. (EXACT MATCH FIRST)
-        card.label.replace(/\s*&\s*/g, " "), // "Layout Structure" (for "Layout & Structure")
-        card.label.replace(/\s*&\s*/g, " and "), // "Layout and Structure"
+        card.label,
+        card.label.replace(/\s*&\s*/g, " "),
+        card.label.replace(/\s*&\s*/g, " and "),
       ];
-
-      // Look for EXACT match first (most reliable)
       for (const item of keyAttributesSection.items) {
         if (typeof item === "string" || (!item.key && !item.label)) continue;
 
@@ -527,7 +432,6 @@ const ImageGeneralAnalysis = ({
 
         if (!itemKey || !itemValue) continue;
 
-        // PRIORITY 1: Exact match with card label (case insensitive)
         const itemKeyLower = itemKey.toLowerCase();
         const cardLabelLower = card.label.toLowerCase();
         const cardLabelNoAmp = card.label
@@ -538,26 +442,17 @@ const ImageGeneralAnalysis = ({
           itemKeyLower === cardLabelLower ||
           itemKeyLower === cardLabelNoAmp
         ) {
-          // This is an exact match - use it immediately
           const normalizedValue = normalizeText(itemValue);
           if (
             normalizedValue &&
             isValidValueForField(card.id, normalizedValue)
           ) {
             value = normalizedValue;
-            console.log(
-              `[ImageGeneralAnalysis] ${card.label} - Found EXACT match in items! Key: "${itemKey}", Value: "${value}"`
-            );
-            break; // Found exact match, stop searching
-          } else {
-            console.log(
-              `[ImageGeneralAnalysis] ${card.label} - Exact match found but value rejected: "${normalizedValue}" for field ${card.id}`
-            );
+            break;
           }
         }
       }
 
-      // PRIORITY 2: If no exact match, try extractor keywords (but be more careful)
       if (!value) {
         const extractorVariations = card.extractors.flat().map((e) => {
           return e
@@ -581,12 +476,9 @@ const ImageGeneralAnalysis = ({
 
           const itemKeyLower = itemKey.toLowerCase();
 
-          // Check if extractor variations match (but only if it's a substantial match)
           const matched = extractorVariations.some((variation) => {
             const variationLower = variation.toLowerCase();
-            // Prefer exact match
             if (itemKeyLower === variationLower) return true;
-            // Only allow contains match if variation is substantial (3+ chars) and item key is not too different
             if (
               variationLower.length >= 5 &&
               itemKeyLower.includes(variationLower)
@@ -602,9 +494,6 @@ const ImageGeneralAnalysis = ({
               isValidValueForField(card.id, normalizedValue)
             ) {
               value = normalizedValue;
-              console.log(
-                `[ImageGeneralAnalysis] ${card.label} - Found via extractor match! Key: "${itemKey}", Value: "${value}"`
-              );
               break;
             }
           }
@@ -612,19 +501,11 @@ const ImageGeneralAnalysis = ({
       }
     }
 
-    // Strategy 0.5: Direct search in raw text for "Key Attributes" section (fallback if items didn't work)
-    // Try multiple patterns to find the Key Attributes section
     let keyAttributesText = null;
 
-    // First, check if we have a parsed "Key Attributes" section text
     if (!value && keyAttributesSection?.text) {
       keyAttributesText = keyAttributesSection.text;
-      console.log(
-        `[ImageGeneralAnalysis] ${card.label} - Using Key Attributes text from parsed section`
-      );
     }
-
-    // Pattern 1: "SECTION: Key Attributes\n..."
     if (!keyAttributesText) {
       if (
         rawText.includes("SECTION: Key Attributes") ||
@@ -635,75 +516,42 @@ const ImageGeneralAnalysis = ({
         );
         if (match1 && match1[1]) {
           keyAttributesText = match1[1];
-          console.log(
-            `[ImageGeneralAnalysis] ${card.label} - Found Key Attributes section (pattern 1)`
-          );
         }
       }
     }
-
-    // Pattern 2: "Key Attributes\n..." (without SECTION:)
     if (!keyAttributesText) {
       const match2 = rawText.match(
         /Key Attributes\s*\n([\s\S]+?)(?=\n\s*SECTION:|$)/i
       );
       if (match2 && match2[1]) {
         keyAttributesText = match2[1];
-        console.log(
-          `[ImageGeneralAnalysis] ${card.label} - Found Key Attributes section (pattern 2)`
-        );
       }
     }
-
-    // Pattern 3: Look for the fields directly after "Key Attributes" on same line or next lines
     if (!keyAttributesText && rawText.includes("Key Attributes")) {
       const keyAttrIndex = rawText.toLowerCase().indexOf("key attributes");
       if (keyAttrIndex !== -1) {
         const afterKeyAttr = rawText.substring(keyAttrIndex);
-        // Extract until next SECTION or end
         const match3 = afterKeyAttr.match(
           /key attributes[:\s]*([\s\S]+?)(?=\n\s*SECTION:|$)/i
         );
         if (match3 && match3[1]) {
           keyAttributesText = match3[1];
-          console.log(
-            `[ImageGeneralAnalysis] ${card.label} - Found Key Attributes section (pattern 3)`
-          );
         }
       }
     }
 
-    // Pattern 4: Try to find fields directly in raw text (fallback if no section header)
-    if (!keyAttributesText) {
-      console.log(
-        `[ImageGeneralAnalysis] ${card.label} - No Key Attributes section found, will try direct field extraction`
-      );
-    }
-
     if (keyAttributesText) {
-      // Split by lines to process each field separately - this prevents cross-field contamination
       const lines = keyAttributesText
         .split(/\n/)
         .map((line) => line.trim())
         .filter((line) => line);
 
-      console.log(
-        `[ImageGeneralAnalysis] ${card.label} - Processing ${lines.length} lines from Key Attributes`
-      );
-      console.log(`[ImageGeneralAnalysis] ${card.label} - Lines:`, lines);
-
-      // Build all possible field name variations to try
-      // IMPORTANT: Backend returns exact field names like "Image Type", "Main Subject", "Layout Structure", etc.
       const fieldNameVariations = [
-        // Exact matches first (most reliable)
-        card.label, // "Image Type", "Main Subject", "Overall Mood", "Lighting"
-        card.label.replace(/\s*&\s*/g, " "), // "Layout Structure" (for "Layout & Structure")
-        card.label.replace(/\s*&\s*/g, " and "), // "Layout and Structure"
-        // Also try without spaces for compound names
-        card.label.replace(/\s+/g, " "), // Normalize spaces
-        // Try extractor keywords capitalized
+        card.label,
+        card.label.replace(/\s*&\s*/g, " "),
+        card.label.replace(/\s*&\s*/g, " and "),
+        card.label.replace(/\s+/g, " "),
         ...card.extractors.flat().map((e) => {
-          // Capitalize first letter of each word
           return e
             .split(/\s+/)
             .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
@@ -711,61 +559,40 @@ const ImageGeneralAnalysis = ({
         }),
       ];
 
-      // Remove duplicates and filter out short ones
       const uniqueVariations = [...new Set(fieldNameVariations)].filter(
         (v) => v.length >= 3
       );
 
-      console.log(
-        `[ImageGeneralAnalysis] ${card.label} - Trying variations:`,
-        uniqueVariations
-      );
-
       for (const line of lines) {
-        // Skip empty lines
         if (!line || line.trim().length === 0) continue;
 
-        // Try each variation - must match EXACTLY at start of line
         for (const variation of uniqueVariations) {
           const escaped = variation.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-          // Match at start of line (case insensitive) - be very precise
           const regex = new RegExp(`^${escaped}\\s*[:]\\s*(.+)$`, "i");
           const match = line.match(regex);
 
           if (match && match[1]) {
             const extracted = match[1].trim();
-            // Stop at next field (capitalized word + colon) or end of line
-            // More precise: look for pattern like "Word Word:" (field name pattern)
             const cleaned = extracted
               .split(/\s+(?:[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\s*:)/)[0]
               .trim();
             if (cleaned && cleaned.length > 0 && cleaned.length < 200) {
               const normalizedValue = normalizeText(cleaned);
-              // Validate that this value makes sense for this field
               if (isValidValueForField(card.id, normalizedValue)) {
                 value = normalizedValue;
-                console.log(
-                  `[ImageGeneralAnalysis] ${card.label} - Found match! Line: "${line}" | Variation: "${variation}" | Value: "${value}"`
-                );
-                break; // Found the correct field, stop searching variations
-              } else {
-                console.log(
-                  `[ImageGeneralAnalysis] ${card.label} - Rejected invalid value: "${normalizedValue}" for field ${card.id}`
-                );
+                break;
               }
             }
           }
         }
 
         if (value && value !== "Not detected") {
-          break; // Found value, stop processing lines
+          break;
         }
       }
     }
 
-    // Strategy 1: Try structured data from sections (with precise matching)
     if (!value || value === "Not detected") {
-      // First, try to find exact match in Key Attributes items using card label
       if (keyAttributesSection?.items) {
         const cardLabelLower = card.label.toLowerCase();
         const cardLabelNoAmp = card.label
@@ -776,16 +603,12 @@ const ImageGeneralAnalysis = ({
           if (typeof item === "string") continue;
           const itemKey = (item.key || item.label || "").toLowerCase().trim();
 
-          // Exact match with card label
           if (itemKey === cardLabelLower || itemKey === cardLabelNoAmp) {
             const itemValue = item.value || item.text || item.description;
             if (itemValue) {
               const normalized = normalizeText(itemValue);
               if (isValidValueForField(card.id, normalized)) {
                 value = normalized;
-                console.log(
-                  `[ImageGeneralAnalysis] ${card.label} - Found exact match in items: "${value}"`
-                );
                 break;
               }
             }
@@ -793,28 +616,17 @@ const ImageGeneralAnalysis = ({
         }
       }
 
-      // If still no value, try extractValueFromGroups (but it should be more precise now)
       if (!value || value === "Not detected") {
         value = extractValueFromGroups(card.extractors);
-        console.log(
-          `[ImageGeneralAnalysis] ${card.label} - After extractValueFromGroups:`,
-          value
-        );
       }
     }
 
-    // Strategy 2: Try multiple label variations in raw text (direct search)
     if (!value || value === "Not detected") {
-      console.log(
-        `[ImageGeneralAnalysis] ${card.label} - Trying direct extraction from raw text`
-      );
-
       const labelVariations = [
-        card.label, // "Image Type"
-        card.label.replace(/ & /g, " "), // "Layout Structure" (remove &)
-        card.label.replace(/ & /g, " and "), // "Layout and Structure"
+        card.label,
+        card.label.replace(/ & /g, " "),
+        card.label.replace(/ & /g, " and "),
         ...card.extractors.flat().map((e) => {
-          // Capitalize first letter of each word
           return e
             .split(/\s+/)
             .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
@@ -822,21 +634,17 @@ const ImageGeneralAnalysis = ({
         }),
       ];
 
-      // Remove duplicates
       const uniqueLabels = [...new Set(labelVariations)];
 
       for (const label of uniqueLabels) {
-        // More precise regex - stop at next field (capitalized word + colon) or section
         const escapedLabel = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-        // Try pattern: "Label: value" at start of line
         let regex = new RegExp(
           `^${escapedLabel}\\s*[:]\\s*([^\\n:]+?)(?=\\s*[A-Z][a-z]+\\s*:|\\s*SECTION:|$)`,
           "im"
         );
         let match = rawText.match(regex);
 
-        // If no match, try anywhere in text (but still stop at next field)
         if (!match) {
           regex = new RegExp(
             `${escapedLabel}\\s*[:]\\s*([^\\n:]+?)(?=\\s*[A-Z][a-z]+\\s*:|\\s*SECTION:|$)`,
@@ -847,52 +655,26 @@ const ImageGeneralAnalysis = ({
 
         if (match?.[1]) {
           const extracted = match[1].trim();
-          // Clean up - remove any trailing field names that might have been captured
           const cleaned = extracted.split(/\s+[A-Z][a-z]+\s*:/)[0].trim();
           if (
             cleaned &&
             cleaned.length > 0 &&
             !cleaned.toLowerCase().includes("section:") &&
-            cleaned.length < 200 // Reasonable value length limit
+            cleaned.length < 200
           ) {
             const normalizedValue = normalizeText(cleaned);
-            // Validate that this value makes sense for this field
             if (isValidValueForField(card.id, normalizedValue)) {
               value = normalizedValue;
-              console.log(
-                `[ImageGeneralAnalysis] ${card.label} - Found with label "${label}" in raw text:`,
-                value
-              );
               break;
-            } else {
-              console.log(
-                `[ImageGeneralAnalysis] ${card.label} - Rejected invalid value in raw text: "${normalizedValue}" for field ${card.id}`
-              );
             }
           }
         }
       }
     }
 
-    // Strategy 3: Search in Key Attributes section specifically
     if ((!value || value === "Not detected") && keyAttributesSection) {
-      console.log(
-        `[ImageGeneralAnalysis] ${card.label} - Searching in Key Attributes section`
-      );
       const sectionText = keyAttributesSection.text || "";
       const sectionItems = keyAttributesSection.items || [];
-
-      console.log(
-        `[ImageGeneralAnalysis] ${card.label} - Key Attributes items:`,
-        sectionItems
-      );
-      console.log(
-        `[ImageGeneralAnalysis] ${card.label} - Key Attributes text:`,
-        sectionText
-      );
-
-      // Check items first - look for exact label match
-      // Backend returns: "Image Type", "Main Subject", "Dominant Colors", "Layout Structure", "Overall Mood", "Lighting"
       for (const item of sectionItems) {
         if (typeof item === "string") continue;
         const itemKey = (item.key || item.label || item.name || "").trim();
@@ -900,12 +682,6 @@ const ImageGeneralAnalysis = ({
 
         if (!itemKey || !itemValue) continue;
 
-        console.log(`[ImageGeneralAnalysis] ${card.label} - Checking item:`, {
-          itemKey,
-          itemValue,
-        });
-
-        // Normalize both for comparison (case-insensitive, remove &, normalize spaces)
         const cardLabelNormalized = card.label
           .toLowerCase()
           .replace(/\s*&\s*/g, " ")
@@ -918,17 +694,11 @@ const ImageGeneralAnalysis = ({
           .replace(/\s+/g, " ")
           .trim();
 
-        // Try exact match first (most reliable)
         if (itemKeyNormalized === cardLabelNormalized) {
           value = normalizeText(itemValue);
-          console.log(
-            `[ImageGeneralAnalysis] ${card.label} - Found in Key Attributes items (exact match):`,
-            value
-          );
           break;
         }
 
-        // Try word-by-word match (e.g., "Layout Structure" matches "Layout & Structure")
         const cardWords = cardLabelNormalized
           .split(/\s+/)
           .filter((w) => w.length > 2);
@@ -936,7 +706,6 @@ const ImageGeneralAnalysis = ({
           .split(/\s+/)
           .filter((w) => w.length > 2);
 
-        // Check if all significant words from card label are in item key
         const allWordsMatch =
           cardWords.length > 0 &&
           cardWords.every((word) =>
@@ -948,7 +717,6 @@ const ImageGeneralAnalysis = ({
             )
           );
 
-        // Also check reverse (all item words in card label)
         const allItemWordsMatch =
           itemWords.length > 0 &&
           itemWords.every((word) =>
@@ -962,19 +730,13 @@ const ImageGeneralAnalysis = ({
 
         if ((allWordsMatch || allItemWordsMatch) && itemValue) {
           value = normalizeText(itemValue);
-          console.log(
-            `[ImageGeneralAnalysis] ${card.label} - Found in Key Attributes items (word match):`,
-            value
-          );
           break;
         }
 
-        // Try extractor keywords - but be more precise
         for (const extractor of card.extractors.flat()) {
           const extractorLower = extractor.toLowerCase().trim();
           if (extractorLower.length < 3) continue;
 
-          // Exact match or significant substring match
           if (
             itemKeyNormalized === extractorLower ||
             (itemKeyNormalized.includes(extractorLower) &&
@@ -983,19 +745,13 @@ const ImageGeneralAnalysis = ({
               itemKeyNormalized.length > 4)
           ) {
             value = normalizeText(itemValue);
-            console.log(
-              `[ImageGeneralAnalysis] ${card.label} - Found in Key Attributes items (extractor "${extractor}" match):`,
-              value
-            );
             break;
           }
         }
         if (value && value !== "Not detected") break;
       }
 
-      // Check section text - try exact label match
       if (!value || value === "Not detected") {
-        // Try with the exact card label first
         const cardLabelEscaped = card.label.replace(
           /[.*+?^${}()|[\]\\]/g,
           "\\$&"
@@ -1005,24 +761,14 @@ const ImageGeneralAnalysis = ({
           "i"
         );
         let match = sectionText.match(regex);
-        console.log(
-          `[ImageGeneralAnalysis] ${card.label} - Section text regex match (exact label):`,
-          match
-        );
         if (match?.[1]) {
           const extracted = match[1].trim();
-          // Clean up - remove any trailing field names
           const cleaned = extracted.split(/\s+[A-Z][a-z]+\s*:/)[0].trim();
           if (cleaned && cleaned.length > 0) {
             value = normalizeText(cleaned);
-            console.log(
-              `[ImageGeneralAnalysis] ${card.label} - Found in Key Attributes text (exact label):`,
-              value
-            );
           }
         }
 
-        // Try without "&" in label (e.g., "Layout Structure" instead of "Layout & Structure")
         if (!value || value === "Not detected") {
           const labelWithoutAmp = card.label.replace(/\s*&\s*/g, " ");
           const labelEscaped = labelWithoutAmp.replace(
@@ -1034,27 +780,17 @@ const ImageGeneralAnalysis = ({
             "i"
           );
           match = sectionText.match(regex);
-          console.log(
-            `[ImageGeneralAnalysis] ${card.label} - Section text regex match (without &):`,
-            match
-          );
           if (match?.[1]) {
             const extracted = match[1].trim();
             const cleaned = extracted.split(/\s+[A-Z][a-z]+\s*:/)[0].trim();
             if (cleaned && cleaned.length > 0) {
               value = normalizeText(cleaned);
-              console.log(
-                `[ImageGeneralAnalysis] ${card.label} - Found in Key Attributes text (without &):`,
-                value
-              );
             }
           }
         }
 
-        // Fallback to extractor keywords in section text
         if (!value || value === "Not detected") {
           for (const extractor of card.extractors.flat()) {
-            // Only use longer extractors to avoid false matches
             if (extractor.length < 3) continue;
 
             const regex = new RegExp(
@@ -1064,14 +800,9 @@ const ImageGeneralAnalysis = ({
             const match = sectionText.match(regex);
             if (match?.[1]) {
               const extracted = match[1].trim();
-              // Clean up - remove any trailing field names
               const cleaned = extracted.split(/\s+[A-Z][a-z]+\s*:/)[0].trim();
               if (cleaned && cleaned.length > 0) {
                 value = normalizeText(cleaned);
-                console.log(
-                  `[ImageGeneralAnalysis] ${card.label} - Found in Key Attributes text (extractor "${extractor}"):`,
-                  value
-                );
                 break;
               }
             }
@@ -1080,14 +811,9 @@ const ImageGeneralAnalysis = ({
       }
     }
 
-    // Strategy 4: Fallback to section text
     if (!value || value === "Not detected") {
       value = getSectionText(matchSection(card.extractors.flat()));
       if (value) value = normalizeText(value);
-      console.log(
-        `[ImageGeneralAnalysis] ${card.label} - From section text:`,
-        value
-      );
     }
 
     const result = {
@@ -1097,13 +823,16 @@ const ImageGeneralAnalysis = ({
       detail: card.detail,
       icon: card.icon,
     };
-    console.log(`[ImageGeneralAnalysis] ${card.label} - Final result:`, result);
     return result;
   });
 
   const hasContent =
     summaryText ||
     keyAttributes.some((card) => card.value && card.value !== "Not detected");
+
+  const hasStructuredData = structuredData && structuredData.keyAttributes;
+
+  const shouldShowRawText = !hasStructuredData && !hasContent;
 
   if (!hasContent && !rawText.trim()) {
     return (
@@ -1164,7 +893,7 @@ const ImageGeneralAnalysis = ({
         </div>
       )}
 
-      {!hasContent && rawText.trim() && (
+      {shouldShowRawText && rawText.trim() && (
         <div className={styles.summaryCard}>
           <h4>AI Notes</h4>
           <pre className={styles.rawText}>{rawText}</pre>

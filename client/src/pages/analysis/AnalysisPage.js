@@ -12,7 +12,6 @@ import {
   faClock,
   faHeading,
   faUser,
-  faLightbulb,
   faImage,
 } from "@fortawesome/free-solid-svg-icons";
 import { useSession } from "../../context/SessionContext";
@@ -20,15 +19,19 @@ import { analyzePDFFile } from "../../services/pdfAnalysisService";
 import { analyzeJSONFile } from "../../services/jsonAnalysisService";
 import { analyzeCSVFile } from "../../services/csvAnalysisService";
 import { analyzeImageFile } from "../../services/imageAnalysisService";
-import ImagePreview from "../../components/ImagePreview/ImagePreview";
+import ImagePreview from "../../components/Layout/ImagePreview/ImagePreview";
 import styles from "./AnalysisPage.module.css";
 
 // Helper function to parse and structure insights text
 const parseInsightsText = (text) => {
   if (!text) return [];
   
+  let cleanedText = text;
+  cleanedText = cleanedText.replace(/```json[\s\S]*?```/g, '');
+  cleanedText = cleanedText.replace(/```[\s\S]*?```/g, '');
+  
   const sections = [];
-  const lines = text.split('\n').filter(line => line.trim());
+  const lines = cleanedText.split('\n').filter(line => line.trim());
   
   let currentSection = null;
   let currentContent = [];
@@ -480,7 +483,10 @@ const AnalysisPage = () => {
                       
                       // Fallback: render as simple text if parsing didn't work
                       // Parse markdown bold and split by lines
-                      const lines = analysisResults.insights.summary.split('\n').filter(l => l.trim());
+                      let fallbackText = analysisResults.insights.summary;
+                      fallbackText = fallbackText.replace(/```json[\s\S]*?```/g, '');
+                      fallbackText = fallbackText.replace(/```[\s\S]*?```/g, '');
+                      const lines = fallbackText.split('\n').filter(l => l.trim());
                       return lines.map((line, lineIdx) => {
                         // Parse bold text
                         const parts = line.split(/(\*\*.*?\*\*)/g);
@@ -500,28 +506,13 @@ const AnalysisPage = () => {
                         );
                       });
                     })()}
-                    {analysisResults.insights?.patterns?.slice(0, 3).map((pattern, idx) => {
-                      // Determine icon based on pattern content
-                      let icon = faChartLine; // Default icon
-                      
-                      if (pattern.toLowerCase().includes('page')) {
-                        icon = faFile;
-                      } else if (pattern.toLowerCase().includes('reading time') || pattern.toLowerCase().includes('minute')) {
-                        icon = faClock;
-                      } else if (pattern.toLowerCase().includes('title')) {
-                        icon = faHeading;
-                      } else if (pattern.toLowerCase().includes('author')) {
-                        icon = faUser;
-                      }
-                      
-                      return (
-                        <div key={idx} className={styles.insightItem}>
-                          <div className={styles.insightContent}>
-                            <div className={styles.insightDescription}>{pattern}</div>
-                          </div>
+                    {analysisResults.insights?.patterns?.slice(0, 3).map((pattern, idx) => (
+                      <div key={idx} className={styles.insightItem}>
+                        <div className={styles.insightContent}>
+                          <div className={styles.insightDescription}>{pattern}</div>
                         </div>
-                      );
-                    })}
+                      </div>
+                    ))}
                   </div>
                 </div>
 

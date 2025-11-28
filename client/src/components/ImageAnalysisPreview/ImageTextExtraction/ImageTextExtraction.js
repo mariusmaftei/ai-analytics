@@ -89,14 +89,14 @@ const ImageTextExtraction = ({
   const structuredItems = extractStructuredItems();
   const hasStructured =
     structuredItems.length > 0 && structuredItems.length < 50;
-  
+
   const completeRawText = rawText?.trim() || "";
-  
-  console.log('[ImageTextExtraction] Raw text received:', completeRawText);
-  console.log('[ImageTextExtraction] Raw text length:', completeRawText.length);
-  
+
   const textLines = completeRawText
-    ? completeRawText.split("\n").map((line) => line.trimEnd()).filter((line) => line.length > 0)
+    ? completeRawText
+        .split("\n")
+        .map((line) => line.trimEnd())
+        .filter((line) => line.length > 0)
     : rawTextContent
         .split("\n")
         .map((line) => line.trimEnd())
@@ -391,9 +391,7 @@ const ImageTextExtraction = ({
       await navigator.clipboard.writeText(displayRawText || rawTextContent);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
-      console.error("Failed to copy text:", err);
-    }
+    } catch (err) {}
   };
 
   if (!rawTextContent.trim()) {

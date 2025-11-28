@@ -178,14 +178,4 @@
     padding: 1.5rem;
   }
 
-  .keyValueRow {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .value {
-    text-align: left;
-  }
 }
-
-

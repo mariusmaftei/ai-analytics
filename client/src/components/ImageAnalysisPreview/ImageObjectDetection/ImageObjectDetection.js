@@ -11,7 +11,7 @@ const ImageObjectDetection = ({
 }) => {
   const sections = data?.sections || [];
   const [selectedObject, setSelectedObject] = useState(null);
-  const [visibleBoxes, setVisibleBoxes] = useState(new Set()); // Track which boxes are visible
+  const [visibleBoxes, setVisibleBoxes] = useState(new Set());
   const [imageDimensions, setImageDimensions] = useState({
     width: 0,
     height: 0,
@@ -42,49 +42,23 @@ const ImageObjectDetection = ({
         const img = imageRef.current;
         const container = containerRef.current;
 
-        // Get the actual rendered size and position of the image (natural size when no constraints)
         const imgRect = img.getBoundingClientRect();
         const containerRect = container.getBoundingClientRect();
 
-        // Calculate position relative to container
         setImageRect({
           width: imgRect.width,
           height: imgRect.height,
           left: imgRect.left - containerRect.left,
           top: imgRect.top - containerRect.top,
         });
-
-        console.log("[ImageRect] Updated:", {
-          imgRect: {
-            width: imgRect.width,
-            height: imgRect.height,
-            left: imgRect.left,
-            top: imgRect.top,
-          },
-          containerRect: {
-            width: containerRect.width,
-            height: containerRect.height,
-            left: containerRect.left,
-            top: containerRect.top,
-          },
-          relative: {
-            width: imgRect.width,
-            height: imgRect.height,
-            left: imgRect.left - containerRect.left,
-            top: imgRect.top - containerRect.top,
-          },
-          natural: imageDimensions,
-        });
       }
     };
 
-    // Update on resize
     window.addEventListener("resize", updateImageRect);
 
-    // Update after image loads and after a short delay to ensure layout is complete
     if (imageRef.current) {
       const timeout = setTimeout(updateImageRect, 100);
-      const timeout2 = setTimeout(updateImageRect, 500); // Also update after a longer delay
+      const timeout2 = setTimeout(updateImageRect, 500);
       return () => {
         window.removeEventListener("resize", updateImageRect);
         clearTimeout(timeout);
@@ -129,16 +103,10 @@ const ImageObjectDetection = ({
   const parseObjects = () => {
     const objects = [];
 
-    // First, try to parse JSON from rawText
     if (rawText) {
       try {
         let jsonText = rawText.trim();
-        console.log(
-          "[parseObjects] Raw text input:",
-          jsonText.substring(0, 200)
-        );
 
-        // Remove markdown code fences if present
         if (jsonText.startsWith("```")) {
           jsonText = jsonText
             .replace(/```json?/gi, "")
@@ -146,13 +114,10 @@ const ImageObjectDetection = ({
             .trim();
         }
 
-        // Try to find and extract JSON array - be more aggressive
         let arrayStart = jsonText.indexOf("[");
         let arrayEnd = jsonText.lastIndexOf("]");
 
-        // If no closing bracket, try to find the last complete object
         if (arrayStart !== -1 && arrayEnd === -1) {
-          // Find all complete objects by looking for closing braces
           const braceMatches = [];
           let depth = 0;
           let startPos = arrayStart;
@@ -170,7 +135,6 @@ const ImageObjectDetection = ({
           }
 
           if (braceMatches.length > 0) {
-            // Reconstruct array from found objects
             const objectsStr = braceMatches
               .map((m) => jsonText.substring(m.start, m.end))
               .join(",");
@@ -182,18 +146,9 @@ const ImageObjectDetection = ({
 
         if (arrayStart !== -1 && arrayEnd !== -1 && arrayEnd > arrayStart) {
           jsonText = jsonText.substring(arrayStart, arrayEnd + 1);
-          console.log(
-            "[parseObjects] Extracted JSON:",
-            jsonText.substring(0, 300)
-          );
 
           const parsed = JSON.parse(jsonText);
           if (Array.isArray(parsed) && parsed.length > 0) {
-            console.log(
-              "[parseObjects] Found JSON array with",
-              parsed.length,
-              "objects"
-            );
             parsed.forEach((obj, idx) => {
               if (obj && obj.name && obj.x !== undefined && obj.x !== null) {
                 objects.push({
@@ -216,22 +171,11 @@ const ImageObjectDetection = ({
               }
             });
             if (objects.length > 0) {
-              console.log(
-                "[parseObjects] Successfully parsed",
-                objects.length,
-                "objects with coordinates"
-              );
               return objects;
             }
           }
         }
       } catch (e) {
-        console.log("[parseObjects] JSON parse failed:", e.message);
-        console.log(
-          "[parseObjects] Attempting to extract objects from corrupted JSON..."
-        );
-
-        // Try to extract individual objects from corrupted JSON
         try {
           const objectPattern =
             /\{"name":\s*"([^"]+)",\s*"confidence":\s*([\d.]+),\s*"color":\s*"([^"]+)",\s*"size":\s*"([^"]+)",\s*"x":\s*(\d+),\s*"y":\s*(\d+),\s*"w":\s*(\d+),\s*"h":\s*(\d+)\}/g;
@@ -256,19 +200,9 @@ const ImageObjectDetection = ({
           }
 
           if (objects.length > 0) {
-            console.log(
-              "[parseObjects] Extracted",
-              objects.length,
-              "objects using regex fallback"
-            );
             return objects;
           }
-        } catch (regexError) {
-          console.log(
-            "[parseObjects] Regex extraction also failed:",
-            regexError.message
-          );
-        }
+        } catch (regexError) {}
       }
     }
 
@@ -302,10 +236,6 @@ const ImageObjectDetection = ({
 
     if (objects.length === 0 && rawText) {
       const text = rawText;
-      console.log(
-        "[parseObjects] Searching for objects in raw text, length:",
-        text.length
-      );
 
       const objectPattern =
         /\*\*([^*]+?)\*\*\s*(?:\(confidence:\s*([\d.]+)\)|\(([\d.]+)\))?/gi;
@@ -325,13 +255,6 @@ const ImageObjectDetection = ({
             : text.substring(matchEnd, matchEnd + 500);
 
           const coords = extractCoordinates(textAfter);
-
-          console.log(
-            `[parseObjects] Found object: ${label}, coords:`,
-            coords,
-            "text after:",
-            textAfter.substring(0, 200)
-          );
 
           objects.push({
             id: objIdx++,
@@ -500,29 +423,12 @@ const ImageObjectDetection = ({
             if (match) {
               const coords = extractCoordinates(match[0]);
               if (coords.x !== null) {
-                console.log(
-                  `[parseObjects] Found coords for ${obj.label} in full text:`,
-                  coords
-                );
                 obj.location = coords;
                 obj.rawLocation = `x=${coords.x} y=${coords.y} w=${coords.w} h=${coords.h}`;
               }
             }
           }
         });
-      }
-
-      if (objects.length === 0 && rawText) {
-        console.log(
-          "[parseObjects] No objects found, trying alternative parsing on full text"
-        );
-        const allCoords = extractCoordinates(rawText);
-        if (allCoords.x !== null) {
-          console.log(
-            "[parseObjects] Found coordinates in full text:",
-            allCoords
-          );
-        }
       }
     }
 
@@ -531,31 +437,9 @@ const ImageObjectDetection = ({
 
   const objects = useMemo(() => {
     const parsed = parseObjects();
-    console.log("[ImageObjectDetection] Parsed objects:", parsed);
-    console.log(
-      "[ImageObjectDetection] Detections section:",
-      detectionsSection
-    );
-    console.log("[ImageObjectDetection] Raw text (full):", rawText);
-    console.log(
-      "[ImageObjectDetection] Raw text (first 1000 chars):",
-      rawText?.substring(0, 1000)
-    );
-    console.log("[ImageObjectDetection] Object count:", parsed.length);
-
-    parsed.forEach((obj, idx) => {
-      console.log(`[ImageObjectDetection] Object ${idx}:`, {
-        label: obj.label,
-        confidence: obj.confidence,
-        location: obj.location,
-        hasCoords: obj.location.x !== null && obj.location.y !== null,
-      });
-    });
-
     return parsed;
   }, [detectionsSection, rawText]);
 
-  // Initialize all boxes as visible when objects change
   useEffect(() => {
     if (objects.length > 0) {
       const allIds = objects.map((obj) => obj.id);
@@ -590,7 +474,6 @@ const ImageObjectDetection = ({
       : "Low"
     : "Unknown";
 
-  // Calculate largest object by bounding box area
   const largestObject =
     objects.length > 0
       ? objects.reduce((largest, obj) => {
@@ -601,7 +484,6 @@ const ImageObjectDetection = ({
         })
       : null;
 
-  // Find most confident object
   const mostConfidentObject =
     objects.length > 0
       ? objects.reduce((most, obj) => {
@@ -611,7 +493,6 @@ const ImageObjectDetection = ({
         })
       : null;
 
-  // Calculate largest object area percentage
   const largestAreaPercent =
     largestObject && imageDimensions.width > 0 && imageDimensions.height > 0
       ? (
@@ -797,7 +678,6 @@ const ImageObjectDetection = ({
                   height: naturalHeight,
                 });
 
-                // Update image rect after a short delay to ensure layout is complete
                 setTimeout(() => {
                   if (imageRef.current && containerRef.current) {
                     const imgRect = img.getBoundingClientRect();
@@ -847,79 +727,46 @@ const ImageObjectDetection = ({
                         obj.location.w === null ||
                         obj.location.h === null
                       ) {
-                        return null; // Skip objects without coordinates
+                        return null;
                       }
 
-                      // Skip rendering if box is hidden
                       if (!visibleBoxes.has(obj.id)) {
                         return null;
                       }
 
-                      // Calculate aspect ratios
                       const naturalAspect =
                         imageDimensions.width / imageDimensions.height;
                       const renderedAspect = imgRect.width / imgRect.height;
 
-                      // Calculate actual visible image size (accounting for object-fit: contain)
                       let visibleImageWidth,
                         visibleImageHeight,
                         offsetX = 0,
                         offsetY = 0;
 
                       if (Math.abs(naturalAspect - renderedAspect) > 0.01) {
-                        // Aspect ratios differ - image is letterboxed or pillarboxed
                         if (naturalAspect > renderedAspect) {
-                          // Image is wider - letterboxed (bars top/bottom)
                           visibleImageWidth = imgRect.width;
                           visibleImageHeight = imgRect.width / naturalAspect;
                           offsetY = (imgRect.height - visibleImageHeight) / 2;
                         } else {
-                          // Image is taller - pillarboxed (bars left/right)
                           visibleImageHeight = imgRect.height;
                           visibleImageWidth = imgRect.height * naturalAspect;
                           offsetX = (imgRect.width - visibleImageWidth) / 2;
                         }
                       } else {
-                        // Aspect ratios match - no letterboxing
                         visibleImageWidth = imgRect.width;
                         visibleImageHeight = imgRect.height;
                       }
 
-                      // Calculate scale factor from natural image to visible rendered image
                       const scaleX = visibleImageWidth / imageDimensions.width;
                       const scaleY =
                         visibleImageHeight / imageDimensions.height;
 
-                      // Debug logging
-                      console.log(`[BoundingBox] ${obj.label}:`, {
-                        natural: {
-                          w: imageDimensions.width,
-                          h: imageDimensions.height,
-                        },
-                        imgElement: { w: imgRect.width, h: imgRect.height },
-                        visible: {
-                          w: visibleImageWidth,
-                          h: visibleImageHeight,
-                        },
-                        offset: { x: offsetX, y: offsetY },
-                        scale: { x: scaleX, y: scaleY },
-                        coords: obj.location,
-                        naturalAspect: (
-                          imageDimensions.width / imageDimensions.height
-                        ).toFixed(3),
-                        renderedAspect: (
-                          imgRect.width / imgRect.height
-                        ).toFixed(3),
-                      });
-
-                      // Convert pixel coordinates from natural image to rendered pixel positions
-                      // Position relative to the overlay (which matches the img element position)
                       const left = obj.location.x * scaleX + offsetX;
                       const top = obj.location.y * scaleY + offsetY;
                       const width = obj.location.w * scaleX;
                       const height = obj.location.h * scaleY;
 
-                      // Ensure bounding box stays within the actual image area (not in black bars)
                       const clampedLeft = Math.max(
                         offsetX,
                         Math.min(offsetX + visibleImageWidth - width, left)
@@ -937,7 +784,6 @@ const ImageObjectDetection = ({
                         offsetY + visibleImageHeight - clampedTop
                       );
 
-                      // Only render if box is within the actual image area
                       if (
                         clampedLeft < offsetX ||
                         clampedTop < offsetY ||
@@ -946,9 +792,6 @@ const ImageObjectDetection = ({
                         clampedTop + clampedHeight >
                           offsetY + visibleImageHeight
                       ) {
-                        console.log(
-                          `[BoundingBox] ${obj.label} - Box outside image bounds, skipping`
-                        );
                         return null;
                       }
 
@@ -1012,9 +855,7 @@ const ImageObjectDetection = ({
                   selectedObject === obj.id ? styles.selected : ""
                 } ${!isVisible ? styles.hidden : ""}`}
                 onClick={(e) => {
-                  // Toggle box visibility on click
                   toggleBoxVisibility(obj.id);
-                  // Also select/deselect the object
                   setSelectedObject(selectedObject === obj.id ? null : obj.id);
                 }}
               >

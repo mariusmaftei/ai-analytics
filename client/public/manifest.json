@@ -1,7 +1,7 @@
 {
   "short_name": "Softindex Agent",
   "name": "Softindex Agent - AI Document Analysis",
-  "description": "Advanced AI-powered document analysis platform for PDF, CSV, and JSON files",
+  "description": "Advanced AI-powered document analysis platform for PDF, CSV, and Image files",
   "icons": [
     {
       "src": "favicon.ico",

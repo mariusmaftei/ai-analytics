@@ -1,6 +1,6 @@
 import React from "react";
 import Header from "../Header/Header";
-import Sidebar from "../Sidebar/Sidebar";
+import Sidebar from "../Layout/Sidebar/Sidebar";
 import ScrollToTop from "../ScrollToTop/ScrollToTop";
 import { Outlet, useLocation } from "react-router-dom";
 import { useSession } from "../../context/SessionContext";
