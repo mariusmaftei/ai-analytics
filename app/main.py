@@ -18,6 +18,9 @@ port = int(os.getenv('PORT', 8080))
 app = Flask(__name__)
 CORS(app)
 
+# Increase max content length for large PDF uploads (50MB)
+app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50MB in bytes
+
 app.register_blueprint(pdf_bp)
 app.register_blueprint(rag_bp)
 app.register_blueprint(image_bp)

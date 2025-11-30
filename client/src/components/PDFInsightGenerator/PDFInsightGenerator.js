@@ -21,6 +21,7 @@ import PDFContentAnalysis from "../PDFInsightsPreview/PDFContentAnalysis/PDFCont
 import PDFStructureAnalysis from "../PDFInsightsPreview/PDFStructureAnalysis/PDFStructureAnalysis";
 import PDFMetadataAnalysis from "../PDFInsightsPreview/PDFMetadataAnalysis/PDFMetadataAnalysis";
 import PDFKeywordsExtraction from "../PDFInsightsPreview/PDFKeywordsExtraction/PDFKeywordsExtraction";
+import ProgressBar from "../Shared/ProgressBar/ProgressBar";
 import styles from "./PDFInsightGenerator.module.css";
 
 const ANALYSIS_TYPES = [
@@ -70,34 +71,53 @@ const PDFInsightGenerator = ({ fileData, analysisData }) => {
   const [error, setError] = useState(null);
   const [completedAnalyses, setCompletedAnalyses] = useState({});
   const [expandedAnalyses, setExpandedAnalyses] = useState({});
+  const [expandedAllInsights, setExpandedAllInsights] = useState({});
   const [isExpanded, setIsExpanded] = useState(false);
   const [showAnalysisSelector, setShowAnalysisSelector] = useState(false);
   const [allInsights, setAllInsights] = useState(null);
+  const [analysisProgress, setAnalysisProgress] = useState({ current: 0, total: 0, currentType: null });
   const hasInitializedRef = useRef(false);
 
   const cacheKey = `pdf_insights_${fileData.fileName}_${fileData.fileSize}`;
 
   useEffect(() => {
-    if (hasInitializedRef.current) return;
+    // Only restore from cache if we don't already have data loaded
+    // Check if state is empty, not just if ref is set (ref persists across unmounts)
+    // This allows cache restoration when component remounts after being hidden
+    const hasData = Object.keys(completedAnalyses).length > 0 || allInsights;
+    if (hasInitializedRef.current && hasData) {
+      return;
+    }
 
     try {
       const cached = sessionStorage.getItem(cacheKey);
       if (cached) {
         const parsed = JSON.parse(cached);
-        if (parsed.completedAnalyses) {
+        if (parsed.completedAnalyses && Object.keys(parsed.completedAnalyses).length > 0) {
           setCompletedAnalyses(parsed.completedAnalyses);
           if (parsed.expandedAnalyses) {
             setExpandedAnalyses(parsed.expandedAnalyses);
           }
           setIsExpanded(true);
           hasInitializedRef.current = true;
-        } else if (parsed.allInsights) {
+        } else if (parsed.allInsights && Object.keys(parsed.allInsights).length > 0) {
           setAllInsights(parsed.allInsights);
           setIsExpanded(true);
+          // Initialize all sections as expanded when restoring from cache
+          if (parsed.expandedAllInsights) {
+            setExpandedAllInsights(parsed.expandedAllInsights);
+          } else {
+            const allExpanded = {};
+            Object.keys(parsed.allInsights).forEach((key) => {
+              allExpanded[key] = true;
+            });
+            setExpandedAllInsights(allExpanded);
+          }
           hasInitializedRef.current = true;
         }
       }
     } catch (err) {
+      console.error('Error restoring PDF insights from cache:', err);
     }
   }, [cacheKey]);
 
@@ -108,13 +128,14 @@ const PDFInsightGenerator = ({ fileData, analysisData }) => {
           completedAnalyses,
           expandedAnalyses,
           allInsights,
+          expandedAllInsights,
           timestamp: Date.now(),
         };
         sessionStorage.setItem(cacheKey, JSON.stringify(toCache));
       } catch (err) {
       }
     }
-  }, [completedAnalyses, expandedAnalyses, allInsights, cacheKey]);
+  }, [completedAnalyses, expandedAnalyses, allInsights, expandedAllInsights, cacheKey]);
 
   useEffect(() => {
     if (
@@ -156,13 +177,27 @@ const PDFInsightGenerator = ({ fileData, analysisData }) => {
     setIsGenerating(true);
     setError(null);
     setAllInsights(null);
+    setExpandedAllInsights({});
     setShowAnalysisSelector(false);
 
     try {
       if (selectedAnalysisType === "all") {
         const results = {};
+        const totalTypes = ALL_ANALYSIS_TYPES.length;
+        
+        // Initialize progress
+        setAnalysisProgress({ current: 0, total: totalTypes, currentType: null });
 
-        for (const type of ALL_ANALYSIS_TYPES) {
+        for (let i = 0; i < ALL_ANALYSIS_TYPES.length; i++) {
+          const type = ALL_ANALYSIS_TYPES[i];
+          
+          // Update progress - show which analysis is currently running
+          setAnalysisProgress({ 
+            current: i, 
+            total: totalTypes, 
+            currentType: type.label 
+          });
+
           try {
             let fullResponse = "";
             await generateInsights(
@@ -177,12 +212,7 @@ const PDFInsightGenerator = ({ fileData, analysisData }) => {
               },
               (chunk) => {
                 fullResponse += chunk;
-                results[type.id] = {
-                  type: type.label,
-                  icon: type.icon,
-                  content: fullResponse,
-                };
-                setAllInsights({ ...results });
+                // Don't update allInsights during streaming to avoid showing partial results
               }
             );
             const parsed = parsePDFInsights(fullResponse);
@@ -196,12 +226,24 @@ const PDFInsightGenerator = ({ fileData, analysisData }) => {
               icon: type.icon,
               content: fullResponse,
             };
+            
+            // Only update allInsights after each analysis is complete
             setAllInsights({ ...results });
 
-            setCompletedAnalyses((prev) => ({
+            // Update progress after completion
+            setAnalysisProgress({ 
+              current: i + 1, 
+              total: totalTypes, 
+              currentType: type.label 
+            });
+
+            // Initialize all sections as expanded by default
+            setExpandedAllInsights((prev) => ({
               ...prev,
-              [type.id]: analysisResult,
+              [type.id]: true,
             }));
+
+            // Don't add to completedAnalyses when doing "Analyze All" to avoid duplicates
           } catch (err) {
             results[type.id] = {
               type: type.label,
@@ -210,8 +252,22 @@ const PDFInsightGenerator = ({ fileData, analysisData }) => {
               error: true,
             };
             setAllInsights({ ...results });
+            setExpandedAllInsights((prev) => ({
+              ...prev,
+              [type.id]: true,
+            }));
+            
+            // Update progress even on error
+            setAnalysisProgress({ 
+              current: i + 1, 
+              total: totalTypes, 
+              currentType: type.label 
+            });
           }
         }
+        
+        // Reset progress when done
+        setAnalysisProgress({ current: 0, total: 0, currentType: null });
       } else {
         let fullResponse = "";
 
@@ -299,6 +355,17 @@ const PDFInsightGenerator = ({ fileData, analysisData }) => {
                   newExpanded[key] = !allExpanded;
                 });
                 setExpandedAnalyses(newExpanded);
+              } else if (allInsights) {
+                // Handle "Analyze All" case
+                const allExpanded = Object.keys(allInsights).every(
+                  (key) => expandedAllInsights[key] !== false
+                );
+                const newExpanded = {};
+                Object.keys(allInsights).forEach((key) => {
+                  newExpanded[key] = !allExpanded;
+                });
+                setExpandedAllInsights(newExpanded);
+                setIsExpanded(!allExpanded);
               } else {
                 setIsExpanded(!isExpanded);
               }
@@ -308,6 +375,10 @@ const PDFInsightGenerator = ({ fileData, analysisData }) => {
               icon={
                 (Object.keys(completedAnalyses).length > 0 &&
                   Object.values(expandedAnalyses).every((v) => v)) ||
+                (allInsights &&
+                  Object.keys(allInsights).every(
+                    (key) => expandedAllInsights[key] !== false
+                  )) ||
                 isExpanded
                   ? faChevronUp
                   : faChevronDown
@@ -411,7 +482,17 @@ const PDFInsightGenerator = ({ fileData, analysisData }) => {
       {isGenerating && (
         <div className={styles.loadingSection}>
           <FontAwesomeIcon icon={faSpinner} className={styles.spinner} spin />
-          <p>Analyzing PDF with {selectedType.label.toLowerCase()}...</p>
+          {selectedAnalysisType === "all" && analysisProgress.total > 0 ? (
+            <ProgressBar
+              current={analysisProgress.current}
+              total={analysisProgress.total}
+              currentType={analysisProgress.currentType}
+              color="orange"
+              fileType="PDF"
+            />
+          ) : (
+            <p>Analyzing PDF with {selectedType.label.toLowerCase()}...</p>
+          )}
         </div>
       )}
 
@@ -424,7 +505,7 @@ const PDFInsightGenerator = ({ fileData, analysisData }) => {
         </div>
       )}
 
-      {(Object.keys(completedAnalyses).length > 0 || allInsights) &&
+      {(Object.keys(completedAnalyses).length > 0 || (allInsights && !isGenerating)) &&
         !showAnalysisSelector && (
           <div className={styles.insightsContent}>
             <div className={styles.previewActions}>
@@ -439,7 +520,7 @@ const PDFInsightGenerator = ({ fileData, analysisData }) => {
               </button>
             </div>
 
-            {Object.keys(completedAnalyses).length > 0 && (
+            {Object.keys(completedAnalyses).length > 0 && !allInsights && (
               <div className={styles.completedAnalysesList}>
                 {Object.entries(completedAnalyses).map(
                   ([typeId, analysisResult]) => {
@@ -540,41 +621,59 @@ const PDFInsightGenerator = ({ fileData, analysisData }) => {
                   const parsed = parsePDFInsights(
                     result.content || result.text || ""
                   );
+                  const isExpanded = expandedAllInsights[typeId] !== false; // Default to expanded
                   return (
                     <div key={typeId} className={styles.singleAnalysisSection}>
-                      <div className={styles.analysisSectionHeader}>
+                      <div 
+                        className={styles.analysisSectionHeader}
+                        onClick={() => {
+                          setExpandedAllInsights((prev) => ({
+                            ...prev,
+                            [typeId]: !prev[typeId],
+                          }));
+                        }}
+                        style={{ cursor: 'pointer' }}
+                      >
+                        <FontAwesomeIcon
+                          icon={isExpanded ? faChevronUp : faChevronDown}
+                          className={styles.expandIcon}
+                        />
                         <FontAwesomeIcon icon={typeInfo?.icon || faFileAlt} />
                         <h4>{result.type}</h4>
                       </div>
-                      {result.error ? (
-                        <div className={styles.errorText}>{result.content}</div>
-                      ) : (
-                        typeId === "overview" ? (
-                          <PDFOverview 
-                            data={parsed} 
-                            rawText={result.content || result.text}
-                            fileData={fileData}
-                            analysisData={analysisData}
-                          />
-                        ) : typeId === "summary" ? (
-                          <PDFSummary 
-                            data={parsed} 
-                            rawText={result.content || result.text}
-                            analysisData={analysisData}
-                          />
-                        ) : typeId === "content" ? (
-                          <PDFContentAnalysis 
-                            data={parsed} 
-                            rawText={result.content || result.text}
-                            analysisData={analysisData}
-                          />
-                        ) : (
-                          renderPreviewComponent(
-                            typeId,
-                            parsed,
-                            result.content || result.text
-                          )
-                        )
+                      {isExpanded && (
+                        <div className={styles.analysisContent}>
+                          {result.error ? (
+                            <div className={styles.errorText}>{result.content}</div>
+                          ) : (
+                            typeId === "overview" ? (
+                              <PDFOverview 
+                                data={parsed} 
+                                rawText={result.content || result.text}
+                                fileData={fileData}
+                                analysisData={analysisData}
+                              />
+                            ) : typeId === "summary" ? (
+                              <PDFSummary 
+                                data={parsed} 
+                                rawText={result.content || result.text}
+                                analysisData={analysisData}
+                              />
+                            ) : typeId === "content" ? (
+                              <PDFContentAnalysis 
+                                data={parsed} 
+                                rawText={result.content || result.text}
+                                analysisData={analysisData}
+                              />
+                            ) : (
+                              renderPreviewComponent(
+                                typeId,
+                                parsed,
+                                result.content || result.text
+                              )
+                            )
+                          )}
+                        </div>
                       )}
                     </div>
                   );

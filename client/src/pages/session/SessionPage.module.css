@@ -318,6 +318,11 @@
   color: var(--primary-color);
 }
 
+.greenKey {
+  color: var(--primary-color);
+  font-weight: 500;
+}
+
 .userMessage {
   align-self: flex-end;
   max-width: 80%;

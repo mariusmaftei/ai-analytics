@@ -6,6 +6,11 @@ import fitz  # PyMuPDF
 import io
 from datetime import datetime
 
+# Beta limits for PDF processing
+MAX_PAGES_BETA = 30
+MAX_FILE_SIZE_MB = 10
+MAX_WORDS_BETA = 50000
+
 def _get_page_size(pdf_document):
     """Get page size from the first page"""
     try:
@@ -48,14 +53,37 @@ def extract_text_from_pdf(file_stream):
         }
     """
     try:
+        # Check file size limit
+        file_stream.seek(0, 2)  # Seek to end
+        file_size = file_stream.tell()
+        file_stream.seek(0)  # Reset to beginning
+        
+        file_size_mb = file_size / (1024 * 1024)
+        if file_size_mb > MAX_FILE_SIZE_MB:
+            return {
+                'success': False,
+                'error': f'File size ({file_size_mb:.1f}MB) exceeds the maximum allowed size of {MAX_FILE_SIZE_MB}MB for beta testing.'
+            }
+        
         # Read file into memory
         pdf_bytes = file_stream.read()
         
         # Open PDF from bytes
         pdf_document = fitz.open(stream=pdf_bytes, filetype="pdf")
         
-        # Extract text from all pages
+        # Get metadata first (before processing)
+        metadata = pdf_document.metadata
+        
+        # Extract text incrementally and check word count as we go
+        # This allows us to stop early if word limit is exceeded
         text_content = []
+        accumulated_text = ""
+        word_count = 0
+        pages_processed = 0
+        
+        # Get total page count early (before processing)
+        total_page_count = pdf_document.page_count
+        
         for page_num in range(pdf_document.page_count):
             page = pdf_document[page_num]
             text = page.get_text()
@@ -67,12 +95,33 @@ def extract_text_from_pdf(file_stream):
                     'page': page_num + 1,
                     'text': cleaned_text
                 })
+                accumulated_text += cleaned_text + "\n\n"
+                
+                # Count words incrementally
+                page_words = len(cleaned_text.split())
+                word_count += page_words
+                pages_processed = page_num + 1
+                
+                # Check word count limit after each page (early exit)
+                if word_count > MAX_WORDS_BETA:
+                    pdf_document.close()
+                    return {
+                        'success': False,
+                        'error': f'PDF contains {word_count:,} words (after {pages_processed} pages), which exceeds the beta limit of {MAX_WORDS_BETA:,} words. Please use a smaller document or split it into multiple files.'
+                    }
         
-        # Get metadata
-        metadata = pdf_document.metadata
+        # Final word count check (shouldn't be needed, but safety check)
+        full_text = accumulated_text.strip()
+        final_word_count = len(full_text.split())
+        if final_word_count > MAX_WORDS_BETA:
+            pdf_document.close()
+            return {
+                'success': False,
+                'error': f'PDF contains {final_word_count:,} words, which exceeds the beta limit of {MAX_WORDS_BETA:,} words. Please use a smaller document or split it into multiple files.'
+            }
         
-        # Combine all text
-        full_text = "\n\n".join([item['text'] for item in text_content])
+        # Use final word count
+        word_count = final_word_count
         
         # Count paragraphs (split by double newlines or single newline after sentence)
         paragraphs = [p.strip() for p in full_text.split('\n\n') if p.strip()]
@@ -139,13 +188,17 @@ def extract_text_from_pdf(file_stream):
         english_word_count = sum(1 for word in common_english_words if word in text_lower)
         detected_language = 'English' if english_word_count >= 3 else 'Unknown'
         
+        # Get total page count before closing document
+        total_page_count = pdf_document.page_count
+        
         # Close document
         pdf_document.close()
         
         return {
             'success': True,
             'text': full_text,
-            'page_count': len(text_content),
+            'page_count': total_page_count,  # Use actual PDF page count, not just pages with text
+            'word_count': word_count,  # Include word count in response
             'pages': text_content,  # Detailed page-by-page text
             'paragraph_count': paragraph_count,
             'image_count': image_count,
@@ -167,9 +220,22 @@ def extract_text_from_pdf(file_stream):
         }
         
     except Exception as e:
+        error_msg = str(e)
+        import traceback
+        print(f"PDF Extraction Error: {error_msg}")
+        print(traceback.format_exc())
+        
+        # Provide more user-friendly error messages
+        if 'document closed' in error_msg.lower() or 'invalid' in error_msg.lower():
+            return {
+                'success': False,
+                'error': 'Unable to process this PDF file. The file may be corrupted, password-protected, or exceed processing limits. Please try a different file or ensure it contains less than 50,000 words and is under 10MB.',
+                'text': '',
+                'page_count': 0
+            }
         return {
             'success': False,
-            'error': str(e),
+            'error': f'Failed to extract PDF: {error_msg}. Please ensure the file is a valid PDF and does not exceed beta limits (50,000 words or 10MB).',
             'text': '',
             'page_count': 0
         }
@@ -186,8 +252,28 @@ def extract_pdf_metadata(file_stream):
         dict: PDF metadata
     """
     try:
+        # Check file size limit
+        file_stream.seek(0, 2)  # Seek to end
+        file_size = file_stream.tell()
+        file_stream.seek(0)  # Reset to beginning
+        
+        file_size_mb = file_size / (1024 * 1024)
+        if file_size_mb > MAX_FILE_SIZE_MB:
+            return {
+                'success': False,
+                'error': f'File size ({file_size_mb:.1f}MB) exceeds the maximum allowed size of {MAX_FILE_SIZE_MB}MB for beta testing.'
+            }
+        
         pdf_bytes = file_stream.read()
         pdf_document = fitz.open(stream=pdf_bytes, filetype="pdf")
+        
+        # Check page count limit
+        if pdf_document.page_count > MAX_PAGES_BETA:
+            pdf_document.close()
+            return {
+                'success': False,
+                'error': f'PDF contains {pdf_document.page_count} pages, which exceeds the beta limit of {MAX_PAGES_BETA} pages. Please use a smaller document or split it into multiple files.'
+            }
         
         metadata = {
             'page_count': pdf_document.page_count,

@@ -218,6 +218,18 @@ const HomePage = () => {
   };
 
   const handleFileUpload = (file) => {
+    // Validate file size (10MB limit for beta)
+    const MAX_FILE_SIZE_MB = 10;
+    const fileSizeMB = file.size / (1024 * 1024);
+    
+    if (fileSizeMB > MAX_FILE_SIZE_MB) {
+      setErrorMessage(
+        `File size (${fileSizeMB.toFixed(1)}MB) exceeds the beta limit of ${MAX_FILE_SIZE_MB}MB. Please use a smaller file.`
+      );
+      setShowErrorModal(true);
+      return;
+    }
+
     // Create new session if none exists
     let sessionId = currentSessionId;
     if (!sessionId) {

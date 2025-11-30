@@ -5,7 +5,8 @@ from flask import Blueprint, request, jsonify, Response
 import os
 from config import generate_text, generate_text_stream, analyze_content
 from services.ai_prompt_service import build_chat_prompt, build_streaming_chat_prompt
-from services.insight_service import build_csv_insight_prompt, build_document_insight_prompt
+from services.pdf_analysis_service import build_document_insight_prompt
+from services.csv_service import build_csv_insight_prompt
 
 ai_bp = Blueprint('ai', __name__, url_prefix='/api/ai')
 

@@ -6,6 +6,7 @@ import RootLayout from "./components/RootLayout/RootLayout";
 import HomePage from "./pages/home/HomePage";
 import AnalysisPage from "./pages/analysis/AnalysisPage";
 import SessionPage from "./pages/session/SessionPage";
+import AuthPage from "./pages/auth/AuthPage";
 import ComingSoonPage from "./pages/comingsoon/ComingSoonPage";
 import NotFoundPage from "./pages/notfound/NotFoundPage";
 
@@ -32,7 +33,7 @@ const router = createBrowserRouter([
       },
       {
         path: "login",
-        element: <ComingSoonPage />,
+        element: <AuthPage />,
       },
       {
         path: "analysis",

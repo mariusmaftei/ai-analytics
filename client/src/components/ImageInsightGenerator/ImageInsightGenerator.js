@@ -23,6 +23,7 @@ import ImageObjectDetection from "../ImageAnalysisPreview/ImageObjectDetection/I
 import ImageSceneAnalysis from "../ImageAnalysisPreview/ImageSceneAnalysis/ImageSceneAnalysis";
 import ImageChartAnalysis from "../ImageAnalysisPreview/ImageChartAnalysis/ImageChartAnalysis";
 import ImageDocumentAnalysis from "../ImageAnalysisPreview/ImageDocumentAnalysis/ImageDocumentAnalysis";
+import ProgressBar from "../Shared/ProgressBar/ProgressBar";
 import styles from "./ImageInsightGenerator.module.css";
 
 // Helper function to convert blob URL to File object
@@ -113,7 +114,9 @@ const ImageInsightGenerator = ({ fileData, analysisData, imageFile }) => {
   const [cachedImageFile, setCachedImageFile] = useState(null);
   const [completedAnalyses, setCompletedAnalyses] = useState({});
   const [expandedAnalyses, setExpandedAnalyses] = useState({});
+  const [expandedAllInsights, setExpandedAllInsights] = useState({});
   const [showAnalysisSelector, setShowAnalysisSelector] = useState(false);
+  const [analysisProgress, setAnalysisProgress] = useState({ current: 0, total: 0, currentType: null });
   const isLoadingFileRef = useRef(false);
   const hasInitializedRef = useRef(false);
 
@@ -288,9 +291,22 @@ const ImageInsightGenerator = ({ fileData, analysisData, imageFile }) => {
     try {
       if (selectedAnalysisType === "all") {
         const results = {};
+        const totalTypes = ALL_ANALYSIS_TYPES.length;
+        
+        // Initialize progress
+        setAnalysisProgress({ current: 0, total: totalTypes, currentType: null });
 
         // Run all analysis types sequentially
-        for (const type of ALL_ANALYSIS_TYPES) {
+        for (let i = 0; i < ALL_ANALYSIS_TYPES.length; i++) {
+          const type = ALL_ANALYSIS_TYPES[i];
+          
+          // Update progress - show which analysis is currently running
+          setAnalysisProgress({ 
+            current: i, 
+            total: totalTypes, 
+            currentType: type.label 
+          });
+
           try {
             let fullResponse = "";
             let rawTextResponse = "";
@@ -303,13 +319,7 @@ const ImageInsightGenerator = ({ fileData, analysisData, imageFile }) => {
               },
               (chunk) => {
                 fullResponse += chunk;
-                // Update progress for this specific type
-                results[type.id] = {
-                  type: type.label,
-                  icon: type.icon,
-                  content: fullResponse,
-                };
-                setAllInsights({ ...results });
+                // Don't update allInsights during streaming to avoid showing partial results
               },
               (meta) => {
                 latestContext = meta;
@@ -336,7 +346,22 @@ const ImageInsightGenerator = ({ fileData, analysisData, imageFile }) => {
               objectsJson: objectsData,
               context: latestContext,
             };
+            
+            // Only update allInsights after each analysis is complete
             setAllInsights({ ...results });
+
+            // Initialize all sections as expanded by default
+            setExpandedAllInsights((prev) => ({
+              ...prev,
+              [type.id]: true,
+            }));
+
+            // Update progress after completion
+            setAnalysisProgress({ 
+              current: i + 1, 
+              total: totalTypes, 
+              currentType: type.label 
+            });
           } catch (err) {
             results[type.id] = {
               type: type.label,
@@ -345,8 +370,24 @@ const ImageInsightGenerator = ({ fileData, analysisData, imageFile }) => {
               error: true,
             };
             setAllInsights({ ...results });
+            
+            // Initialize all sections as expanded by default even on error
+            setExpandedAllInsights((prev) => ({
+              ...prev,
+              [type.id]: true,
+            }));
+            
+            // Update progress even on error
+            setAnalysisProgress({ 
+              current: i + 1, 
+              total: totalTypes, 
+              currentType: type.label 
+            });
           }
         }
+        
+        // Reset progress when done
+        setAnalysisProgress({ current: 0, total: 0, currentType: null });
       } else {
         // Single analysis type
         let fullResponse = "";
@@ -475,6 +516,17 @@ const ImageInsightGenerator = ({ fileData, analysisData, imageFile }) => {
                   newExpanded[key] = !allExpanded;
                 });
                 setExpandedAnalyses(newExpanded);
+              } else if (allInsights) {
+                // Handle "Analyze All" case
+                const allExpanded = Object.keys(allInsights).every(
+                  (key) => expandedAllInsights[key] !== false
+                );
+                const newExpanded = {};
+                Object.keys(allInsights).forEach((key) => {
+                  newExpanded[key] = !allExpanded;
+                });
+                setExpandedAllInsights(newExpanded);
+                setIsExpanded(!allExpanded);
               } else {
                 setIsExpanded(!isExpanded);
               }
@@ -484,6 +536,10 @@ const ImageInsightGenerator = ({ fileData, analysisData, imageFile }) => {
               icon={
                 (Object.keys(completedAnalyses).length > 0 &&
                   Object.values(expandedAnalyses).every((v) => v)) ||
+                (allInsights &&
+                  Object.keys(allInsights).every(
+                    (key) => expandedAllInsights[key] !== false
+                  )) ||
                 isExpanded
                   ? faChevronUp
                   : faChevronDown
@@ -579,25 +635,20 @@ const ImageInsightGenerator = ({ fileData, analysisData, imageFile }) => {
 
       {isGenerating && (
         <div className={styles.loadingSection}>
-          <FontAwesomeIcon icon={faSpinner} className={styles.spinner} />
-          <p>
-            {selectedAnalysisType === "all"
-              ? "Analyzing image with all analysis types..."
-              : `Analyzing image with ${selectedType.label.toLowerCase()}...`}
-          </p>
-          {selectedAnalysisType === "all" && allInsights && (
-            <div className={styles.progressInfo}>
-              <p>
-                Completed: {Object.keys(allInsights).length} /{" "}
-                {ALL_ANALYSIS_TYPES.length} analyses
-              </p>
-            </div>
+          <FontAwesomeIcon icon={faSpinner} className={styles.spinner} spin />
+          {selectedAnalysisType === "all" && analysisProgress.total > 0 ? (
+            <ProgressBar
+              current={analysisProgress.current}
+              total={analysisProgress.total}
+              currentType={analysisProgress.currentType}
+              color="blue"
+              fileType="Image"
+            />
+          ) : (
+            <p>
+              Analyzing image with {selectedType.label.toLowerCase()}...
+            </p>
           )}
-          <div className={styles.loadingDots}>
-            <div className={styles.loadingDot}></div>
-            <div className={styles.loadingDot}></div>
-            <div className={styles.loadingDot}></div>
-          </div>
         </div>
       )}
 
@@ -613,7 +664,7 @@ const ImageInsightGenerator = ({ fileData, analysisData, imageFile }) => {
         </div>
       )}
 
-      {(Object.keys(completedAnalyses).length > 0 || allInsights) &&
+      {(Object.keys(completedAnalyses).length > 0 || (allInsights && !isGenerating)) &&
         !showAnalysisSelector && (
           <div className={styles.insightsContent}>
             <div className={styles.previewActions}>
@@ -758,12 +809,11 @@ const ImageInsightGenerator = ({ fileData, analysisData, imageFile }) => {
                                   }
                                 />
                               )}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  }
-                )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
             {allInsights && (
@@ -783,13 +833,29 @@ const ImageInsightGenerator = ({ fileData, analysisData, imageFile }) => {
                   const parsed = parseImageInsights(
                     result.content || result.text || ""
                   );
+                  const isExpanded = expandedAllInsights[typeId] !== false; // Default to expanded
                   return (
                     <div key={typeId} className={styles.singleAnalysisSection}>
-                      <div className={styles.analysisSectionHeader}>
+                      <div 
+                        className={styles.analysisSectionHeader}
+                        onClick={() => {
+                          setExpandedAllInsights((prev) => ({
+                            ...prev,
+                            [typeId]: !prev[typeId],
+                          }));
+                        }}
+                        style={{ cursor: 'pointer' }}
+                      >
+                        <FontAwesomeIcon
+                          icon={isExpanded ? faChevronUp : faChevronDown}
+                          className={styles.expandIcon}
+                        />
                         <FontAwesomeIcon icon={typeInfo?.icon || faEye} />
                         <h4>{result.type}</h4>
                       </div>
-                      {typeId === "general" && (
+                      {isExpanded && (
+                        <div className={styles.analysisContent}>
+                          {typeId === "general" && (
                         <ImageGeneralAnalysis
                           data={parsed}
                           rawText={result.content || result.text}
@@ -889,6 +955,8 @@ const ImageInsightGenerator = ({ fileData, analysisData, imageFile }) => {
                               </React.Fragment>
                             );
                           })}
+                        </div>
+                      )}
                         </div>
                       )}
                     </div>

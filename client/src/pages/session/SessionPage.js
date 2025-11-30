@@ -71,7 +71,7 @@ const SessionPage = () => {
     const fileName = fileData.fileName || "your file";
 
     if (isImage) {
-      let message = `✅ **Image Analysis Complete**\n\n`;
+      let message = `**Image Analysis Complete**\n\n`;
       message += `I've successfully analyzed your image: **${fileName}**\n\n`;
 
       const stats = [];
@@ -88,20 +88,20 @@ const SessionPage = () => {
       }
 
       if (stats.length > 0) {
-        message += `📊 **Image Info:** ${stats.join(" • ")}\n\n`;
+        message += `**Image Info:** ${stats.join(" • ")}\n\n`;
       }
 
       message += `**What would you like to do next?**\n\n`;
-      message += `🖼️ **Image Analysis** - Click the "Image Analysis" button above to get detailed visual analysis, object detection, text extraction, or scene understanding.\n\n`;
-      message += `💬 **Ask Questions** - Type your question below to get specific information about the image content.\n\n`;
-      message += `👁️ **View Image** - Use the "Show Image Preview" button to view the image with metadata.`;
+      message += `**Image Analysis** - Click the "Image Analysis" button above to get detailed visual analysis, object detection, text extraction, or scene understanding.\n\n`;
+      message += `**Ask Questions** - Type your question below to get specific information about the image content.\n\n`;
+      message += `**View Image** - Use the "Show Image Preview" button to view the image with metadata.`;
 
       return message;
     }
 
-    let message = `✅ **Document Analysis Complete**\n\n`;
-    message += `I've successfully analyzed your ${fileType} file: **${fileName}**\n\n`;
-
+    let message = `Hello! Welcome to your document analysis session.\n\n`;
+    message += `I've successfully analyzed your ${fileType} file: [[${fileName}]]. `;
+    
     const stats = [];
     if (analysisData.metadata?.totalPages) {
       stats.push(
@@ -122,13 +122,14 @@ const SessionPage = () => {
     }
 
     if (stats.length > 0) {
-      message += `📊 **Quick Stats:** ${stats.join(" • ")}\n\n`;
+      message += `The document contains ${stats.join(" • ")}. `;
     }
 
+    message += `You can now explore the analysis results, ask questions about the content, or generate detailed insights.\n\n`;
     message += `**What would you like to do next?**\n\n`;
-    message += `💡 **Generate Insights** - Click the "Generate Insights" button above to get AI-powered analysis, patterns, and key findings.\n\n`;
-    message += `💬 **Ask Questions** - Type your question below to get specific information about the document content.\n\n`;
-    message += `📋 **Explore Data** - Use the preview buttons above to view tables, JSON data, or document structure.`;
+    message += `**Generate Insights** - Click the [[Generate Insights]] button above to get AI-powered analysis, patterns, and key findings.\n\n`;
+    message += `**Ask Questions** - Type your question below to get specific information about the document content.\n\n`;
+    message += `**Explore Data** - Use the preview buttons above to view tables, JSON data, or document structure.`;
 
     return message;
   };
@@ -686,12 +687,20 @@ const SessionPage = () => {
                 </div>
                 <div className={styles.messageText}>
                   {message.text.split("\n").map((line, i) => {
-                    const parts = line.split(/(\*\*.*?\*\*)/g);
+                    // Split by both **bold** and [[green key]] patterns
+                    const parts = line.split(/(\*\*.*?\*\*|\[\[.*?\]\])/g);
                     return (
                       <React.Fragment key={i}>
                         {parts.map((part, j) => {
                           if (part.startsWith("**") && part.endsWith("**")) {
                             return <strong key={j}>{part.slice(2, -2)}</strong>;
+                          }
+                          if (part.startsWith("[[") && part.endsWith("]]")) {
+                            return (
+                              <span key={j} className={styles.greenKey}>
+                                {part.slice(2, -2)}
+                              </span>
+                            );
                           }
                           return <span key={j}>{part}</span>;
                         })}

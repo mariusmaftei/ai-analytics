@@ -26,14 +26,21 @@ export const analyzePDFFile = async (file, options = {}) => {
       formData.append('save_to_db', 'true');
     }
 
-    const { data } = await api.post('/api/pdf/upload', formData, {
+    const response = await api.post('/api/pdf/upload', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
+      timeout: 600000, // 10 minutes for PDF uploads (large files need more time)
     });
 
+    const data = response.data;
+
     if (data.status === 'error') {
-      throw new Error(data.message || 'PDF analysis failed');
+      const error = new Error(data.message || 'PDF analysis failed');
+      error.response = { data };
+      error.errorType = data.error_type || 'processing_error';
+      error.isLimitError = data.error_type === 'limit_exceeded';
+      throw error;
     }
 
     // Transform backend response to match frontend expectations
@@ -41,7 +48,31 @@ export const analyzePDFFile = async (file, options = {}) => {
 
   } catch (error) {
     console.error('PDF Analysis Error:', error);
-    throw error;
+    
+    // Extract error message from various error formats
+    let errorMessage = 'PDF analysis failed';
+    let errorType = 'processing_error';
+    
+    if (error.response?.data) {
+      // Axios error with response
+      errorMessage = error.response.data.message || error.response.data.error || errorMessage;
+      errorType = error.response.data.error_type || errorType;
+    } else if (error.message) {
+      // Standard error object
+      errorMessage = error.message;
+      // Check if it's a limit error from message content
+      if (/exceeds|limit|maximum|beta|pages|size|words/i.test(errorMessage)) {
+        errorType = 'limit_exceeded';
+      }
+    }
+    
+    // Create enhanced error object
+    const enhancedError = new Error(errorMessage);
+    enhancedError.response = error.response;
+    enhancedError.errorType = errorType;
+    enhancedError.isLimitError = errorType === 'limit_exceeded';
+    
+    throw enhancedError;
   }
 };
 

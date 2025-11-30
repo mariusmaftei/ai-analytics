@@ -13,6 +13,7 @@ import {
   faHeading,
   faUser,
   faImage,
+  faExclamationTriangle,
 } from "@fortawesome/free-solid-svg-icons";
 import { useSession } from "../../context/SessionContext";
 import { analyzePDFFile } from "../../services/pdfAnalysisService";
@@ -203,10 +204,87 @@ const AnalysisPage = () => {
             fileType = 'CSV';
           }
           
+          // Extract error message and type - handle multiple error formats
+          let errorMessage = '';
+          let isLimitError = false;
+          
+          console.log('Error object:', error);
+          console.log('Error response:', error.response);
+          
+          // Try multiple ways to extract error message
+          if (error.response?.data) {
+            // Axios error with response.data
+            if (typeof error.response.data === 'object') {
+              errorMessage = error.response.data.message || error.response.data.error || '';
+              isLimitError = error.response.data.error_type === 'limit_exceeded' || 
+                           error.response.data.status === 'error' && 
+                           /exceeds|limit|maximum|beta|pages|size|words/i.test(errorMessage);
+            } else if (typeof error.response.data === 'string') {
+              errorMessage = error.response.data;
+            }
+          }
+          
+          // Fallback to error.message
+          if (!errorMessage && error.message) {
+            errorMessage = error.message;
+          }
+          
+          // Check if it's a timeout error
+          const isTimeoutError = errorMessage.includes('timeout') || 
+                                errorMessage.includes('timed out') ||
+                                error.code === 'ECONNABORTED';
+          
+          // Check if message indicates a limit error (if not already detected)
+          if (!isLimitError && errorMessage && !isTimeoutError) {
+            isLimitError = /exceeds|limit|maximum|beta|pages|size|words|30 pages|10MB|50,000 words/i.test(errorMessage);
+          }
+          
+          // Handle timeout errors specifically
+          if (isTimeoutError) {
+            if (fileType === 'PDF') {
+              errorMessage = 'Processing this PDF is taking too long. The file may be too large or complex. Please try a smaller document (under 50,000 words and 10MB) or split it into multiple files.';
+              isLimitError = true;
+            } else {
+              errorMessage = 'Processing is taking too long. Please try a smaller file.';
+            }
+          } else if (!errorMessage || errorMessage === 'document closed' || errorMessage.includes('document closed')) {
+            // Generic error - check if it might be a limit issue
+            if (fileType === 'PDF') {
+              errorMessage = 'This PDF file could not be processed. It may exceed the beta testing limits (50,000 words or 10MB). Please try a smaller document.';
+              isLimitError = true;
+            } else {
+              errorMessage = `Failed to analyze ${fileType}. Please try again.`;
+            }
+          }
+          
+          // Enhance limit error messages to be more explicit
+          if (isLimitError) {
+            // Prioritize word count over page count
+            const wordMatch = errorMessage.match(/([\d,]+)\s*words?/i);
+            const sizeMatch = errorMessage.match(/(\d+\.?\d*)\s*MB/i);
+            const pageMatch = errorMessage.match(/(\d+)\s*pages?/i);
+            
+            if (wordMatch) {
+              const wordCount = parseInt(wordMatch[1].replace(/,/g, ''));
+              if (wordCount > 50000) {
+                const pagesInfo = pageMatch ? ` (after ${pageMatch[1]} pages)` : '';
+                errorMessage = `This PDF contains ${wordMatch[1]} words${pagesInfo}, which exceeds the beta limit of 50,000 words. Please use a smaller document or split it into multiple files.`;
+              }
+            } else if (sizeMatch && parseFloat(sizeMatch[1]) > 10) {
+              errorMessage = `File size (${sizeMatch[1]}MB) exceeds the beta limit of 10MB. Please use a smaller file.`;
+            } else if (pageMatch && parseInt(pageMatch[1]) > 30) {
+              // Page count is now just informational, not a hard limit
+              errorMessage = `This PDF contains ${pageMatch[1]} pages. While page count is not a hard limit, please ensure the document contains less than 50,000 words and is under 10MB.`;
+            } else if (!errorMessage.includes('exceeds') && !errorMessage.includes('limit')) {
+              errorMessage = `This file exceeds the beta testing limits. Maximum allowed: 50,000 words or 10MB file size. Please use a smaller document.`;
+            }
+          }
+          
           setAnalysisResults({
             fileType: fileType,
             error: true,
-            message: error.message || `Failed to analyze ${fileType}. Please try again.`,
+            isLimitError: isLimitError,
+            message: errorMessage,
           });
         } finally {
           // Clear timeout if analysis completes before 12 seconds
@@ -315,8 +393,41 @@ const AnalysisPage = () => {
               </p>
             </div>
 
+            {/* Error Display */}
+            {analysisResults?.error && (
+              <div className={`${styles.errorContainer} ${analysisResults.isLimitError ? styles.limitErrorContainer : ''}`}>
+                <div className={styles.errorIcon}>
+                  <FontAwesomeIcon icon={faExclamationTriangle} />
+                </div>
+                <h2 className={styles.errorTitle}>
+                  {analysisResults.isLimitError ? 'File Limit Exceeded' : 'Analysis Failed'}
+                </h2>
+                <div className={styles.errorMessage}>
+                  {analysisResults.message || 'An error occurred while analyzing your file. Please try again.'}
+                </div>
+                {analysisResults.isLimitError && (
+                  <div className={styles.limitInfo}>
+                    <p><strong>Beta Testing Limits:</strong></p>
+                    <ul>
+                      <li>Maximum <strong>50,000 words</strong> per PDF</li>
+                      <li>Maximum <strong>10MB</strong> file size</li>
+                    </ul>
+                    <p className={styles.limitSuggestion}>
+                      Word count is the primary limit. PDFs with many pages but few words are acceptable. Please split your document into smaller files or use a document with less text content.
+                    </p>
+                  </div>
+                )}
+                <button 
+                  className={styles.retryButton} 
+                  onClick={() => navigate('/')}
+                >
+                  Go Back
+                </button>
+              </div>
+            )}
+
             {/* Analysis Results Preview */}
-            {analysisResults && (
+            {analysisResults && !analysisResults.error && (
               <div className={styles.resultsContainer}>
                 {/* Key Statistics */}
                 <div className={styles.statsGrid}>
@@ -332,21 +443,22 @@ const AnalysisPage = () => {
                         </div>
                       </div>
                       <div className={styles.statCard}>
-                        <FontAwesomeIcon icon={faDatabase} className={styles.statIcon} />
-                        <div className={styles.statContent}>
-                          <div className={styles.statValue}>
-                            {analysisResults.chapters?.length || 0}
-                          </div>
-                          <div className={styles.statLabel}>Chapters Found</div>
-                        </div>
-                      </div>
-                      <div className={styles.statCard}>
                         <FontAwesomeIcon icon={faChartLine} className={styles.statIcon} />
                         <div className={styles.statContent}>
                           <div className={styles.statValue}>
-                            {analysisResults.metadata?.wordCount?.toLocaleString() || 0}
+                            {analysisResults.metadata?.wordCount?.toLocaleString() || 
+                             (analysisResults.text ? analysisResults.text.split(/\s+/).length.toLocaleString() : 0)}
                           </div>
                           <div className={styles.statLabel}>Total Words</div>
+                        </div>
+                      </div>
+                      <div className={styles.statCard}>
+                        <FontAwesomeIcon icon={faDatabase} className={styles.statIcon} />
+                        <div className={styles.statContent}>
+                          <div className={styles.statValue}>
+                            {analysisResults.metadata?.sectionCount || 0}
+                          </div>
+                          <div className={styles.statLabel}>Sections Found</div>
                         </div>
                       </div>
                     </>

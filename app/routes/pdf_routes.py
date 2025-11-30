@@ -59,16 +59,25 @@ def upload_pdf():
         extraction_result = extract_text_from_pdf(file)
         
         if not extraction_result['success']:
+            # Check if it's a limit error (400) or processing error (500)
+            error_message = extraction_result.get('error', 'Failed to extract PDF')
+            is_limit_error = any(keyword in error_message.lower() for keyword in ['exceeds', 'limit', 'maximum', 'beta'])
+            status_code = 400 if is_limit_error else 500
+            
             return jsonify({
                 'status': 'error',
-                'message': f"Failed to extract PDF: {extraction_result['error']}"
-            }), 500
+                'message': error_message,
+                'error_type': 'limit_exceeded' if is_limit_error else 'processing_error'
+            }), status_code
         
         # Extract tables from PDF
         file.seek(0)  # Reset file stream position
         tables_result = extract_tables_from_pdf(file)
         
         # Prepare response data
+        # Use word_count from extraction_result if available, otherwise calculate
+        word_count = extraction_result.get('word_count', len(extraction_result['text'].split()))
+        
         response_data = {
             'status': 'success',
             'filename': filename,
@@ -77,7 +86,7 @@ def upload_pdf():
             'metadata': extraction_result['metadata'],
             'extracted_at': datetime.now().isoformat(),
             'character_count': len(extraction_result['text']),
-            'word_count': len(extraction_result['text'].split()),
+            'word_count': word_count,
             'paragraph_count': extraction_result.get('paragraph_count', 0),
             'image_count': extraction_result.get('image_count', 0),
             'section_count': extraction_result.get('section_count', 0),
@@ -227,10 +236,15 @@ def get_pdf_metadata():
         metadata_result = extract_pdf_metadata(file)
         
         if not metadata_result['success']:
+            error_message = metadata_result.get('error', 'Failed to extract metadata')
+            is_limit_error = any(keyword in error_message.lower() for keyword in ['exceeds', 'limit', 'maximum', 'beta'])
+            status_code = 400 if is_limit_error else 500
+            
             return jsonify({
                 'status': 'error',
-                'message': metadata_result['error']
-            }), 500
+                'message': error_message,
+                'error_type': 'limit_exceeded' if is_limit_error else 'processing_error'
+            }), status_code
         
         return jsonify({
             'status': 'success',
@@ -270,10 +284,15 @@ def analyze_pdf():
         extraction = extract_text_from_pdf(file)
         
         if not extraction['success']:
+            error_message = extraction.get('error', 'Failed to extract PDF')
+            is_limit_error = any(keyword in error_message.lower() for keyword in ['exceeds', 'limit', 'maximum', 'beta'])
+            status_code = 400 if is_limit_error else 500
+            
             return jsonify({
                 'status': 'error',
-                'message': extraction['error']
-            }), 500
+                'message': error_message,
+                'error_type': 'limit_exceeded' if is_limit_error else 'processing_error'
+            }), status_code
         
         # Analyze with AI
         analysis = analyze_pdf_with_ai(extraction['text'], analysis_type)

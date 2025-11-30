@@ -21,6 +21,7 @@ import CSVPatternDetection from "../CSVInsightsPreview/CSVPatternDetection/CSVPa
 import CSVDataQuality from "../CSVInsightsPreview/CSVDataQuality/CSVDataQuality";
 import CSVTrendsAnalysis from "../CSVInsightsPreview/CSVTrendsAnalysis/CSVTrendsAnalysis";
 import CSVCorrelationAnalysis from "../CSVInsightsPreview/CSVCorrelationAnalysis/CSVCorrelationAnalysis";
+import ProgressBar from "../Shared/ProgressBar/ProgressBar";
 import styles from "./CSVInsightGenerator.module.css";
 
 const ANALYSIS_TYPES = [
@@ -70,9 +71,11 @@ const CSVInsightGenerator = ({ fileData, analysisData }) => {
   const [error, setError] = useState(null);
   const [completedAnalyses, setCompletedAnalyses] = useState({});
   const [expandedAnalyses, setExpandedAnalyses] = useState({});
+  const [expandedAllInsights, setExpandedAllInsights] = useState({});
   const [isExpanded, setIsExpanded] = useState(false);
   const [showAnalysisSelector, setShowAnalysisSelector] = useState(false);
   const [allInsights, setAllInsights] = useState(null);
+  const [analysisProgress, setAnalysisProgress] = useState({ current: 0, total: 0, currentType: null });
   const hasInitializedRef = useRef(false);
 
   const cacheKey = `csv_insights_${fileData.fileName}_${fileData.fileSize}`;
@@ -161,8 +164,21 @@ const CSVInsightGenerator = ({ fileData, analysisData }) => {
     try {
       if (selectedAnalysisType === "all") {
         const results = {};
+        const totalTypes = ALL_ANALYSIS_TYPES.length;
+        
+        // Initialize progress
+        setAnalysisProgress({ current: 0, total: totalTypes, currentType: null });
 
-        for (const type of ALL_ANALYSIS_TYPES) {
+        for (let i = 0; i < ALL_ANALYSIS_TYPES.length; i++) {
+          const type = ALL_ANALYSIS_TYPES[i];
+          
+          // Update progress - show which analysis is currently running
+          setAnalysisProgress({ 
+            current: i, 
+            total: totalTypes, 
+            currentType: type.label 
+          });
+
           try {
             let fullResponse = "";
             await generateInsights(
@@ -177,12 +193,7 @@ const CSVInsightGenerator = ({ fileData, analysisData }) => {
               },
               (chunk) => {
                 fullResponse += chunk;
-                results[type.id] = {
-                  type: type.label,
-                  icon: type.icon,
-                  content: fullResponse,
-                };
-                setAllInsights({ ...results });
+                // Don't update allInsights during streaming to avoid showing partial results
               }
             );
             const parsed = parseCSVInsights(fullResponse);
@@ -196,12 +207,24 @@ const CSVInsightGenerator = ({ fileData, analysisData }) => {
               icon: type.icon,
               content: fullResponse,
             };
+            
+            // Only update allInsights after each analysis is complete
             setAllInsights({ ...results });
 
-            setCompletedAnalyses((prev) => ({
+            // Initialize all sections as expanded by default
+            setExpandedAllInsights((prev) => ({
               ...prev,
-              [type.id]: analysisResult,
+              [type.id]: true,
             }));
+
+            // Update progress after completion
+            setAnalysisProgress({ 
+              current: i + 1, 
+              total: totalTypes, 
+              currentType: type.label 
+            });
+
+            // Don't add to completedAnalyses when doing "Analyze All" to avoid duplicates
           } catch (err) {
             results[type.id] = {
               type: type.label,
@@ -210,8 +233,24 @@ const CSVInsightGenerator = ({ fileData, analysisData }) => {
               error: true,
             };
             setAllInsights({ ...results });
+            
+            // Initialize all sections as expanded by default even on error
+            setExpandedAllInsights((prev) => ({
+              ...prev,
+              [type.id]: true,
+            }));
+            
+            // Update progress even on error
+            setAnalysisProgress({ 
+              current: i + 1, 
+              total: totalTypes, 
+              currentType: type.label 
+            });
           }
         }
+        
+        // Reset progress when done
+        setAnalysisProgress({ current: 0, total: 0, currentType: null });
       } else {
         let fullResponse = "";
 
@@ -299,6 +338,17 @@ const CSVInsightGenerator = ({ fileData, analysisData }) => {
                   newExpanded[key] = !allExpanded;
                 });
                 setExpandedAnalyses(newExpanded);
+              } else if (allInsights) {
+                // Handle "Analyze All" case
+                const allExpanded = Object.keys(allInsights).every(
+                  (key) => expandedAllInsights[key] !== false
+                );
+                const newExpanded = {};
+                Object.keys(allInsights).forEach((key) => {
+                  newExpanded[key] = !allExpanded;
+                });
+                setExpandedAllInsights(newExpanded);
+                setIsExpanded(!allExpanded);
               } else {
                 setIsExpanded(!isExpanded);
               }
@@ -308,6 +358,10 @@ const CSVInsightGenerator = ({ fileData, analysisData }) => {
               icon={
                 (Object.keys(completedAnalyses).length > 0 &&
                   Object.values(expandedAnalyses).every((v) => v)) ||
+                (allInsights &&
+                  Object.keys(allInsights).every(
+                    (key) => expandedAllInsights[key] !== false
+                  )) ||
                 isExpanded
                   ? faChevronUp
                   : faChevronDown
@@ -411,7 +465,17 @@ const CSVInsightGenerator = ({ fileData, analysisData }) => {
       {isGenerating && (
         <div className={styles.loadingSection}>
           <FontAwesomeIcon icon={faSpinner} className={styles.spinner} spin />
-          <p>Analyzing CSV data with {selectedType.label.toLowerCase()}...</p>
+          {selectedAnalysisType === "all" && analysisProgress.total > 0 ? (
+            <ProgressBar
+              current={analysisProgress.current}
+              total={analysisProgress.total}
+              currentType={analysisProgress.currentType}
+              color="green"
+              fileType="CSV"
+            />
+          ) : (
+            <p>Analyzing CSV data with {selectedType.label.toLowerCase()}...</p>
+          )}
         </div>
       )}
 
@@ -424,7 +488,7 @@ const CSVInsightGenerator = ({ fileData, analysisData }) => {
         </div>
       )}
 
-      {(Object.keys(completedAnalyses).length > 0 || allInsights) &&
+      {(Object.keys(completedAnalyses).length > 0 || (allInsights && !isGenerating)) &&
         !showAnalysisSelector && (
           <div className={styles.insightsContent}>
             <div className={styles.previewActions}>
@@ -526,20 +590,38 @@ const CSVInsightGenerator = ({ fileData, analysisData }) => {
                   const parsed = parseCSVInsights(
                     result.content || result.text || ""
                   );
+                  const isExpanded = expandedAllInsights[typeId] !== false; // Default to expanded
                   return (
                     <div key={typeId} className={styles.singleAnalysisSection}>
-                      <div className={styles.analysisSectionHeader}>
+                      <div 
+                        className={styles.analysisSectionHeader}
+                        onClick={() => {
+                          setExpandedAllInsights((prev) => ({
+                            ...prev,
+                            [typeId]: !prev[typeId],
+                          }));
+                        }}
+                        style={{ cursor: 'pointer' }}
+                      >
+                        <FontAwesomeIcon
+                          icon={isExpanded ? faChevronUp : faChevronDown}
+                          className={styles.expandIcon}
+                        />
                         <FontAwesomeIcon icon={typeInfo?.icon || faTable} />
                         <h4>{result.type}</h4>
                       </div>
-                      {result.error ? (
-                        <div className={styles.errorText}>{result.content}</div>
-                      ) : (
-                        renderPreviewComponent(
-                          typeId,
-                          parsed,
-                          result.content || result.text
-                        )
+                      {isExpanded && (
+                        <div className={styles.analysisContent}>
+                          {result.error ? (
+                            <div className={styles.errorText}>{result.content}</div>
+                          ) : (
+                            renderPreviewComponent(
+                              typeId,
+                              parsed,
+                              result.content || result.text
+                            )
+                          )}
+                        </div>
                       )}
                     </div>
                   );
