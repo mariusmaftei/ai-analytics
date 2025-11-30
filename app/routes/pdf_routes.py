@@ -78,6 +78,11 @@ def upload_pdf():
             'extracted_at': datetime.now().isoformat(),
             'character_count': len(extraction_result['text']),
             'word_count': len(extraction_result['text'].split()),
+            'paragraph_count': extraction_result.get('paragraph_count', 0),
+            'image_count': extraction_result.get('image_count', 0),
+            'section_count': extraction_result.get('section_count', 0),
+            'sections': extraction_result.get('sections', []),
+            'detected_language': extraction_result.get('detected_language', 'Unknown'),
             'tables': tables_result.get('tables', []) if tables_result.get('success') else [],
             'has_tables': tables_result.get('has_tables', False) if tables_result.get('success') else False,
             'table_count': tables_result.get('table_count', 0) if tables_result.get('success') else 0

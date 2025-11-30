@@ -59,6 +59,7 @@ export const generateInsights = async (params, onChunk) => {
       payload.text = text;
       payload.metadata = metadata || {};
       payload.tables = tables || [];
+      payload.analysisType = params.analysisType || 'overview';
     }
 
     console.log('Sending request to:', `${API_BASE_URL}/api/ai/generate-insights-stream`);

@@ -6,6 +6,31 @@ import fitz  # PyMuPDF
 import io
 from datetime import datetime
 
+def _get_page_size(pdf_document):
+    """Get page size from the first page"""
+    try:
+        if pdf_document.page_count > 0:
+            page = pdf_document[0]
+            rect = page.rect
+            width = rect.width
+            height = rect.height
+            
+            # Convert to points and determine standard size
+            # Common sizes in points: A4 = 595x842, Letter = 612x792
+            if abs(width - 595) < 10 and abs(height - 842) < 10:
+                return "A4"
+            elif abs(width - 842) < 10 and abs(height - 595) < 10:
+                return "A4 (Landscape)"
+            elif abs(width - 612) < 10 and abs(height - 792) < 10:
+                return "Letter"
+            elif abs(width - 792) < 10 and abs(height - 612) < 10:
+                return "Letter (Landscape)"
+            else:
+                return f"{width:.0f} x {height:.0f} pt"
+    except:
+        pass
+    return "Unknown"
+
 def extract_text_from_pdf(file_stream):
     """
     Extract text from PDF file
@@ -49,6 +74,71 @@ def extract_text_from_pdf(file_stream):
         # Combine all text
         full_text = "\n\n".join([item['text'] for item in text_content])
         
+        # Count paragraphs (split by double newlines or single newline after sentence)
+        paragraphs = [p.strip() for p in full_text.split('\n\n') if p.strip()]
+        if len(paragraphs) == 0:
+            paragraphs = [p.strip() for p in full_text.split('\n') if p.strip()]
+        paragraph_count = len(paragraphs)
+        
+        # Count images across all pages (before closing document)
+        # Use get_images() with full=True to get all image references
+        # Count unique images by xref to avoid counting the same image multiple times
+        image_count = 0
+        image_xrefs = set()  # Track unique images by xref to avoid duplicates
+        
+        for page_num in range(pdf_document.page_count):
+            page = pdf_document[page_num]
+            try:
+                # Get all images (full=True includes images in XObjects and other embedded resources)
+                image_list = page.get_images(full=True)
+                for img in image_list:
+                    xref = img[0]  # xref is the first element in the tuple
+                    if xref not in image_xrefs:
+                        image_xrefs.add(xref)
+                        image_count += 1
+            except Exception as e:
+                # Fallback to basic get_images() if full=True fails
+                try:
+                    image_list = page.get_images()
+                    for img in image_list:
+                        xref = img[0]
+                        if xref not in image_xrefs:
+                            image_xrefs.add(xref)
+                            image_count += 1
+                except:
+                    pass
+        
+        # Detect sections (headers/titles - lines that are short and often capitalized)
+        sections = []
+        lines = full_text.split('\n')
+        for i, line in enumerate(lines):
+            line_stripped = line.strip()
+            # Simple heuristic: short lines that might be section headers
+            if (len(line_stripped) > 5 and len(line_stripped) < 100 and 
+                (line_stripped[0].isupper() or line_stripped.isupper()) and
+                not line_stripped.endswith('.') and
+                not line_stripped.endswith(',') and
+                i < len(lines) - 1 and len(lines[i+1].strip()) > 50):
+                sections.append(line_stripped)
+        
+        # Remove duplicates while preserving order
+        unique_sections = []
+        seen = set()
+        for section in sections:
+            section_lower = section.lower()
+            if section_lower not in seen:
+                seen.add(section_lower)
+                unique_sections.append(section)
+        
+        section_count = len(unique_sections)
+        
+        # Simple language detection (basic - can be enhanced)
+        # Check for common English words
+        common_english_words = ['the', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by']
+        text_lower = full_text.lower()
+        english_word_count = sum(1 for word in common_english_words if word in text_lower)
+        detected_language = 'English' if english_word_count >= 3 else 'Unknown'
+        
         # Close document
         pdf_document.close()
         
@@ -57,6 +147,11 @@ def extract_text_from_pdf(file_stream):
             'text': full_text,
             'page_count': len(text_content),
             'pages': text_content,  # Detailed page-by-page text
+            'paragraph_count': paragraph_count,
+            'image_count': image_count,
+            'section_count': section_count,
+            'sections': unique_sections[:20],  # Limit to first 20 sections
+            'detected_language': detected_language,
             'metadata': {
                 'title': metadata.get('title', 'Unknown'),
                 'author': metadata.get('author', 'Unknown'),
@@ -64,6 +159,10 @@ def extract_text_from_pdf(file_stream):
                 'creator': metadata.get('creator', ''),
                 'producer': metadata.get('producer', ''),
                 'creation_date': metadata.get('creationDate', ''),
+                'modification_date': metadata.get('modDate', ''),
+                'keywords': metadata.get('keywords', ''),
+                'pdf_version': f"{pdf_document.pdf_version() / 10.0:.1f}" if hasattr(pdf_document, 'pdf_version') else 'Unknown',
+                'page_size': _get_page_size(pdf_document),
             }
         }
         

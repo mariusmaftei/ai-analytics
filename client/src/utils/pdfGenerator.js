@@ -3,8 +3,7 @@ import jsPDF from "jspdf";
 export const generatePDFReport = (
   fileData,
   analysisData,
-  messages = [],
-  chapters = []
+  messages = []
 ) => {
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
@@ -90,21 +89,6 @@ export const generatePDFReport = (
     }
   }
 
-  if (chapters && chapters.length > 0) {
-    addSectionHeader("Document Chapters");
-    chapters.forEach((chapter, index) => {
-      addNewPageIfNeeded(30);
-      addText(`${chapter.number}: ${chapter.title}`, 11, true);
-      if (chapter.summary) {
-        addText(chapter.summary, 10);
-      }
-      if (chapter.pages && chapter.pages !== "N/A") {
-        addText(`Pages: ${chapter.pages}`, 9);
-      }
-      yPosition += 3;
-    });
-  }
-
   // Add tables section if available
   if (analysisData.tables && analysisData.tables.length > 0) {
     addSectionHeader("Extracted Tables");
@@ -176,8 +160,7 @@ export const generatePDFReport = (
 export const generateCSVExport = (
   fileData,
   analysisData,
-  messages = [],
-  chapters = []
+  messages = []
 ) => {
   let csvContent = "";
 
@@ -256,19 +239,6 @@ export const generateCSVExport = (
         )}"\n`;
       }
     }
-
-    if (chapters && chapters.length > 0) {
-      csvContent += "\nChapters\n";
-      csvContent += "Chapter Number,Chapter Title,Pages,Summary\n";
-      chapters.forEach((chapter) => {
-        csvContent += `"${String(chapter.number || "").replace(
-          /"/g,
-          '""'
-        )}","${String(chapter.title || "").replace(/"/g, '""')}","${
-          chapter.pages || "N/A"
-        }","${String(chapter.summary || "").replace(/"/g, '""')}"\n`;
-      });
-    }
   }
 
   const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
@@ -291,8 +261,7 @@ export const generateCSVExport = (
 export const generateJSONExport = (
   fileData,
   analysisData,
-  messages = [],
-  chapters = []
+  messages = []
 ) => {
   const exportData = {
     fileInfo: {
@@ -303,7 +272,6 @@ export const generateJSONExport = (
     metadata: analysisData.metadata || {},
     insights: analysisData.insights || {},
     tables: analysisData.tables || [],
-    chapters: chapters || [],
     exportedAt: new Date().toISOString(),
   };
 

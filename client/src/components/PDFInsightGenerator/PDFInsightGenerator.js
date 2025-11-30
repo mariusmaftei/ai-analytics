@@ -1,70 +1,70 @@
 import React, { useState, useEffect, useRef } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
-  faFileCsv,
-  faChartBar,
-  faSearch,
-  faChartLine,
-  faDatabase,
-  faExclamationTriangle,
-  faLayerGroup,
-  faTable,
+  faFilePdf,
   faSpinner,
   faChevronDown,
   faChevronUp,
+  faFileAlt,
+  faSearch,
+  faLayerGroup,
+  faKey,
+  faInfoCircle,
+  faSitemap,
+  faLayerGroup as faAll,
 } from "@fortawesome/free-solid-svg-icons";
 import { generateInsights } from "../../services/insightService";
-import { parseCSVInsights } from "./utils/csvInsightParser";
-import CSVOverview from "../CSVInsightsPreview/CSVOverview/CSVOverview";
-import CSVStatisticalAnalysis from "../CSVInsightsPreview/CSVStatisticalAnalysis/CSVStatisticalAnalysis";
-import CSVPatternDetection from "../CSVInsightsPreview/CSVPatternDetection/CSVPatternDetection";
-import CSVDataQuality from "../CSVInsightsPreview/CSVDataQuality/CSVDataQuality";
-import CSVTrendsAnalysis from "../CSVInsightsPreview/CSVTrendsAnalysis/CSVTrendsAnalysis";
-import CSVCorrelationAnalysis from "../CSVInsightsPreview/CSVCorrelationAnalysis/CSVCorrelationAnalysis";
-import styles from "./CSVInsightGenerator.module.css";
+import { parsePDFInsights } from "./utils/pdfInsightParser";
+import PDFOverview from "../PDFInsightsPreview/PDFOverview/PDFOverview";
+import PDFSummary from "../PDFInsightsPreview/PDFSummary/PDFSummary";
+import PDFContentAnalysis from "../PDFInsightsPreview/PDFContentAnalysis/PDFContentAnalysis";
+import PDFStructureAnalysis from "../PDFInsightsPreview/PDFStructureAnalysis/PDFStructureAnalysis";
+import PDFMetadataAnalysis from "../PDFInsightsPreview/PDFMetadataAnalysis/PDFMetadataAnalysis";
+import PDFKeywordsExtraction from "../PDFInsightsPreview/PDFKeywordsExtraction/PDFKeywordsExtraction";
+import styles from "./PDFInsightGenerator.module.css";
 
 const ANALYSIS_TYPES = [
   {
     id: "overview",
     label: "Overview",
-    icon: faTable,
-    description: "Summary and basic statistics",
+    icon: faFileAlt,
+    description: "Document summary and key information",
   },
   {
-    id: "statistical",
-    label: "Statistical Analysis",
-    icon: faChartBar,
-    description: "Means, medians, distributions",
+    id: "summary",
+    label: "Summary",
+    icon: faFileAlt,
+    description: "Executive summary and highlights",
   },
   {
-    id: "patterns",
-    label: "Pattern Detection",
+    id: "content",
+    label: "Content Analysis",
     icon: faSearch,
-    description: "Identify trends and patterns",
+    description: "Detailed content examination",
   },
   {
-    id: "quality",
-    label: "Data Quality",
-    icon: faExclamationTriangle,
-    description: "Missing values and inconsistencies",
+    id: "structure",
+    label: "Structure Analysis",
+    icon: faSitemap,
+    description: "Document organization and layout",
   },
   {
-    id: "trends",
-    label: "Trends Analysis",
-    icon: faChartLine,
-    description: "Time-based trends and changes",
+    id: "metadata",
+    label: "Metadata",
+    icon: faInfoCircle,
+    description: "Document properties and information",
   },
   {
-    id: "correlation",
-    label: "Correlation Analysis",
-    icon: faDatabase,
-    description: "Relationships between columns",
+    id: "keywords",
+    label: "Keywords",
+    icon: faKey,
+    description: "Key terms and concepts",
   },
 ];
 
 const ALL_ANALYSIS_TYPES = ANALYSIS_TYPES;
 
-const CSVInsightGenerator = ({ fileData, analysisData }) => {
+const PDFInsightGenerator = ({ fileData, analysisData }) => {
   const [selectedAnalysisType, setSelectedAnalysisType] = useState("overview");
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState(null);
@@ -75,7 +75,7 @@ const CSVInsightGenerator = ({ fileData, analysisData }) => {
   const [allInsights, setAllInsights] = useState(null);
   const hasInitializedRef = useRef(false);
 
-  const cacheKey = `csv_insights_${fileData.fileName}_${fileData.fileSize}`;
+  const cacheKey = `pdf_insights_${fileData.fileName}_${fileData.fileSize}`;
 
   useEffect(() => {
     if (hasInitializedRef.current) return;
@@ -142,14 +142,14 @@ const CSVInsightGenerator = ({ fileData, analysisData }) => {
       ? {
           id: "all",
           label: "All Analyses",
-          icon: faLayerGroup,
+          icon: faAll,
           description: "Run all analysis types",
         }
       : ANALYSIS_TYPES.find((type) => type.id === selectedAnalysisType);
 
   const handleGenerate = async () => {
-    if (!analysisData.data || !analysisData.columns) {
-      setError("CSV data is not available. Please upload the file again.");
+    if (!analysisData.text) {
+      setError("PDF text is not available. Please upload the file again.");
       return;
     }
 
@@ -167,10 +167,10 @@ const CSVInsightGenerator = ({ fileData, analysisData }) => {
             let fullResponse = "";
             await generateInsights(
               {
-                fileType: "CSV",
-                csvData: analysisData.data,
-                columns: analysisData.columns,
+                fileType: "PDF",
+                text: analysisData.text,
                 metadata: analysisData.metadata || {},
+                tables: analysisData.tables || [],
                 analysisType: type.id,
                 temperature: 0.7,
                 max_tokens: 2048,
@@ -185,7 +185,7 @@ const CSVInsightGenerator = ({ fileData, analysisData }) => {
                 setAllInsights({ ...results });
               }
             );
-            const parsed = parseCSVInsights(fullResponse);
+            const parsed = parsePDFInsights(fullResponse);
             const analysisResult = {
               insights: fullResponse,
               parsedInsights: parsed,
@@ -217,10 +217,10 @@ const CSVInsightGenerator = ({ fileData, analysisData }) => {
 
         await generateInsights(
           {
-            fileType: "CSV",
-            csvData: analysisData.data,
-            columns: analysisData.columns,
+            fileType: "PDF",
+            text: analysisData.text,
             metadata: analysisData.metadata || {},
+            tables: analysisData.tables || [],
             analysisType: selectedAnalysisType,
             temperature: 0.7,
             max_tokens: 2048,
@@ -230,7 +230,7 @@ const CSVInsightGenerator = ({ fileData, analysisData }) => {
           }
         );
 
-        const parsed = parseCSVInsights(fullResponse);
+        const parsed = parsePDFInsights(fullResponse);
 
         const analysisResult = {
           insights: fullResponse,
@@ -247,8 +247,8 @@ const CSVInsightGenerator = ({ fileData, analysisData }) => {
         }));
       }
     } catch (err) {
-      console.error("CSV insight generation error:", err);
-      setError(err.message || "Failed to generate CSV insights. Please try again.");
+      console.error("PDF insight generation error:", err);
+      setError(err.message || "Failed to generate PDF insights. Please try again.");
       setAllInsights(null);
     } finally {
       setIsGenerating(false);
@@ -258,17 +258,17 @@ const CSVInsightGenerator = ({ fileData, analysisData }) => {
   const renderPreviewComponent = (typeId, data, rawText) => {
     switch (typeId) {
       case "overview":
-        return <CSVOverview data={data} rawText={rawText} />;
-      case "statistical":
-        return <CSVStatisticalAnalysis data={data} rawText={rawText} />;
-      case "patterns":
-        return <CSVPatternDetection data={data} rawText={rawText} />;
-      case "quality":
-        return <CSVDataQuality data={data} rawText={rawText} />;
-      case "trends":
-        return <CSVTrendsAnalysis data={data} rawText={rawText} />;
-      case "correlation":
-        return <CSVCorrelationAnalysis data={data} rawText={rawText} />;
+        return <PDFOverview data={data} rawText={rawText} fileData={fileData} analysisData={analysisData} />;
+      case "summary":
+        return <PDFSummary data={data} rawText={rawText} analysisData={analysisData} />;
+      case "content":
+        return <PDFContentAnalysis data={data} rawText={rawText} analysisData={analysisData} />;
+      case "structure":
+        return <PDFStructureAnalysis data={data} rawText={rawText} analysisData={analysisData} />;
+      case "metadata":
+        return <PDFMetadataAnalysis data={data} rawText={rawText} analysisData={analysisData} />;
+      case "keywords":
+        return <PDFKeywordsExtraction data={data} rawText={rawText} analysisData={analysisData} />;
       default:
         return <pre>{rawText}</pre>;
     }
@@ -278,11 +278,11 @@ const CSVInsightGenerator = ({ fileData, analysisData }) => {
     <div className={styles.container}>
       <div className={styles.header}>
         <div className={styles.headerLeft}>
-          <FontAwesomeIcon icon={faFileCsv} className={styles.icon} />
+          <FontAwesomeIcon icon={faFilePdf} className={styles.icon} />
           <div>
-            <h3>CSV Analysis</h3>
+            <h3>PDF Analysis</h3>
             <p className={styles.headerSubtitle}>
-              AI-powered data analysis and insights
+              AI-powered document analysis and insights
             </p>
           </div>
         </div>
@@ -329,8 +329,8 @@ const CSVInsightGenerator = ({ fileData, analysisData }) => {
             </p>
           )}
           <p className={styles.promptText}>
-            Analyze your CSV data with AI to extract insights, detect patterns,
-            assess data quality, or understand trends.
+            Analyze your PDF document with AI to extract insights, understand
+            content structure, identify key information, or extract metadata.
           </p>
 
           <div className={styles.analysisTypesGrid}>
@@ -342,7 +342,7 @@ const CSVInsightGenerator = ({ fileData, analysisData }) => {
               disabled={isGenerating}
             >
               <FontAwesomeIcon
-                icon={faLayerGroup}
+                icon={faAll}
                 className={styles.typeIcon}
               />
               <div className={styles.typeInfo}>
@@ -387,7 +387,7 @@ const CSVInsightGenerator = ({ fileData, analysisData }) => {
           <button
             className={styles.generateButton}
             onClick={handleGenerate}
-            disabled={isGenerating || !analysisData.data || !analysisData.columns}
+            disabled={isGenerating || !analysisData.text}
           >
             {isGenerating ? (
               <>
@@ -411,7 +411,7 @@ const CSVInsightGenerator = ({ fileData, analysisData }) => {
       {isGenerating && (
         <div className={styles.loadingSection}>
           <FontAwesomeIcon icon={faSpinner} className={styles.spinner} spin />
-          <p>Analyzing CSV data with {selectedType.label.toLowerCase()}...</p>
+          <p>Analyzing PDF with {selectedType.label.toLowerCase()}...</p>
         </div>
       )}
 
@@ -442,7 +442,7 @@ const CSVInsightGenerator = ({ fileData, analysisData }) => {
             {Object.keys(completedAnalyses).length > 0 && (
               <div className={styles.completedAnalysesList}>
                 {Object.entries(completedAnalyses).map(
-                  ([typeId, analysisData]) => {
+                  ([typeId, analysisResult]) => {
                     const typeInfo = ANALYSIS_TYPES.find(
                       (t) => t.id === typeId
                     );
@@ -465,7 +465,7 @@ const CSVInsightGenerator = ({ fileData, analysisData }) => {
                               className={styles.expandIcon}
                             />
                             <FontAwesomeIcon
-                              icon={typeInfo?.icon || faTable}
+                              icon={typeInfo?.icon || faFileAlt}
                               className={styles.analysisTypeIcon}
                             />
                             <span className={styles.analysisTypeLabel}>
@@ -495,12 +495,26 @@ const CSVInsightGenerator = ({ fileData, analysisData }) => {
 
                         {isExpanded && (
                           <div className={styles.analysisContent}>
-                            {analysisData.parsedInsights &&
-                              renderPreviewComponent(
-                                typeId,
-                                analysisData.parsedInsights,
-                                analysisData.insights
-                              )}
+                            {analysisResult.parsedInsights &&
+                              (typeId === "summary" ? (
+                                <PDFSummary 
+                                  data={analysisResult.parsedInsights} 
+                                  rawText={analysisResult.insights}
+                                  analysisData={analysisData}
+                                />
+                              ) : typeId === "content" ? (
+                                <PDFContentAnalysis 
+                                  data={analysisResult.parsedInsights} 
+                                  rawText={analysisResult.insights}
+                                  analysisData={analysisData}
+                                />
+                              ) : (
+                                renderPreviewComponent(
+                                  typeId,
+                                  analysisResult.parsedInsights,
+                                  analysisResult.insights
+                                )
+                              ))}
                           </div>
                         )}
                       </div>
@@ -513,7 +527,7 @@ const CSVInsightGenerator = ({ fileData, analysisData }) => {
             {allInsights && (
               <div className={styles.allInsightsContainer}>
                 <div className={styles.analysisTypeBadge}>
-                  <FontAwesomeIcon icon={faLayerGroup} />
+                  <FontAwesomeIcon icon={faAll} />
                   <span>
                     All Analyses ({Object.keys(allInsights).length} completed)
                   </span>
@@ -523,22 +537,43 @@ const CSVInsightGenerator = ({ fileData, analysisData }) => {
                   const typeInfo = ALL_ANALYSIS_TYPES.find(
                     (t) => t.id === typeId
                   );
-                  const parsed = parseCSVInsights(
+                  const parsed = parsePDFInsights(
                     result.content || result.text || ""
                   );
                   return (
                     <div key={typeId} className={styles.singleAnalysisSection}>
                       <div className={styles.analysisSectionHeader}>
-                        <FontAwesomeIcon icon={typeInfo?.icon || faTable} />
+                        <FontAwesomeIcon icon={typeInfo?.icon || faFileAlt} />
                         <h4>{result.type}</h4>
                       </div>
                       {result.error ? (
                         <div className={styles.errorText}>{result.content}</div>
                       ) : (
-                        renderPreviewComponent(
-                          typeId,
-                          parsed,
-                          result.content || result.text
+                        typeId === "overview" ? (
+                          <PDFOverview 
+                            data={parsed} 
+                            rawText={result.content || result.text}
+                            fileData={fileData}
+                            analysisData={analysisData}
+                          />
+                        ) : typeId === "summary" ? (
+                          <PDFSummary 
+                            data={parsed} 
+                            rawText={result.content || result.text}
+                            analysisData={analysisData}
+                          />
+                        ) : typeId === "content" ? (
+                          <PDFContentAnalysis 
+                            data={parsed} 
+                            rawText={result.content || result.text}
+                            analysisData={analysisData}
+                          />
+                        ) : (
+                          renderPreviewComponent(
+                            typeId,
+                            parsed,
+                            result.content || result.text
+                          )
                         )
                       )}
                     </div>
@@ -552,4 +587,5 @@ const CSVInsightGenerator = ({ fileData, analysisData }) => {
   );
 };
 
-export default CSVInsightGenerator;
+export default PDFInsightGenerator;
+

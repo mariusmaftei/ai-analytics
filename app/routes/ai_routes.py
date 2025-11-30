@@ -184,8 +184,9 @@ def ai_generate_insights_stream():
                 }), 400
             
             try:
-                prompt = build_document_insight_prompt(document_text, metadata, tables)
-                print(f"[INSIGHT] Prompt built successfully, length: {len(prompt)}")
+                analysis_type = data.get('analysisType', 'overview')
+                prompt = build_document_insight_prompt(document_text, metadata, tables, analysis_type)
+                print(f"[INSIGHT] Prompt built successfully, length: {len(prompt)}, analysis_type: {analysis_type}")
             except Exception as e:
                 print(f"[INSIGHT] Error building document prompt: {str(e)}")
                 return jsonify({

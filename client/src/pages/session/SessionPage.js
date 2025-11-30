@@ -9,19 +9,19 @@ import {
   faFileCode,
   faImage,
   faArrowLeft,
-  faBook,
   faTable,
   faLightbulb,
 } from "@fortawesome/free-solid-svg-icons";
 import { useSession } from "../../context/SessionContext";
 import { chatAboutDocument } from "../../services/documentChatService";
-import ChaptersView from "../../components/Layout/ChaptersView/ChaptersView";
 import CSVPreview from "../../components/Layout/CSVPreview/CSVPreview";
 import JSONPreview from "../../components/Layout/JSONPreview/JSONPreview";
 import ImagePreview from "../../components/Layout/ImagePreview/ImagePreview";
+import PDFPreview from "../../components/Layout/PDFPreview/PDFPreview";
 import InsightGenerator from "../../components/InsightGenerator/InsightGenerator";
 import ImageInsightGenerator from "../../components/ImageInsightGenerator/ImageInsightGenerator";
 import CSVInsightGenerator from "../../components/CSVInsightGenerator/CSVInsightGenerator";
+import PDFInsightGenerator from "../../components/PDFInsightGenerator/PDFInsightGenerator";
 import {
   generatePDFReport,
   generateCSVExport,
@@ -53,18 +53,18 @@ const SessionPage = () => {
 
   const isImage = analysisData.fileType === "IMAGE";
   const isCSV = analysisData.fileType === "CSV";
+  const isPDF = analysisData.fileType === "PDF";
 
   const [inputValue, setInputValue] = useState("");
-  const [showChapters, setShowChapters] = useState(false);
   const [showCSVPreview, setShowCSVPreview] = useState(false);
   const [showJSONPreview, setShowJSONPreview] = useState(false);
   const [showImagePreview, setShowImagePreview] = useState(false);
+  const [showPDFPreview, setShowPDFPreview] = useState(false);
   const [showInsightGenerator, setShowInsightGenerator] = useState(false);
   const [showImageInsightGenerator, setShowImageInsightGenerator] =
     useState(false);
   const [isTyping, setIsTyping] = useState(false);
   const [showDownloadMenu, setShowDownloadMenu] = useState(false);
-  const [extractedChapters, setExtractedChapters] = useState([]);
 
   const getWelcomeMessage = () => {
     const fileType = analysisData.fileType || "document";
@@ -191,12 +191,11 @@ const SessionPage = () => {
       metadata: analysisData.metadata || {},
       insights: analysisData.insights || {},
       tables: analysisData.tables || [],
-      chapters: extractedChapters || [],
       text: analysisData.text
         ? analysisData.text.substring(0, 1000) + "..."
         : "",
     };
-  }, [analysisData, fileData, extractedChapters]);
+  }, [analysisData, fileData]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -312,321 +311,6 @@ const SessionPage = () => {
     }
   };
 
-  const parseChaptersFromText = (text) => {
-    const chapters = [];
-
-    const subchapterRegex =
-      /(SUBCHAPTER|Subchapter|SubChapter)\s*([A-Z])\s*[—–-]\s*([^\n]+)/gi;
-    let match;
-    while ((match = subchapterRegex.exec(text)) !== null) {
-      chapters.push({
-        number: `Subchapter ${match[2]}`,
-        title: match[3].trim().replace(/\*\*/g, "").replace(/\*/g, ""),
-        pages: "N/A",
-        summary: "",
-      });
-    }
-
-    const partRegex = /(PART|Part)\s*(\d+[A-Z]?)\s*[—–-]?\s*([^\n]+)/gi;
-    while ((match = partRegex.exec(text)) !== null) {
-      const existing = chapters.find((ch) => ch.number === `Part ${match[2]}`);
-      if (!existing) {
-        chapters.push({
-          number: `Part ${match[2]}`,
-          title: match[3].trim().replace(/\*\*/g, "").replace(/\*/g, ""),
-          pages: "N/A",
-          summary: "",
-        });
-      }
-    }
-
-    const sectionRegex = /§?\s*(\d+\.\d+)\s*[—–-]?\s*([^\n]+)/g;
-    while ((match = sectionRegex.exec(text)) !== null) {
-      chapters.push({
-        number: match[1],
-        title: match[2].trim().replace(/\*\*/g, "").replace(/\*/g, ""),
-        pages: "N/A",
-        summary: "",
-      });
-    }
-
-    const boldRegex = /\*\*(\d+[A-Z]?|Part\s+\d+)\*\*\s*([^\n]+)/gi;
-    while ((match = boldRegex.exec(text)) !== null) {
-      const num = match[1].includes("Part") ? match[1] : `Part ${match[1]}`;
-      const existing = chapters.find(
-        (ch) => ch.number === num || ch.number === match[1]
-      );
-      if (!existing) {
-        chapters.push({
-          number: match[1].includes("Part") ? match[1] : match[1],
-          title: match[2].trim().replace(/\*\*/g, "").replace(/\*/g, ""),
-          pages: "N/A",
-          summary: "",
-        });
-      }
-    }
-
-    const numberedRegex =
-      /(?:^|\n)\s*\*?\*?(\d+[A-Z]?)\*?\*?[\.\)]\s*\*?\*?([^\n]+?)(?:\n|$)/g;
-    while ((match = numberedRegex.exec(text)) !== null) {
-      const title = match[2].trim().replace(/\*\*/g, "").replace(/\*/g, "");
-      if (title.length > 5 && !title.match(/^(and|or|the|a|an)\s/i)) {
-        const existing = chapters.find(
-          (ch) => ch.number === match[1] && ch.title === title
-        );
-        if (!existing) {
-          chapters.push({
-            number: match[1],
-            title: title,
-            pages: "N/A",
-            summary: "",
-          });
-        }
-      }
-    }
-
-    if (chapters.length > 0) {
-      const lines = text.split("\n");
-      chapters.forEach((chapter, idx) => {
-        const chapterPattern = chapter.number.replace(
-          /[.*+?^${}()|[\]\\]/g,
-          "\\$&"
-        );
-        const chapterIndex = text.search(new RegExp(chapterPattern, "i"));
-
-        if (chapterIndex !== -1) {
-          const afterChapter = text.substring(
-            chapterIndex + chapter.number.length
-          );
-          const nextChapterIndex = chapters
-            .slice(idx + 1)
-            .reduce((min, nextCh) => {
-              const nextPattern = nextCh.number.replace(
-                /[.*+?^${}()|[\]\\]/g,
-                "\\$&"
-              );
-              const nextIdx = afterChapter.search(new RegExp(nextPattern, "i"));
-              return nextIdx !== -1 && (min === -1 || nextIdx < min)
-                ? nextIdx
-                : min;
-            }, -1);
-
-          const summaryText = afterChapter
-            .substring(0, nextChapterIndex !== -1 ? nextChapterIndex : 300)
-            .split("\n")
-            .slice(0, 3)
-            .join(" ")
-            .replace(/\*\*/g, "")
-            .replace(/\*/g, "")
-            .trim();
-
-          if (summaryText && summaryText.length > 20) {
-            chapter.summary = summaryText.substring(0, 200);
-            if (summaryText.length > 200) {
-              chapter.summary += "...";
-            }
-          }
-        }
-      });
-    }
-
-    const uniqueChapters = [];
-    const seen = new Set();
-    chapters.forEach((ch) => {
-      const key = ch.number.toLowerCase();
-      if (!seen.has(key)) {
-        seen.add(key);
-        uniqueChapters.push(ch);
-      }
-    });
-
-    return uniqueChapters;
-  };
-
-  const handleShowChapters = async () => {
-    const newShowChapters = !showChapters;
-    setShowChapters(newShowChapters);
-
-    if (newShowChapters && extractedChapters.length === 0) {
-      const loadingMessage = {
-        type: "ai",
-        text: "📚 Extracting chapters from the document...",
-        timestamp: new Date(),
-        isStreaming: false,
-        isChapterExtraction: true,
-      };
-      setMessages((prev) => [...prev, loadingMessage]);
-
-      let fullResponse = "";
-
-      try {
-        const chapterPrompt = `Extract ALL chapters, subchapters, parts, and major sections from this document.
-
-For EACH chapter/section found, format it EXACTLY like this:
-SUBCHAPTER [LETTER]—[TITLE]
-or
-Part [NUMBER]—[TITLE]
-or
-§ [NUMBER]—[TITLE]
-
-Then provide a brief description (1-2 sentences) about what that section covers.
-
-List EVERY chapter, subchapter, part, and major section you find. Be thorough and complete.
-
-Document: ${fileData.fileName}
-Total Pages: ${analysisData.metadata?.totalPages || "Unknown"}
-
-Now extract and list all chapters and sections:`;
-
-        await chatAboutDocument(
-          chapterPrompt,
-          analysisData.text || "",
-          {
-            filename: fileData.fileName,
-            totalPages: analysisData.metadata?.totalPages,
-            wordCount: analysisData.metadata?.wordCount,
-          },
-          (chunk) => {
-            fullResponse += chunk;
-            setMessages((prev) => {
-              const newMessages = [...prev];
-              const lastMessage = newMessages[newMessages.length - 1];
-              if (
-                lastMessage &&
-                lastMessage.type === "ai" &&
-                lastMessage.isChapterExtraction
-              ) {
-                lastMessage.text = `📚 **Chapters Found in ${fileData.fileName}:**\n\n${fullResponse}`;
-              }
-              return newMessages;
-            });
-          },
-          {
-            user_name: null,
-            temperature: 0.3,
-            max_tokens: 2048,
-            is_greeting: false,
-          }
-        );
-
-        const parsedChapters = parseChaptersFromText(fullResponse);
-
-        if (parsedChapters.length > 0) {
-          setExtractedChapters(parsedChapters);
-
-          setMessages((prev) => {
-            const newMessages = [...prev];
-            const lastMessage = newMessages[newMessages.length - 1];
-            if (
-              lastMessage &&
-              lastMessage.type === "ai" &&
-              lastMessage.isChapterExtraction
-            ) {
-              lastMessage.text = `📚 Found ${parsedChapters.length} chapters in ${fileData.fileName}`;
-              lastMessage.isStreaming = false;
-            }
-            return newMessages;
-          });
-        } else {
-          const fallbackChapters = parseChaptersFromText(fullResponse);
-
-          if (fallbackChapters.length > 0) {
-            setExtractedChapters(fallbackChapters);
-            setMessages((prev) => {
-              const newMessages = [...prev];
-              const lastMessage = newMessages[newMessages.length - 1];
-              if (
-                lastMessage &&
-                lastMessage.type === "ai" &&
-                lastMessage.isChapterExtraction
-              ) {
-                lastMessage.text = `📚 Found ${fallbackChapters.length} chapters in ${fileData.fileName}`;
-                lastMessage.isStreaming = false;
-              }
-              return newMessages;
-            });
-          } else {
-            const allPatterns = [
-              ...fullResponse.matchAll(
-                /(SUBCHAPTER|Subchapter)\s*([A-Z])\s*[—–-]\s*([^\n]+)/gi
-              ),
-              ...fullResponse.matchAll(
-                /(PART|Part)\s*(\d+[A-Z]?)\s*[—–-]?\s*([^\n]+)/gi
-              ),
-              ...fullResponse.matchAll(/§?\s*(\d+\.\d+)\s*[—–-]?\s*([^\n]+)/g),
-              ...fullResponse.matchAll(/\*\*(\d+[A-Z]?)\*\*\s*([^\n]+)/gi),
-            ];
-
-            const lastResortChapters = [];
-            allPatterns.forEach((match) => {
-              if (match[2] || match[3]) {
-                const num = match[2] || match[1];
-                const title = (match[3] || match[2] || "")
-                  .trim()
-                  .replace(/\*\*/g, "")
-                  .replace(/\*/g, "");
-                if (title && title.length > 3) {
-                  lastResortChapters.push({
-                    number: num.toString(),
-                    title: title,
-                    pages: "N/A",
-                    summary: "",
-                  });
-                }
-              }
-            });
-
-            if (lastResortChapters.length > 0) {
-              const unique = Array.from(
-                new Map(
-                  lastResortChapters.map((ch) => [ch.number, ch])
-                ).values()
-              );
-              setExtractedChapters(unique);
-              setMessages((prev) => {
-                const newMessages = [...prev];
-                const lastMessage = newMessages[newMessages.length - 1];
-                if (
-                  lastMessage &&
-                  lastMessage.type === "ai" &&
-                  lastMessage.isChapterExtraction
-                ) {
-                  lastMessage.text = `📚 Found ${unique.length} chapters in ${fileData.fileName}`;
-                  lastMessage.isStreaming = false;
-                }
-                return newMessages;
-              });
-            } else {
-              setMessages((prev) => {
-                const newMessages = [...prev];
-                const lastMessage = newMessages[newMessages.length - 1];
-                if (lastMessage && lastMessage.type === "ai") {
-                  lastMessage.text = `📚 No structured chapters found. The document may not have clear chapter divisions. Full response: ${fullResponse.substring(
-                    0,
-                    500
-                  )}...`;
-                  lastMessage.isStreaming = false;
-                }
-                return newMessages;
-              });
-            }
-          }
-        }
-      } catch (error) {
-        setMessages((prev) => {
-          const newMessages = [...prev];
-          const lastMessage = newMessages[newMessages.length - 1];
-          if (lastMessage && lastMessage.type === "ai") {
-            lastMessage.text =
-              "⚠️ Unable to extract chapters at this time. Please try asking about specific sections in the document.";
-            lastMessage.isStreaming = false;
-          }
-          return newMessages;
-        });
-      }
-    }
-  };
-
   const handleDownload = (format) => {
     try {
       const formatInfo = {
@@ -638,11 +322,11 @@ Now extract and list all chapters and sections:`;
       const fileName = fileData.fileName.replace(/\.[^/.]+$/, "");
 
       if (format === "pdf") {
-        generatePDFReport(fileData, analysisData, messages, extractedChapters);
+        generatePDFReport(fileData, analysisData, messages);
       } else if (format === "csv") {
-        generateCSVExport(fileData, analysisData, messages, extractedChapters);
+        generateCSVExport(fileData, analysisData, messages);
       } else if (format === "json") {
-        generateJSONExport(fileData, analysisData, messages, extractedChapters);
+        generateJSONExport(fileData, analysisData, messages);
       }
 
       const downloadMessage = {
@@ -719,7 +403,34 @@ Now extract and list all chapters and sections:`;
           </button>
         )}
 
-        {!isImage && !isCSV && (
+        {isPDF && (
+          <button
+            className={`${styles.actionButton} ${
+              showInsightGenerator ? styles.active : ""
+            }`}
+            onClick={() => {
+              setShowInsightGenerator(!showInsightGenerator);
+              if (!showInsightGenerator) {
+                setTimeout(() => {
+                  const insightSection = document.getElementById(
+                    "pdf-insight-generator-section"
+                  );
+                  if (insightSection) {
+                    insightSection.scrollIntoView({
+                      behavior: "smooth",
+                      block: "start",
+                    });
+                  }
+                }, 100);
+              }
+            }}
+          >
+            <FontAwesomeIcon icon={faLightbulb} />
+            <span>{showInsightGenerator ? "Hide" : "Generate"} Insights</span>
+          </button>
+        )}
+
+        {!isImage && !isCSV && !isPDF && (
           <button
             className={`${styles.actionButton} ${
               showInsightGenerator ? styles.active : ""
@@ -773,18 +484,6 @@ Now extract and list all chapters and sections:`;
           </button>
         )}
 
-        {analysisData.fileType === "PDF" && (
-          <button
-            className={`${styles.actionButton} ${
-              showChapters ? styles.active : ""
-            }`}
-            onClick={handleShowChapters}
-          >
-            <FontAwesomeIcon icon={faBook} />
-            <span>{showChapters ? "Hide" : "Show"} Chapters</span>
-          </button>
-        )}
-
         {analysisData.fileType === "IMAGE" && analysisData.imageUrl && (
           <button
             className={`${styles.actionButton} ${
@@ -794,6 +493,18 @@ Now extract and list all chapters and sections:`;
           >
             <FontAwesomeIcon icon={faImage} />
             <span>{showImagePreview ? "Hide" : "Show"} Image Preview</span>
+          </button>
+        )}
+
+        {analysisData.fileType === "PDF" && (
+          <button
+            className={`${styles.actionButton} ${
+              showPDFPreview ? styles.active : ""
+            }`}
+            onClick={() => setShowPDFPreview(!showPDFPreview)}
+          >
+            <FontAwesomeIcon icon={faFilePdf} />
+            <span>{showPDFPreview ? "Hide" : "Show"} PDF Preview</span>
           </button>
         )}
 
@@ -867,16 +578,6 @@ Now extract and list all chapters and sections:`;
         )}
       </div>
 
-      {showChapters && extractedChapters.length > 0 && (
-        <div className={styles.chaptersSection}>
-          <ChaptersView
-            chapters={extractedChapters}
-            highlights={[]}
-            keywords={[]}
-          />
-        </div>
-      )}
-
       {showCSVPreview && csvPreviewTables && (
         <div className={styles.csvPreviewSection}>
           <CSVPreview tables={csvPreviewTables} />
@@ -889,6 +590,21 @@ Now extract and list all chapters and sections:`;
             imageUrl={analysisData.imageUrl}
             metadata={analysisData.metadata}
             alt={fileData.fileName}
+          />
+        </div>
+      )}
+
+      {showPDFPreview && isPDF && (
+        <div className={styles.pdfPreviewSection}>
+          <PDFPreview
+            file={
+              fileData.file ||
+              session?.files?.find((f) => f.fileName === fileData.fileName)
+                ?.file ||
+              locationState.file
+            }
+            totalPages={analysisData.metadata?.totalPages}
+            fileName={fileData.fileName}
           />
         </div>
       )}
@@ -928,7 +644,19 @@ Now extract and list all chapters and sections:`;
         </div>
       )}
 
-      {showInsightGenerator && !isImage && !isCSV && (
+      {showInsightGenerator && isPDF && (
+        <div
+          id="pdf-insight-generator-section"
+          className={styles.insightGeneratorSection}
+        >
+          <PDFInsightGenerator
+            fileData={fileData}
+            analysisData={analysisData}
+          />
+        </div>
+      )}
+
+      {showInsightGenerator && !isImage && !isCSV && !isPDF && (
         <div
           id="insight-generator-section"
           className={styles.insightGeneratorSection}

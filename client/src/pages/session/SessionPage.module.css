@@ -196,6 +196,7 @@
 .csvPreviewSection,
 .jsonPreviewSection,
 .imagePreviewSection,
+.pdfPreviewSection,
 .insightGeneratorSection {
   padding: 1.5rem 2rem;
   background: var(--surface-color);
