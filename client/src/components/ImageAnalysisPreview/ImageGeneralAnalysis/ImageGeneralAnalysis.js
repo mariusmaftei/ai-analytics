@@ -414,11 +414,6 @@ const ImageGeneralAnalysis = ({
     }
 
     if (keyAttributesSection?.items && keyAttributesSection.items.length > 0) {
-      const fieldNameVariations = [
-        card.label,
-        card.label.replace(/\s*&\s*/g, " "),
-        card.label.replace(/\s*&\s*/g, " and "),
-      ];
       for (const item of keyAttributesSection.items) {
         if (typeof item === "string" || (!item.key && !item.label)) continue;
 

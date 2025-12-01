@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faPlus,
@@ -8,17 +8,13 @@ import {
   faPenToSquare,
   faCheck,
   faXmark,
-  faBars,
-  faChevronLeft,
-  faChevronRight,
 } from "@fortawesome/free-solid-svg-icons";
 import { useSession } from "../../../context/SessionContext";
-import Modal from "../../UI/Modal/Modal";
+import Modal from "../../Shared/Modal/Modal";
 import styles from "./Sidebar.module.css";
 
 const Sidebar = () => {
   const navigate = useNavigate();
-  const location = useLocation();
   const {
     sessions,
     currentSessionId,

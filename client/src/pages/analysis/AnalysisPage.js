@@ -10,8 +10,6 @@ import {
   faArrowRight,
   faFile,
   faClock,
-  faHeading,
-  faUser,
   faImage,
   faExclamationTriangle,
 } from "@fortawesome/free-solid-svg-icons";
@@ -217,8 +215,8 @@ const AnalysisPage = () => {
             if (typeof error.response.data === 'object') {
               errorMessage = error.response.data.message || error.response.data.error || '';
               isLimitError = error.response.data.error_type === 'limit_exceeded' || 
-                           error.response.data.status === 'error' && 
-                           /exceeds|limit|maximum|beta|pages|size|words/i.test(errorMessage);
+                           (error.response.data.status === 'error' && 
+                           /exceeds|limit|maximum|beta|pages|size|words/i.test(errorMessage));
             } else if (typeof error.response.data === 'string') {
               errorMessage = error.response.data;
             }

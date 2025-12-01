@@ -6,8 +6,6 @@ import {
   faChartLine,
   faGlobe,
   faDatabase,
-  faArrowUp,
-  faArrowDown,
 } from "@fortawesome/free-solid-svg-icons";
 import styles from "./CSVOverview.module.css";
 
@@ -41,8 +39,6 @@ const CSVOverview = ({ data, rawText }) => {
     console.log("Extracting KPIs from sections:", data.sections);
 
     data.sections.forEach((section) => {
-      const sectionName = section.name?.toLowerCase() || "";
-      
       if (section.tables && section.tables.length > 0) {
         section.tables.forEach((table) => {
           if (table.rows) {
@@ -51,7 +47,7 @@ const CSVOverview = ({ data, rawText }) => {
                 const key = (row[0] || "").toLowerCase();
                 const value = row[1] || row[2] || "";
 
-                if (key.includes("total transactions") || key.includes("rows") && !kpis.totalTransactions) {
+                if ((key.includes("total transactions") || key.includes("rows")) && !kpis.totalTransactions) {
                   kpis.totalTransactions = value;
                 }
                 if (key.includes("total revenue") && !kpis.totalRevenue) {
@@ -92,7 +88,7 @@ const CSVOverview = ({ data, rawText }) => {
             const lowerText = text.toLowerCase();
             
             if (lowerText.includes("total transactions") && !kpis.totalTransactions) {
-              const match = text.match(/total\s+transactions[:\-]?\s*(\d+[\d,]*)/i);
+              const match = text.match(/total\s+transactions[:-]?\s*(\d+[\d,]*)/i);
               if (match) {
                 kpis.totalTransactions = match[1];
               } else {
@@ -102,29 +98,29 @@ const CSVOverview = ({ data, rawText }) => {
             }
             
             if (lowerText.includes("total revenue") && !kpis.totalRevenue) {
-              const match = text.match(/total\s+revenue[:\-]?\s*\$?([\d,]+\.?\d*)/i);
+              const match = text.match(/total\s+revenue[:-]?\s*\$?([\d,]+\.?\d*)/i);
               if (match) {
                 kpis.totalRevenue = match[1];
               }
             }
             
             if ((lowerText.includes("avg revenue") || lowerText.includes("average revenue") || lowerText.includes("average revenue per transaction") || lowerText.includes("revenue per transaction")) && !kpis.avgRevenue) {
-              let match = text.match(/average\s+revenue\s+per\s+transaction[:\-]?\s*\$?([\d,]+\.?\d*)/i);
+              let match = text.match(/average\s+revenue\s+per\s+transaction[:-]?\s*\$?([\d,]+\.?\d*)/i);
               if (match) {
                 kpis.avgRevenue = match[1];
               } else {
-                match = text.match(/(?:avg|average)\s+revenue[:\-]?\s*\$?([\d,]+\.?\d*)/i);
+                match = text.match(/(?:avg|average)\s+revenue[:-]?\s*\$?([\d,]+\.?\d*)/i);
                 if (match) {
                   kpis.avgRevenue = match[1];
                 } else {
-                  const altMatch = text.match(/revenue\s+per\s+transaction[:\-]?\s*\$?([\d,]+\.?\d*)/i);
+                  const altMatch = text.match(/revenue\s+per\s+transaction[:-]?\s*\$?([\d,]+\.?\d*)/i);
                   if (altMatch) kpis.avgRevenue = altMatch[1];
                 }
               }
             }
             
             if ((lowerText.includes("most frequent region") || lowerText.includes("top region")) && !kpis.topRegion) {
-              const match = text.match(/(?:most\s+frequent|top)\s+region[:\-]?\s*([^(\n]+)/i);
+              const match = text.match(/(?:most\s+frequent|top)\s+region[:-]?\s*([^(\n]+)/i);
               if (match) {
                 kpis.topRegion = match[1].trim().split('(')[0].trim();
               }
@@ -135,35 +131,33 @@ const CSVOverview = ({ data, rawText }) => {
     });
 
     if (rawText && (!kpis.totalTransactions || !kpis.totalRevenue)) {
-      const text = rawText.toLowerCase();
-      
       if (!kpis.totalTransactions) {
-        const match = rawText.match(/total\s+transactions[:\-]?\s*(\d+[\d,]*)/i);
+        const match = rawText.match(/total\s+transactions[:-]?\s*(\d+[\d,]*)/i);
         if (match) kpis.totalTransactions = match[1];
       }
       
       if (!kpis.totalRevenue) {
-        const match = rawText.match(/total\s+revenue[:\-]?\s*\$?([\d,]+\.?\d*)/i);
+        const match = rawText.match(/total\s+revenue[:-]?\s*\$?([\d,]+\.?\d*)/i);
         if (match) kpis.totalRevenue = match[1];
       }
       
       if (!kpis.avgRevenue) {
-        let match = rawText.match(/average\s+revenue\s+per\s+transaction[:\-]?\s*\$?([\d,]+\.?\d*)/i);
+        let match = rawText.match(/average\s+revenue\s+per\s+transaction[:-]?\s*\$?([\d,]+\.?\d*)/i);
         if (match) {
           kpis.avgRevenue = match[1];
         } else {
-          match = rawText.match(/(?:avg|average)\s+revenue[:\-]?\s*\$?([\d,]+\.?\d*)/i);
+          match = rawText.match(/(?:avg|average)\s+revenue[:-]?\s*\$?([\d,]+\.?\d*)/i);
           if (match) {
             kpis.avgRevenue = match[1];
           } else {
-            const altMatch = rawText.match(/revenue\s+per\s+transaction[:\-]?\s*\$?([\d,]+\.?\d*)/i);
+            const altMatch = rawText.match(/revenue\s+per\s+transaction[:-]?\s*\$?([\d,]+\.?\d*)/i);
             if (altMatch) kpis.avgRevenue = altMatch[1];
           }
         }
       }
       
       if (!kpis.topRegion) {
-        const match = rawText.match(/(?:most\s+frequent|top)\s+region[:\-]?\s*([^(\n]+)/i);
+        const match = rawText.match(/(?:most\s+frequent|top)\s+region[:-]?\s*([^(\n]+)/i);
         if (match) {
           kpis.topRegion = match[1].trim().split('(')[0].trim();
         }
@@ -281,30 +275,6 @@ const CSVOverview = ({ data, rawText }) => {
     ? Math.max(...chartData.topProducts.map(p => p.revenue))
     : 0;
 
-  const cleanText = (text) => {
-    if (!text) return '';
-    return text
-      .replace(/\*\*/g, '')
-      .replace(/✅/g, '')
-      .replace(/❌/g, '')
-      .replace(/⚙️/g, '')
-      .replace(/\|/g, '')
-      .replace(/\s+/g, ' ')
-      .trim();
-  };
-
-  const formatKeyValue = (text) => {
-    if (!text) return text;
-    const colonMatch = text.match(/^([^:]+):\s*(.+)$/);
-    if (colonMatch) {
-      return (
-        <>
-          <strong>{colonMatch[1].trim()}:</strong> {colonMatch[2].trim()}
-        </>
-      );
-    }
-    return text;
-  };
 
   const renderKeyInsights = () => {
     console.log('[CSVOverview] All sections:', data.sections?.map(s => ({ name: s.name, contentCount: s.content?.length })));

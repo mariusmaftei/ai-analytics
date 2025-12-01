@@ -205,27 +205,6 @@ const CSVTrendsAnalysis = ({ data, rawText }) => {
     return result;
   };
 
-  const createSparkChartData = (values) => {
-    const dataPoints = values.map((val, idx) => {
-      if (typeof val === 'number') return val;
-      const numMatch = val.toString().match(/[\d.]+/);
-      return numMatch ? parseFloat(numMatch[0]) : idx * 10;
-    });
-
-    return {
-      labels: dataPoints.map((_, idx) => idx),
-      datasets: [
-        {
-          data: dataPoints,
-          borderColor: "#10b981",
-          backgroundColor: "transparent",
-          borderWidth: 2,
-          pointRadius: 0,
-          tension: 0.4,
-        },
-      ],
-    };
-  };
 
   const chartOptions = {
     responsive: true,
@@ -275,50 +254,6 @@ const CSVTrendsAnalysis = ({ data, rawText }) => {
         },
       },
     },
-  };
-
-  const sparkChartOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: {
-        display: false,
-      },
-      tooltip: {
-        enabled: false,
-      },
-    },
-    scales: {
-      x: {
-        display: false,
-      },
-      y: {
-        display: false,
-      },
-    },
-  };
-
-  const renderTrendCard = (title, trendText, sparkData) => {
-    const trend = getTrendDirection(trendText);
-    const chartData = sparkData ? createSparkChartData(sparkData) : null;
-
-    return (
-      <div className={styles.trendCard}>
-        <div className={styles.trendCardHeader}>
-          <h3 className={styles.trendCardTitle}>{title}</h3>
-          <div className={styles.trendIndicator} style={{ color: trend.color }}>
-            <FontAwesomeIcon icon={trend.icon} />
-            <span className={styles.trendLabel}>{trend.label}</span>
-          </div>
-        </div>
-        {chartData && (
-          <div className={styles.sparkChart}>
-            <Line data={chartData} options={sparkChartOptions} />
-          </div>
-        )}
-        <p className={styles.trendDescription}>{trendText}</p>
-      </div>
-    );
   };
 
   const renderLineChart = (title, dataPoints) => {

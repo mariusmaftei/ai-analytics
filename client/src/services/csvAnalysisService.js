@@ -131,46 +131,9 @@ function analyzeCSVStructure(csvData, fileName) {
       return;
     }
     
-    // Detect data type
-    let isNumber = true;
-    let isDate = false;
-    let isBoolean = false;
-    let numberCount = 0;
-    let dateCount = 0;
-    let booleanCount = 0;
-    
-    values.forEach(val => {
-      const trimmed = String(val).trim();
-      
-      // Check if number
-      if (!isNaN(trimmed) && trimmed !== '') {
-        numberCount++;
-      } else {
-        isNumber = false;
-      }
-      
-      // Check if date
-      const date = new Date(trimmed);
-      if (!isNaN(date.getTime()) && trimmed.match(/^\d{4}-\d{2}-\d{2}/)) {
-        dateCount++;
-      }
-      
-      // Check if boolean
-      if (['true', 'false', 'yes', 'no', '1', '0'].includes(trimmed.toLowerCase())) {
-        booleanCount++;
-      }
-    });
-    
-    // Determine type
-    if (numberCount / values.length > 0.8) {
-      columnTypes[header] = 'number';
-    } else if (dateCount / values.length > 0.5) {
-      columnTypes[header] = 'date';
-    } else if (booleanCount / values.length > 0.8) {
-      columnTypes[header] = 'boolean';
-    } else {
-      columnTypes[header] = 'text';
-    }
+    // Data type detection removed (currently not used)
+    // Default to string type
+    columnTypes[header] = 'string';
   });
   
   // Generate summary and patterns

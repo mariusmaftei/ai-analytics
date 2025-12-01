@@ -14,6 +14,7 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import { useSession } from "../../context/SessionContext";
 import { chatAboutDocument } from "../../services/documentChatService";
+import StreamingText from "../../components/Shared/StreamingText/StreamingText";
 import CSVPreview from "../../components/Layout/CSVPreview/CSVPreview";
 import JSONPreview from "../../components/Layout/JSONPreview/JSONPreview";
 import ImagePreview from "../../components/Layout/ImagePreview/ImagePreview";
@@ -32,24 +33,26 @@ import styles from "./SessionPage.module.css";
 const SessionPage = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { currentSessionId, getCurrentSession } = useSession();
+  const { getCurrentSession } = useSession();
 
   const session = getCurrentSession();
 
   const locationState = location.state || {};
-  const fileData = locationState.fileData ||
+  const fileData = useMemo(() => 
+    locationState.fileData ||
     session?.files[0] || {
       fileName: "sample-data.pdf",
       fileSize: 245000,
       fileType: "application/pdf",
-    };
+    }, [locationState.fileData, session?.files]);
 
-  const analysisData = locationState.analysisResults || {
-    fileType: "PDF",
-    metadata: { totalPages: 0, wordCount: 0 },
-    text: "",
-    insights: { summary: "No analysis available", patterns: [] },
-  };
+  const analysisData = useMemo(() => 
+    locationState.analysisResults || {
+      fileType: "PDF",
+      metadata: { totalPages: 0, wordCount: 0 },
+      text: "",
+      insights: { summary: "No analysis available", patterns: [] },
+    }, [locationState.analysisResults]);
 
   const isImage = analysisData.fileType === "IMAGE";
   const isCSV = analysisData.fileType === "CSV";
@@ -143,6 +146,8 @@ const SessionPage = () => {
   ]);
   const messagesEndRef = useRef(null);
   const downloadMenuRef = useRef(null);
+
+  const streamingBufferRef = useRef("");
 
   const csvPreviewTables = useMemo(() => {
     if (
@@ -256,6 +261,8 @@ const SessionPage = () => {
       },
     ]);
 
+    streamingBufferRef.current = "";
+
     try {
       await chatAboutDocument(
         currentInput,
@@ -270,15 +277,7 @@ const SessionPage = () => {
         },
         (chunk) => {
           setIsTyping(false);
-
-          setMessages((prev) => {
-            const newMessages = [...prev];
-            const lastMessage = newMessages[newMessages.length - 1];
-            if (lastMessage && lastMessage.type === "ai") {
-              lastMessage.text += chunk;
-            }
-            return newMessages;
-          });
+          streamingBufferRef.current += chunk;
         },
         {
           user_name: null,
@@ -287,16 +286,23 @@ const SessionPage = () => {
         }
       );
 
+      const finalText = streamingBufferRef.current;
+
       setIsTyping(false);
       setMessages((prev) => {
         const newMessages = [...prev];
         const lastMessage = newMessages[newMessages.length - 1];
         if (lastMessage && lastMessage.type === "ai") {
+          lastMessage.text = finalText;
           lastMessage.isStreaming = false;
         }
         return newMessages;
       });
+
+      streamingBufferRef.current = "";
     } catch (error) {
+      streamingBufferRef.current = "";
+
       setIsTyping(false);
 
       setMessages((prev) => {
@@ -686,30 +692,36 @@ const SessionPage = () => {
                   </strong>
                 </div>
                 <div className={styles.messageText}>
-                  {message.text.split("\n").map((line, i) => {
-                    // Split by both **bold** and [[green key]] patterns
-                    const parts = line.split(/(\*\*.*?\*\*|\[\[.*?\]\])/g);
-                    return (
-                      <React.Fragment key={i}>
-                        {parts.map((part, j) => {
-                          if (part.startsWith("**") && part.endsWith("**")) {
-                            return <strong key={j}>{part.slice(2, -2)}</strong>;
-                          }
-                          if (part.startsWith("[[") && part.endsWith("]]")) {
-                            return (
-                              <span key={j} className={styles.greenKey}>
-                                {part.slice(2, -2)}
-                              </span>
-                            );
-                          }
-                          return <span key={j}>{part}</span>;
-                        })}
-                        {i < message.text.split("\n").length - 1 && <br />}
-                      </React.Fragment>
-                    );
-                  })}
-                  {message.isStreaming && (
-                    <span className={styles.streamingCursor}>▊</span>
+                  {message.isStreaming ? (
+                    <StreamingText
+                      text={message.text}
+                      isStreaming={message.isStreaming}
+                      speed={30}
+                      showCursor={true}
+                    />
+                  ) : (
+                    message.text.split("\n").map((line, i) => {
+                      // Split by both **bold** and [[green key]] patterns
+                      const parts = line.split(/(\*\*.*?\*\*|\[\[.*?\]\])/g);
+                      return (
+                        <React.Fragment key={i}>
+                          {parts.map((part, j) => {
+                            if (part.startsWith("**") && part.endsWith("**")) {
+                              return <strong key={j}>{part.slice(2, -2)}</strong>;
+                            }
+                            if (part.startsWith("[[") && part.endsWith("]]")) {
+                              return (
+                                <span key={j} className={styles.greenKey}>
+                                  {part.slice(2, -2)}
+                                </span>
+                              );
+                            }
+                            return <span key={j}>{part}</span>;
+                          })}
+                          {i < message.text.split("\n").length - 1 && <br />}
+                        </React.Fragment>
+                      );
+                    })
                   )}
                 </div>
               </div>

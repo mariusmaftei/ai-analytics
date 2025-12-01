@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useCallback } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faKey,
@@ -12,7 +12,7 @@ import styles from "./PDFKeywordsExtraction.module.css";
 const PDFKeywordsExtraction = ({ data, rawText, analysisData }) => {
   const [searchQuery, setSearchQuery] = useState("");
 
-  const extractKeywords = () => {
+  const extractKeywords = useCallback(() => {
     if (!rawText) return { frequencies: [], clusters: [], allKeywords: [] };
 
     // Extract SECTION A: KEYWORD_FREQUENCY
@@ -379,7 +379,7 @@ const PDFKeywordsExtraction = ({ data, rawText, analysisData }) => {
                  !line.match(/^SECTION/i) && 
                  !commonWords.has(lower) &&
                  !line.match(/^\d+$/) &&
-                 !line.match(/^[\(\)\[\]]+$/);
+                 !line.match(/^[()[\]]+$/);
         });
       keywordLines.forEach((kw) => allKeywords.add(kw));
     }
@@ -389,7 +389,7 @@ const PDFKeywordsExtraction = ({ data, rawText, analysisData }) => {
       clusters,
       allKeywords: Array.from(allKeywords).sort(),
     };
-  };
+  }, [rawText]);
 
   const { frequencies, clusters, allKeywords } = useMemo(() => {
     const result = extractKeywords();
@@ -410,7 +410,7 @@ const PDFKeywordsExtraction = ({ data, rawText, analysisData }) => {
     }
     
     return result;
-  }, [rawText]);
+  }, [extractKeywords, rawText]);
 
   const filteredKeywords = useMemo(() => {
     if (!searchQuery.trim()) return allKeywords;

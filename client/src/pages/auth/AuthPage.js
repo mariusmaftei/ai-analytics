@@ -180,9 +180,9 @@ const AuthPage = () => {
 
           {isLogin && (
             <div className={styles.forgotPassword}>
-              <a href="#" className={styles.forgotLink}>
+              <button type="button" className={styles.forgotLink} onClick={(e) => { e.preventDefault(); }}>
                 Forgot password?
-              </a>
+              </button>
             </div>
           )}
 

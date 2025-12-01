@@ -105,7 +105,7 @@ const CSVCorrelationAnalysis = ({ data, rawText }) => {
         }
       }
 
-      if (lowerSection.includes("relationships") && !lowerSection.includes("pattern") && !lowerSection.includes("business") || index === 2) {
+      if ((lowerSection.includes("relationships") && !lowerSection.includes("pattern") && !lowerSection.includes("business")) || index === 2) {
         const bullets = sectionText.match(/- ([^\n]+)/g) || [];
         correlations.relationships = bullets.map(b => b.replace(/^- /, "").trim());
       }
@@ -248,7 +248,7 @@ const CSVCorrelationAnalysis = ({ data, rawText }) => {
                   <th>{col}</th>
                   {columns.map((_, colIdx) => {
                     const value = matrix[rowIdx][colIdx];
-                    const strength = getCorrelationStrength(value);
+                    getCorrelationStrength(value); // Used for color calculation
                     const direction = getCorrelationDirection(value);
                     const intensity = Math.abs(value);
                     const bgColor = direction.direction === "positive" 

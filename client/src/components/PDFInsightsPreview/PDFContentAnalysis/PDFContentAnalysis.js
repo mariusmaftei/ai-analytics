@@ -170,7 +170,7 @@ const PDFContentAnalysis = ({ data, rawText, analysisData }) => {
       // Try to find the category section - handle cases like "People (None" or "People: None"
       // Stop at next category (even on same line) or section marker
       const categoryPatterns = [
-        new RegExp(`${categoryLabel}\\s*[:\(]\\s*([\\s\\S]*?)(?=\\s*(?:People|Organizations?|Places?|Topics?|SECTION\\s+[A-Z]|Section\\s+[A-Z]):|$)`, 'i'),
+        new RegExp(`${categoryLabel}\\s*[:(]\\s*([\\s\\S]*?)(?=\\s*(?:People|Organizations?|Places?|Topics?|SECTION\\s+[A-Z]|Section\\s+[A-Z]):|$)`, 'i'),
         new RegExp(`${categoryLabel}\\s*:\\s*([\\s\\S]*?)(?=\\s*(?:People|Organizations?|Places?|Topics?|SECTION\\s+[A-Z]|Section\\s+[A-Z]):|$)`, 'i'),
       ];
       
@@ -244,7 +244,7 @@ const PDFContentAnalysis = ({ data, rawText, analysisData }) => {
           // Remove section markers
           item = item.replace(/SECTION\s+[A-Z]:/gi, '').trim();
           // Clean up quotes and brackets
-          item = item.replace(/^["'\[\]()]|["'\[\]()]$/g, '').trim();
+          item = item.replace(/^["'[\]()]|["'[\]()]$/g, '').trim();
           // Remove trailing "None" if it got attached
           item = item.replace(/\s*\(?none\)?$/i, '').trim();
           // Remove any sentiment analysis content that might have leaked in
@@ -284,7 +284,7 @@ const PDFContentAnalysis = ({ data, rawText, analysisData }) => {
       const extractEntityListFallback = (text, categoryLabel) => {
         const results = [];
         const categoryPatterns = [
-          new RegExp(`${categoryLabel}\\s*[:\(]\\s*([\\s\\S]*?)(?=\\s*(?:People|Organizations?|Places?|Topics?|SECTION\\s+[A-Z]|Section\\s+[A-Z]):|$)`, 'i'),
+          new RegExp(`${categoryLabel}\\s*[:(]\\s*([\\s\\S]*?)(?=\\s*(?:People|Organizations?|Places?|Topics?|SECTION\\s+[A-Z]|Section\\s+[A-Z]):|$)`, 'i'),
           new RegExp(`${categoryLabel}\\s*:\\s*([\\s\\S]*?)(?=\\s*(?:People|Organizations?|Places?|Topics?|SECTION\\s+[A-Z]|Section\\s+[A-Z]):|$)`, 'i'),
         ];
         
@@ -345,7 +345,7 @@ const PDFContentAnalysis = ({ data, rawText, analysisData }) => {
           .map(item => {
             item = item.replace(/^(People|Organizations?|Places?|Topics?)\s*:\s*/i, '').trim();
             item = item.replace(/SECTION\s+[A-Z]:/gi, '').trim();
-            item = item.replace(/^["'\[\]()]|["'\[\]()]$/g, '').trim();
+            item = item.replace(/^["'[\]()]|["'[\]()]$/g, '').trim();
             item = item.replace(/\s*\(?none\)?$/i, '').trim();
             item = item.replace(/\s*Overall Tone.*$/i, '').trim();
             item = item.replace(/\s*Sentiment:.*$/i, '').trim();

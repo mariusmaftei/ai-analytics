@@ -118,14 +118,6 @@ const ImageDocumentAnalysis = ({ data = {}, rawText = "" }) => {
     extractValue(summarySection, ["summary"], "") ||
     "The model has not provided a document summary for this image.";
 
-  const metadataEntries = structuredJson?.metadata
-    ? Object.entries(structuredJson.metadata).map(([label, value]) => ({
-        id: `metadata-${label}`,
-        label,
-        value,
-      }))
-    : [];
-
   const documentMetrics = [
     {
       label: "Document Type",

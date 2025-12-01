@@ -1,5 +1,5 @@
 """
-Image Service - Handle image analysis using Gemini Vision
+Image Service - Handle image analysis using Gemini Vision and YOLO
 """
 import json
 from PIL import Image
@@ -14,6 +14,14 @@ from services.image_analysis import (
     document as document_analysis,
     prompts as prompt_store,
 )
+
+# Try to import YOLO detection (optional)
+try:
+    from services.image_analysis import yolo_detection
+    YOLO_AVAILABLE = yolo_detection.is_yolo_available()
+except ImportError:
+    YOLO_AVAILABLE = False
+    print("[INFO] YOLO detection not available. Install with: pip install ultralytics")
 
 
 DEFAULT_PROMPTS = {
@@ -123,22 +131,119 @@ def analyze_image_with_ai(image_file, analysis_type="general", prompt_override=N
             image_obj = analysis_common.load_image_from_bytes(image_bytes)
 
             if analysis_type == "objects":
-                width, height = image_obj.size
-                enhanced_prompt = (
-                    f"{prompt}\n\nImage dimensions: {width} x {height} pixels.\n\n"
-                    "IMPORTANT: Use these exact dimensions for coordinates:\n"
-                    f"- x can be from 0 to {width - 1}\n"
-                    f"- y can be from 0 to {height - 1}\n"
-                    "- w and h must be positive and x+w <= width, y+h <= height\n"
-                    "- Measure coordinates carefully from the actual image pixels."
-                )
-                response = model.generate_content([enhanced_prompt, image_obj])
-                raw_response = response.text or ""
-                objects_data = analysis_common.parse_json_response(raw_response)
-                if objects_data and isinstance(objects_data, list):
-                    analysis_text = json.dumps(objects_data)
-                else:
-                    analysis_text = raw_response
+                # Use YOLO if available, otherwise fall back to Gemini
+                print(f"[DEBUG] Object detection requested. YOLO_AVAILABLE: {YOLO_AVAILABLE}")
+                if YOLO_AVAILABLE:
+                    try:
+                        print("[INFO] Using YOLO for object detection...")
+                        # Use YOLO for accurate object detection
+                        detected_objects = yolo_detection.detect_objects_yolo(
+                            image_bytes, 
+                            confidence_threshold=0.25,  # Lower threshold since YOLO is more accurate
+                            person_only=False
+                        )
+                        print(f"[INFO] YOLO detected {len(detected_objects)} objects")
+                        # Filter person detections with higher threshold
+                        filtered_objects = []
+                        for obj in detected_objects:
+                            obj_name_lower = str(obj.get('name', '')).lower()
+                            is_person = 'person' in obj_name_lower
+                            confidence = float(obj.get('confidence', 0.0))
+                            
+                            # Apply stricter threshold for persons
+                            if is_person and confidence < 0.50:  # YOLO is more accurate, can use lower threshold
+                                continue
+                            if not is_person and confidence < 0.25:
+                                continue
+                            
+                            filtered_objects.append(obj)
+                        
+                        print(f"[INFO] YOLO filtered to {len(filtered_objects)} objects after confidence filtering")
+                        analysis_text = json.dumps(filtered_objects)
+                    except Exception as e:
+                        print(f"[ERROR] YOLO detection failed, falling back to Gemini: {e}")
+                        import traceback
+                        traceback.print_exc()
+                        # Fall through to Gemini detection
+                        analysis_text = ""  # Will trigger Gemini fallback
+                
+                # Fallback to Gemini if YOLO not available or failed
+                if not YOLO_AVAILABLE or analysis_text == "":
+                    if not YOLO_AVAILABLE:
+                        print("[WARNING] YOLO not available, using Gemini for object detection")
+                    else:
+                        print("[WARNING] YOLO failed or returned empty, using Gemini for object detection")
+                    width, height = image_obj.size
+                    enhanced_prompt = (
+                        f"{prompt}\n\n"
+                        f"IMAGE DIMENSIONS: {width} pixels wide × {height} pixels tall\n\n"
+                        "CRITICAL DETECTION ACCURACY - READ CAREFULLY:\n"
+                        "- ONLY detect objects that are ACTUALLY VISIBLE in this specific image\n"
+                        "- For person/face detection: ONLY include if you can clearly see:\n"
+                        "  * Visible facial features (eyes, nose, mouth) that are clearly recognizable\n"
+                        "  * Actual skin color that matches the person visible in the image\n"
+                        "  * Face shape that is clearly visible and matches the person's actual appearance\n"
+                        "  * The person must be physically present, not a shadow, reflection, or imagined\n"
+                        "- DO NOT detect people in reflections unless the reflection shows a distinct, clearly visible person\n"
+                        "- DO NOT detect based on partial shapes, shadows, or ambiguous patterns\n"
+                        "- If uncertain, DO NOT include - only include high-confidence detections (minimum 0.85 for persons)\n"
+                        "- Be conservative: fewer accurate detections are better than false positives\n\n"
+                        "CRITICAL COORDINATE REQUIREMENTS:\n"
+                        f"- The image is EXACTLY {width} pixels wide and {height} pixels tall\n"
+                        f"- x coordinate: integer from 0 to {width - 1} (0 = leftmost pixel, {width - 1} = rightmost pixel)\n"
+                        f"- y coordinate: integer from 0 to {height - 1} (0 = topmost pixel, {height - 1} = bottommost pixel)\n"
+                        f"- w (width): positive integer, must satisfy: x + w ≤ {width}\n"
+                        f"- h (height): positive integer, must satisfy: y + h ≤ {height}\n"
+                        "- The coordinates (x, y) represent the TOP-LEFT corner of the bounding box\n"
+                        "- IMPORTANT: (x, y) should be the EXACT pixel where the object's top-left corner STARTS - not before it, not after it\n"
+                        "- The bounding box should START at the object's edge: x should be where the object's leftmost visible pixel begins, y should be where the object's topmost visible pixel begins\n"
+                        "- w and h should extend to include the object's rightmost and bottommost pixels\n"
+                        "- Use ABSOLUTE pixel coordinates - count actual pixels from the top-left corner (0,0)\n"
+                        "- DO NOT use normalized coordinates (0.0 to 1.0) - use actual integer pixel values\n"
+                        "- DO NOT scale coordinates - use the exact pixel position in the {width}x{height} image\n"
+                        "- Example for a {width}x{height} image: If a person's head starts 174 pixels from left and 389 pixels from top, use x=174, y=389\n"
+                        "- Another example: If an object is in the center-right, it might be at x={width//2}, y={height//2}\n"
+                        "- Be extremely precise: visually measure where each object's edges actually start by counting pixels from (0,0)\n"
+                        "- The bounding box should tightly enclose the entire object with the box starting exactly at the object's edges"
+                    )
+                    response = model.generate_content([enhanced_prompt, image_obj])
+                    raw_response = response.text or ""
+                    objects_data = analysis_common.parse_json_response(raw_response)
+                    if objects_data and isinstance(objects_data, list):
+                        filtered_objects = []
+                        for obj in objects_data:
+                            # Filter out low-confidence person/face detections
+                            obj_name_lower = str(obj.get('name', '')).lower()
+                            is_person = 'person' in obj_name_lower or 'face' in obj_name_lower or 'human' in obj_name_lower
+                            confidence = float(obj.get('confidence', 0.0))
+                            
+                            # Apply stricter confidence thresholds
+                            if is_person and confidence < 0.85:
+                                continue  # Skip low-confidence person detections
+                            if not is_person and confidence < 0.70:
+                                continue  # Skip low-confidence other object detections
+                            
+                            if 'x' in obj and 'y' in obj and 'w' in obj and 'h' in obj:
+                                x_val = float(obj['x'])
+                                y_val = float(obj['y'])
+                                w_val = float(obj['w'])
+                                h_val = float(obj['h'])
+                                
+                                if x_val < 1.0 and y_val < 1.0 and w_val < 1.0 and h_val < 1.0:
+                                    x_val = x_val * width
+                                    y_val = y_val * height
+                                    w_val = w_val * width
+                                    h_val = h_val * height
+                                
+                                obj['x'] = max(0, min(int(x_val), width - 1))
+                                obj['y'] = max(0, min(int(y_val), height - 1))
+                                obj['w'] = max(1, min(int(w_val), width - obj['x']))
+                                obj['h'] = max(1, min(int(h_val), height - obj['y']))
+                                
+                                filtered_objects.append(obj)
+                        analysis_text = json.dumps(filtered_objects)
+                    else:
+                        analysis_text = raw_response
             else:
                 response = model.generate_content([prompt, image_obj])
                 analysis_text = response.text or ""
@@ -195,14 +300,69 @@ def analyze_image_stream(image_file, analysis_type="general", prompt_override=No
         image_obj = analysis_common.load_image_from_bytes(image_bytes)
 
         if analysis_type == "objects":
+            # Use YOLO if available, otherwise fall back to Gemini
+            if YOLO_AVAILABLE:
+                try:
+                    # Use YOLO for accurate object detection
+                    detected_objects = yolo_detection.detect_objects_yolo(
+                        image_bytes, 
+                        confidence_threshold=0.25,
+                        person_only=False
+                    )
+                    # Filter person detections with higher threshold
+                    filtered_objects = []
+                    for obj in detected_objects:
+                        obj_name_lower = str(obj.get('name', '')).lower()
+                        is_person = 'person' in obj_name_lower
+                        confidence = float(obj.get('confidence', 0.0))
+                        
+                        # Apply stricter threshold for persons
+                        if is_person and confidence < 0.50:  # YOLO is more accurate, can use lower threshold
+                            continue
+                        if not is_person and confidence < 0.25:
+                            continue
+                        
+                        filtered_objects.append(obj)
+                    
+                    yield f"[OBJECTS_JSON]{json.dumps(filtered_objects)}"
+                    return
+                except Exception as e:
+                    print(f"[WARNING] YOLO detection failed, falling back to Gemini: {e}")
+                    # Fall through to Gemini detection
+            
+            # Fallback to Gemini if YOLO not available or failed
             width, height = image_obj.size
             enhanced_prompt = (
-                f"{prompt}\n\nImage dimensions: {width} x {height} pixels.\n\n"
-                "IMPORTANT: Use these exact dimensions for coordinates:\n"
-                f"- x can be from 0 to {width - 1}\n"
-                f"- y can be from 0 to {height - 1}\n"
-                "- w and h must be positive and x+w <= width, y+h <= height\n"
-                "- Measure coordinates carefully from the actual image pixels."
+                f"{prompt}\n\n"
+                f"IMAGE DIMENSIONS: {width} pixels wide × {height} pixels tall\n\n"
+                "CRITICAL DETECTION ACCURACY - READ CAREFULLY:\n"
+                "- ONLY detect objects that are ACTUALLY VISIBLE in this specific image\n"
+                "- For person/face detection: ONLY include if you can clearly see:\n"
+                "  * Visible facial features (eyes, nose, mouth) that are clearly recognizable\n"
+                "  * Actual skin color that matches the person visible in the image\n"
+                "  * Face shape that is clearly visible and matches the person's actual appearance\n"
+                "  * The person must be physically present, not a shadow, reflection, or imagined\n"
+                "- DO NOT detect people in reflections unless the reflection shows a distinct, clearly visible person\n"
+                "- DO NOT detect based on partial shapes, shadows, or ambiguous patterns\n"
+                "- If uncertain, DO NOT include - only include high-confidence detections (minimum 0.85 for persons)\n"
+                "- Be conservative: fewer accurate detections are better than false positives\n\n"
+                "CRITICAL COORDINATE REQUIREMENTS:\n"
+                f"- The image is EXACTLY {width} pixels wide and {height} pixels tall\n"
+                f"- x coordinate: integer from 0 to {width - 1} (0 = leftmost pixel, {width - 1} = rightmost pixel)\n"
+                f"- y coordinate: integer from 0 to {height - 1} (0 = topmost pixel, {height - 1} = bottommost pixel)\n"
+                f"- w (width): positive integer, must satisfy: x + w ≤ {width}\n"
+                f"- h (height): positive integer, must satisfy: y + h ≤ {height}\n"
+                "- The coordinates (x, y) represent the TOP-LEFT corner of the bounding box\n"
+                "- IMPORTANT: (x, y) should be the EXACT pixel where the object's top-left corner STARTS - not before it, not after it\n"
+                "- The bounding box should START at the object's edge: x should be where the object's leftmost visible pixel begins, y should be where the object's topmost visible pixel begins\n"
+                "- w and h should extend to include the object's rightmost and bottommost pixels\n"
+                "- Use ABSOLUTE pixel coordinates - count actual pixels from the top-left corner (0,0)\n"
+                "- DO NOT use normalized coordinates (0.0 to 1.0) - use actual integer pixel values\n"
+                "- DO NOT scale coordinates - use the exact pixel position in the {width}x{height} image\n"
+                "- Example for a {width}x{height} image: If a person's head starts 174 pixels from left and 389 pixels from top, use x=174, y=389\n"
+                "- Another example: If an object is in the center-right, it might be at x={width//2}, y={height//2}\n"
+                "- Be extremely precise: visually measure where each object's edges actually start by counting pixels from (0,0)\n"
+                "- The bounding box should tightly enclose the entire object with the box starting exactly at the object's edges"
             )
             full_response = ""
             response = model.generate_content([enhanced_prompt, image_obj], stream=True)
@@ -212,7 +372,38 @@ def analyze_image_stream(image_file, analysis_type="general", prompt_override=No
 
             objects_data = analysis_common.parse_json_response(full_response)
             if objects_data and isinstance(objects_data, list):
-                yield f"[OBJECTS_JSON]{json.dumps(objects_data)}"
+                filtered_objects = []
+                for obj in objects_data:
+                    # Filter out low-confidence person/face detections
+                    obj_name_lower = str(obj.get('name', '')).lower()
+                    is_person = 'person' in obj_name_lower or 'face' in obj_name_lower or 'human' in obj_name_lower
+                    confidence = float(obj.get('confidence', 0.0))
+                    
+                    # Apply stricter confidence thresholds
+                    if is_person and confidence < 0.85:
+                        continue  # Skip low-confidence person detections
+                    if not is_person and confidence < 0.70:
+                        continue  # Skip low-confidence other object detections
+                    
+                    if 'x' in obj and 'y' in obj and 'w' in obj and 'h' in obj:
+                        x_val = float(obj['x'])
+                        y_val = float(obj['y'])
+                        w_val = float(obj['w'])
+                        h_val = float(obj['h'])
+                        
+                        if x_val < 1.0 and y_val < 1.0 and w_val < 1.0 and h_val < 1.0:
+                            x_val = x_val * width
+                            y_val = y_val * height
+                            w_val = w_val * width
+                            h_val = h_val * height
+                        
+                        obj['x'] = max(0, min(int(x_val), width - 1))
+                        obj['y'] = max(0, min(int(y_val), height - 1))
+                        obj['w'] = max(1, min(int(w_val), width - obj['x']))
+                        obj['h'] = max(1, min(int(h_val), height - obj['y']))
+                        
+                        filtered_objects.append(obj)
+                yield f"[OBJECTS_JSON]{json.dumps(filtered_objects)}"
             else:
                 yield full_response
             return

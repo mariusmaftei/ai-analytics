@@ -3,7 +3,7 @@
  * Handles PDF extraction and AI analysis
  */
 
-import api, { API_BASE_URL } from './api';
+import api from './api';
 
 /**
  * Upload and analyze PDF file with real backend

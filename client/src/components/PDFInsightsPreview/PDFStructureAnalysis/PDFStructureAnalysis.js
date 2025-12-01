@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faSitemap,
@@ -498,7 +498,7 @@ const PDFStructureAnalysis = ({ data, rawText, analysisData }) => {
   };
 
   // Convert tree structure to rc-tree format
-  const convertToTreeData = (node, keyPrefix = "0", index = 0) => {
+  const convertToTreeData = useCallback((node, keyPrefix = "0", index = 0) => {
     if (!node || !node.name) {
       return null;
     }
@@ -522,7 +522,7 @@ const PDFStructureAnalysis = ({ data, rawText, analysisData }) => {
     }
 
     return treeNode;
-  };
+  }, []);
 
   // Extract data after functions are defined
   const structuralMapText = extractStructuralMap();
@@ -553,7 +553,7 @@ const PDFStructureAnalysis = ({ data, rawText, analysisData }) => {
         console.warn("[PDFStructureAnalysis] Tree structure has no children!");
       }
     }
-  }, [treeStructure]);
+  }, [treeStructure, convertToTreeData]);
 
   // Initialize expanded keys - expand first 2 levels by default
   React.useEffect(() => {

@@ -1,0 +1,17 @@
+.cursor {
+  display: inline-block;
+  margin-left: 2px;
+  color: var(--primary-color);
+  animation: blink 1s infinite;
+  font-weight: 400;
+}
+
+@keyframes blink {
+  0%, 50% {
+    opacity: 1;
+  }
+  51%, 100% {
+    opacity: 0;
+  }
+}
+

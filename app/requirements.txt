@@ -8,4 +8,11 @@ Pillow==10.1.0
 pinecone>=3.0.0
 requests==2.31.0
 gunicorn==21.2.0
+psutil==5.9.6
+# CPU-only PyTorch (saves ~2-3GB vs GPU version) - must install from PyTorch CPU index
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.5.1+cpu
+torchvision==0.20.1+cpu
+# Pin ultralytics to avoid dependency resolution issues
+ultralytics==8.3.233
 

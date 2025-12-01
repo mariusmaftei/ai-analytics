@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useCallback } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faCheckCircle, faEye } from "@fortawesome/free-solid-svg-icons";
 import styles from "./ImageObjectDetection.module.css";
@@ -23,6 +23,9 @@ const ImageObjectDetection = ({
     left: 0,
     top: 0,
   });
+  const [cursorCoords, setCursorCoords] = useState({ x: null, y: null });
+  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+  const [isHovering, setIsHovering] = useState(false);
   const imageRef = React.useRef(null);
   const containerRef = React.useRef(null);
 
@@ -100,7 +103,7 @@ const ImageObjectDetection = ({
     return { x: null, y: null, w: null, h: null };
   };
 
-  const parseObjects = () => {
+  const parseObjects = useCallback(() => {
     const objects = [];
 
     if (rawText) {
@@ -433,19 +436,18 @@ const ImageObjectDetection = ({
     }
 
     return objects;
-  };
+  }, [rawText, detectionsSection, sections, data]);
 
   const objects = useMemo(() => {
-    const parsed = parseObjects();
-    return parsed;
-  }, [detectionsSection, rawText]);
+    return parseObjects();
+  }, [parseObjects]);
 
   useEffect(() => {
     if (objects.length > 0) {
       const allIds = objects.map((obj) => obj.id);
       setVisibleBoxes(new Set(allIds));
     }
-  }, [objects.length]);
+  }, [objects]);
 
   const toggleBoxVisibility = (objectId) => {
     setVisibleBoxes((prev) => {
@@ -663,11 +665,83 @@ const ImageObjectDetection = ({
 
       {displayImageUrl && (
         <div className={styles.imageSection}>
-          <div ref={containerRef} className={styles.imageContainer}>
+          <div 
+            ref={containerRef} 
+            className={styles.imageContainer}
+            onMouseMove={(e) => {
+              if (!imageRef.current || !containerRef.current) return;
+              
+              const img = imageRef.current;
+              const container = containerRef.current;
+              const imgRect = img.getBoundingClientRect();
+              const containerRect = container.getBoundingClientRect();
+              
+              const mouseX = e.clientX - imgRect.left;
+              const mouseY = e.clientY - imgRect.top;
+              
+              if (
+                mouseX >= 0 &&
+                mouseX <= imgRect.width &&
+                mouseY >= 0 &&
+                mouseY <= imgRect.height
+              ) {
+                const naturalAspect = imageDimensions.width / imageDimensions.height;
+                const renderedAspect = imgRect.width / imgRect.height;
+                
+                let visibleImageWidth, visibleImageHeight, offsetX = 0, offsetY = 0;
+                
+                if (Math.abs(naturalAspect - renderedAspect) > 0.01) {
+                  if (naturalAspect > renderedAspect) {
+                    visibleImageWidth = imgRect.width;
+                    visibleImageHeight = imgRect.width / naturalAspect;
+                    offsetY = (imgRect.height - visibleImageHeight) / 2;
+                  } else {
+                    visibleImageHeight = imgRect.height;
+                    visibleImageWidth = imgRect.height * naturalAspect;
+                    offsetX = (imgRect.width - visibleImageWidth) / 2;
+                  }
+                } else {
+                  visibleImageWidth = imgRect.width;
+                  visibleImageHeight = imgRect.height;
+                }
+                
+                const relativeX = mouseX - offsetX;
+                const relativeY = mouseY - offsetY;
+                
+                if (
+                  relativeX >= 0 &&
+                  relativeX <= visibleImageWidth &&
+                  relativeY >= 0 &&
+                  relativeY <= visibleImageHeight
+                ) {
+                  const scaleX = imageDimensions.width / visibleImageWidth;
+                  const scaleY = imageDimensions.height / visibleImageHeight;
+                  
+                  const actualX = Math.round(relativeX * scaleX);
+                  const actualY = Math.round(relativeY * scaleY);
+                  
+                  setCursorCoords({ x: actualX, y: actualY });
+                  setMousePosition({ 
+                    x: e.clientX - containerRect.left, 
+                    y: e.clientY - containerRect.top 
+                  });
+                  setIsHovering(true);
+                } else {
+                  setIsHovering(false);
+                }
+              } else {
+                setIsHovering(false);
+              }
+            }}
+            onMouseLeave={() => {
+              setIsHovering(false);
+              setCursorCoords({ x: null, y: null });
+            }}
+          >
             <img
               ref={imageRef}
               src={displayImageUrl}
-              alt="Image with detected objects"
+              alt="Detected objects"
               className={styles.detectionImage}
               onLoad={(e) => {
                 const img = e.target;
@@ -703,21 +777,58 @@ const ImageObjectDetection = ({
                 const imgRect = imgElement.getBoundingClientRect();
                 const containerRect =
                   containerRef.current.getBoundingClientRect();
+                
+                const naturalAspect =
+                  imageDimensions.width / imageDimensions.height;
+                const renderedAspect = imgRect.width / imgRect.height;
+
+                let visibleImageWidth, visibleImageHeight, offsetX = 0, offsetY = 0;
+
+                if (Math.abs(naturalAspect - renderedAspect) > 0.01) {
+                  if (naturalAspect > renderedAspect) {
+                    visibleImageWidth = imgRect.width;
+                    visibleImageHeight = imgRect.width / naturalAspect;
+                    offsetY = (imgRect.height - visibleImageHeight) / 2;
+                  } else {
+                    visibleImageHeight = imgRect.height;
+                    visibleImageWidth = imgRect.height * naturalAspect;
+                    offsetX = (imgRect.width - visibleImageWidth) / 2;
+                  }
+                } else {
+                  visibleImageWidth = imgRect.width;
+                  visibleImageHeight = imgRect.height;
+                }
+
                 const overlayLeft = imgRect.left - containerRect.left;
                 const overlayTop = imgRect.top - containerRect.top;
 
                 return (
-                  <div
-                    className={styles.boundingBoxesOverlay}
-                    style={{
-                      position: "absolute",
-                      left: `${overlayLeft}px`,
-                      top: `${overlayTop}px`,
-                      width: `${imgRect.width}px`,
-                      height: `${imgRect.height}px`,
-                      pointerEvents: "none",
-                    }}
-                  >
+                  <>
+                    {isHovering && cursorCoords.x !== null && cursorCoords.y !== null && (
+                      <div
+                        className={styles.coordinateDisplay}
+                        style={{
+                          position: "absolute",
+                          left: `${mousePosition.x + 15}px`,
+                          top: `${mousePosition.y - 35}px`,
+                          pointerEvents: "none",
+                          zIndex: 1000,
+                        }}
+                      >
+                        x: {cursorCoords.x} y: {cursorCoords.y}
+                      </div>
+                    )}
+                    <div
+                      className={styles.boundingBoxesOverlay}
+                      style={{
+                        position: "absolute",
+                        left: `${overlayLeft}px`,
+                        top: `${overlayTop}px`,
+                        width: `${imgRect.width}px`,
+                        height: `${imgRect.height}px`,
+                        pointerEvents: "none",
+                      }}
+                    >
                     {objects.map((obj) => {
                       const color = getCategoryColor(obj.label);
 
@@ -734,36 +845,17 @@ const ImageObjectDetection = ({
                         return null;
                       }
 
-                      const naturalAspect =
-                        imageDimensions.width / imageDimensions.height;
-                      const renderedAspect = imgRect.width / imgRect.height;
-
-                      let visibleImageWidth,
-                        visibleImageHeight,
-                        offsetX = 0,
-                        offsetY = 0;
-
-                      if (Math.abs(naturalAspect - renderedAspect) > 0.01) {
-                        if (naturalAspect > renderedAspect) {
-                          visibleImageWidth = imgRect.width;
-                          visibleImageHeight = imgRect.width / naturalAspect;
-                          offsetY = (imgRect.height - visibleImageHeight) / 2;
-                        } else {
-                          visibleImageHeight = imgRect.height;
-                          visibleImageWidth = imgRect.height * naturalAspect;
-                          offsetX = (imgRect.width - visibleImageWidth) / 2;
-                        }
-                      } else {
-                        visibleImageWidth = imgRect.width;
-                        visibleImageHeight = imgRect.height;
-                      }
-
                       const scaleX = visibleImageWidth / imageDimensions.width;
-                      const scaleY =
-                        visibleImageHeight / imageDimensions.height;
+                      const scaleY = visibleImageHeight / imageDimensions.height;
 
-                      const left = obj.location.x * scaleX + offsetX;
-                      const top = obj.location.y * scaleY + offsetY;
+                      // YOLO provides accurate coordinates, no adjustment needed
+                      // Only apply small adjustment for Gemini fallback (if confidence is very low, it might be Gemini)
+                      const isLowConfidence = obj.confidence !== null && obj.confidence < 0.6;
+                      const offsetAdjustmentX = isLowConfidence ? Math.max(2, scaleX * 0.5) : 0;
+                      const offsetAdjustmentY = isLowConfidence ? Math.max(2, scaleY * 0.5) : 0;
+
+                      const left = obj.location.x * scaleX + offsetX + offsetAdjustmentX;
+                      const top = obj.location.y * scaleY + offsetY + offsetAdjustmentY;
                       const width = obj.location.w * scaleX;
                       const height = obj.location.h * scaleY;
 
@@ -787,10 +879,8 @@ const ImageObjectDetection = ({
                       if (
                         clampedLeft < offsetX ||
                         clampedTop < offsetY ||
-                        clampedLeft + clampedWidth >
-                          offsetX + visibleImageWidth ||
-                        clampedTop + clampedHeight >
-                          offsetY + visibleImageHeight
+                        clampedLeft + clampedWidth > offsetX + visibleImageWidth ||
+                        clampedTop + clampedHeight > offsetY + visibleImageHeight
                       ) {
                         return null;
                       }
@@ -832,6 +922,7 @@ const ImageObjectDetection = ({
                       );
                     })}
                   </div>
+                  </>
                 );
               })()}
           </div>

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
@@ -14,7 +14,8 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import { useSession } from "../../context/SessionContext";
 import { generateAIResponseStream } from "../../services/aiService";
-import Modal from "../../components/UI/Modal/Modal";
+import Modal from "../../components/Shared/Modal/Modal";
+import StreamingText from "../../components/Shared/StreamingText/StreamingText";
 import styles from "./HomePage.module.css";
 
 const HomePage = () => {
@@ -35,97 +36,7 @@ const HomePage = () => {
   const navigate = useNavigate();
   const { currentSessionId, createNewSession, addFileToSession } = useSession();
 
-  // Smooth streaming refs
   const streamingBufferRef = useRef("");
-  const displayedTextRef = useRef("");
-  const animationFrameRef = useRef(null);
-  const lastUpdateTimeRef = useRef(0);
-  const isStreamingActiveRef = useRef(false);
-
-  // Smooth streaming update function - reveals text character by character
-  const updateStreamingMessage = useCallback(() => {
-    if (!isStreamingActiveRef.current) {
-      return;
-    }
-
-    const now = Date.now();
-    const timeSinceLastUpdate = now - lastUpdateTimeRef.current;
-    const targetBuffer = streamingBufferRef.current;
-    const currentDisplayed = displayedTextRef.current;
-
-    // Update every 50ms for natural typing speed (~20-25 chars per second)
-    if (timeSinceLastUpdate >= 50) {
-      const remaining = targetBuffer.length - currentDisplayed.length;
-
-      if (remaining > 0) {
-        // Calculate base characters to reveal
-        const baseChars = Math.max(1, Math.floor(timeSinceLastUpdate / 40));
-
-        // Try to reveal up to the end of the next word for smoother appearance
-        let charsToReveal = Math.min(baseChars, remaining);
-        const nextCharIndex = currentDisplayed.length + charsToReveal;
-
-        // If we're in the middle of a word and there's more text, try to complete the word
-        if (nextCharIndex < targetBuffer.length) {
-          const nextChar = targetBuffer[nextCharIndex];
-          const isWordChar = /[a-zA-Z0-9]/.test(nextChar);
-          const currentChar = targetBuffer[nextCharIndex - 1];
-          const isCurrentWordChar = /[a-zA-Z0-9]/.test(currentChar);
-
-          // If we're in a word, try to complete it (up to reasonable limit)
-          if (isCurrentWordChar && isWordChar && charsToReveal < 15) {
-            const nextSpace = targetBuffer.indexOf(" ", nextCharIndex);
-            const nextNewline = targetBuffer.indexOf("\n", nextCharIndex);
-            const nextBreak =
-              nextSpace === -1
-                ? nextNewline
-                : nextNewline === -1
-                ? nextSpace
-                : Math.min(nextSpace, nextNewline);
-
-            if (nextBreak !== -1 && nextBreak - currentDisplayed.length <= 20) {
-              charsToReveal = nextBreak - currentDisplayed.length + 1;
-            }
-          }
-        }
-
-        charsToReveal = Math.min(charsToReveal, remaining);
-        displayedTextRef.current = targetBuffer.substring(
-          0,
-          currentDisplayed.length + charsToReveal
-        );
-
-        setMessages((prev) => {
-          const newMessages = [...prev];
-          const lastMessage = newMessages[newMessages.length - 1];
-          if (
-            lastMessage &&
-            lastMessage.type === "ai" &&
-            lastMessage.isStreaming
-          ) {
-            lastMessage.text = displayedTextRef.current;
-          }
-          return newMessages;
-        });
-
-        lastUpdateTimeRef.current = now;
-      }
-    }
-
-    // Continue updating if there's more to reveal or more chunks coming
-    if (isStreamingActiveRef.current) {
-      animationFrameRef.current = requestAnimationFrame(updateStreamingMessage);
-    }
-  }, []);
-
-  // Cleanup animation frame on unmount
-  useEffect(() => {
-    return () => {
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
-      }
-    };
-  }, []);
 
   // Scroll to bottom when messages change or typing indicator appears
   useEffect(() => {
@@ -346,22 +257,26 @@ const HomePage = () => {
         },
       ]);
 
-      // Initialize streaming buffers and state
+      // Initialize streaming buffer
       streamingBufferRef.current = "";
-      displayedTextRef.current = "";
-      lastUpdateTimeRef.current = Date.now();
-      isStreamingActiveRef.current = true;
-
-      // Start the smooth streaming animation loop
-      animationFrameRef.current = requestAnimationFrame(updateStreamingMessage);
 
       // Send only the user message to backend
       // Backend will build the full prompt with system context
       const response = await generateAIResponseStream(
         currentInput,
         (chunk) => {
-          // Accumulate chunks in buffer without triggering re-render
+          // Accumulate chunks in buffer
           streamingBufferRef.current += chunk;
+          
+          // Update message text in real-time for streaming effect
+          setMessages((prev) => {
+            const newMessages = [...prev];
+            const lastMessage = newMessages[newMessages.length - 1];
+            if (lastMessage && lastMessage.type === "ai" && lastMessage.isStreaming) {
+              lastMessage.text = streamingBufferRef.current;
+            }
+            return newMessages;
+          });
         },
         {
           temperature: 0.7,
@@ -381,21 +296,8 @@ const HomePage = () => {
         throw new Error("Empty response from AI");
       }
 
-      // Stop streaming animation
-      isStreamingActiveRef.current = false;
-
-      // Wait a bit for any remaining characters to be revealed smoothly
-      await new Promise((resolve) => setTimeout(resolve, 100));
-
-      // Cancel animation frame
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
-        animationFrameRef.current = null;
-      }
-
       // Final update - ensure all text is displayed and mark streaming as complete
       const finalText = streamingBufferRef.current || response;
-      displayedTextRef.current = finalText;
 
       setMessages((prev) => {
         const newMessages = [...prev];
@@ -407,24 +309,13 @@ const HomePage = () => {
         return newMessages;
       });
 
-      // Clear buffers
+      // Clear buffer
       streamingBufferRef.current = "";
-      displayedTextRef.current = "";
     } catch (error) {
       console.error("AI Error:", error);
 
-      // Stop streaming animation
-      isStreamingActiveRef.current = false;
-
-      // Cancel animation frame
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
-        animationFrameRef.current = null;
-      }
-
-      // Clear buffers
+      // Clear buffer
       streamingBufferRef.current = "";
-      displayedTextRef.current = "";
 
       // Hide typing indicator
       setIsTyping(false);
@@ -490,15 +381,13 @@ const HomePage = () => {
                         message.isError ? styles.errorMessage : ""
                       }`}
                     >
-                      {message.text.split("\n").map((line, i) => (
-                        <React.Fragment key={i}>
-                          {line}
-                          {i < message.text.split("\n").length - 1 && <br />}
-                        </React.Fragment>
-                      ))}
-                      {message.isStreaming && (
-                        <span className={styles.streamingCursor}>▊</span>
-                      )}
+                      <StreamingText
+                        key={`${index}-${message.timestamp?.getTime() || index}`}
+                        text={message.text}
+                        isStreaming={message.isStreaming}
+                        speed={30}
+                        showCursor={message.isStreaming}
+                      />
                     </div>
                   </div>
                 </div>

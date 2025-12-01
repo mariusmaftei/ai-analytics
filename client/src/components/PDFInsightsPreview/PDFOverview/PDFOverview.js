@@ -3,11 +3,6 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faFilePdf,
   faFileAlt,
-  faClock,
-  faUser,
-  faDatabase,
-  faLanguage,
-  faTag,
   faImage,
   faTable,
   faList,
@@ -42,7 +37,7 @@ const PDFOverview = ({ data, rawText, fileData, analysisData }) => {
       }
 
       // Try other patterns
-      const purposeMatch = rawText.match(/(?:document_category|category|document type|document_type)[:\-]?\s*([^\n]+)/i);
+      const purposeMatch = rawText.match(/(?:document_category|category|document type|document_type)[:-]?\s*([^\n]+)/i);
       if (purposeMatch) {
         const category = purposeMatch[1].trim();
         const words = category.split(/\s+/).slice(0, 4);
@@ -131,7 +126,7 @@ const PDFOverview = ({ data, rawText, fileData, analysisData }) => {
           .replace(/SECTION:/gi, '')
           .replace(/DOCUMENT_CATEGORY:/gi, '')
           .replace(/\*\*[^*]+\*\*/g, '')
-          .replace(/\[.*?\]/g, '')
+          .replace(/\[.*?]/g, '')
           .replace(/document_type\s*\|[^\n]+/gi, '')
           .replace(/page_count\s*\|[^\n]+/gi, '')
           .replace(/word_count\s*\|[^\n]+/gi, '')
@@ -146,7 +141,7 @@ const PDFOverview = ({ data, rawText, fileData, analysisData }) => {
         description = description.replace(/\s+/g, ' ').trim();
         
         // Remove any remaining structured data patterns
-        description = description.replace(/\w+\s*\|\s*[^\|]+\|/g, '').trim();
+        description = description.replace(/\w+\s*\|\s*[^|]+\|/g, '').trim();
         
         // Extract first 4-5 sentences
         const sentences = description.split(/[.!?]+/).filter(s => {

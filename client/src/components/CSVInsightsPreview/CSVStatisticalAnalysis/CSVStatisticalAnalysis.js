@@ -4,7 +4,6 @@ import {
   faChartBar,
   faChartLine,
   faCalculator,
-  faDatabase,
 } from "@fortawesome/free-solid-svg-icons";
 import {
   Chart as ChartJS,
