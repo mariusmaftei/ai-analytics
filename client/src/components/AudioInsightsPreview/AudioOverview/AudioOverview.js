@@ -2,16 +2,28 @@ import React from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faVolumeUp,
-  faClock,
-  faFileAudio,
-  faLanguage,
   faUsers,
-  faMicrophone,
   faInfoCircle,
   faTags,
   faTasks,
   faSmile,
 } from "@fortawesome/free-solid-svg-icons";
+import {
+  CONTENT_TYPE_PATTERN,
+  KEY_THEMES_PATTERN,
+  KEY_THEMES_HEADER_PATTERN,
+  BULLET_EXTRACTION_PATTERN,
+  BULLET_MARKER_PATTERN,
+  METADATA_FIELD_HEADER_PATTERN,
+  ARTIST_EXTRACTION_PATTERN,
+  ALBUM_EXTRACTION_PATTERN,
+  TYPE_OF_MUSIC_EXTRACTION_PATTERN,
+  GENRE_EXTRACTION_PATTERN,
+  DESCRIPTION_EXTRACTION_PATTERN,
+  SENTENCE_ENDING_PATTERN,
+  createSectionPattern,
+} from "../../../utils/audioRegexPatterns";
+import { formatLanguage } from "../../../utils/audioParsingHelpers";
 import styles from "./AudioOverview.module.css";
 
 const AudioOverview = ({ data, rawText, fileData, analysisData }) => {
@@ -29,79 +41,9 @@ const AudioOverview = ({ data, rawText, fileData, analysisData }) => {
     return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
   };
 
-  const formatLanguage = (langCode) => {
-    if (!langCode || langCode === "UNKNOWN") return "Unknown";
-
-    // Language code to full name mapping
-    const languageMap = {
-      LA: "Latin",
-      EN: "English",
-      EN_US: "English (US)",
-      ES: "Spanish",
-      FR: "French",
-      DE: "German",
-      IT: "Italian",
-      PT: "Portuguese",
-      RU: "Russian",
-      ZH: "Chinese",
-      JA: "Japanese",
-      KO: "Korean",
-      AR: "Arabic",
-      HI: "Hindi",
-      NL: "Dutch",
-      PL: "Polish",
-      TR: "Turkish",
-      SV: "Swedish",
-      DA: "Danish",
-      NO: "Norwegian",
-      FI: "Finnish",
-      EL: "Greek",
-      HE: "Hebrew",
-      TH: "Thai",
-      VI: "Vietnamese",
-      CS: "Czech",
-      HU: "Hungarian",
-      RO: "Romanian",
-      BG: "Bulgarian",
-      HR: "Croatian",
-      SK: "Slovak",
-      SL: "Slovenian",
-      ET: "Estonian",
-      LV: "Latvian",
-      LT: "Lithuanian",
-      UK: "Ukrainian",
-      SR: "Serbian",
-      MK: "Macedonian",
-      SQ: "Albanian",
-      BS: "Bosnian",
-      IS: "Icelandic",
-      GA: "Irish",
-      MT: "Maltese",
-      CY: "Welsh",
-      CA: "Catalan",
-      EU: "Basque",
-      GL: "Galician",
-    };
-
-    // Check if it's a known code
-    const upperCode = langCode.toUpperCase();
-    if (languageMap[upperCode]) {
-      return languageMap[upperCode];
-    }
-
-    // If it's a code like "EN_US", try to get the base code
-    const baseCode = upperCode.split("_")[0];
-    if (languageMap[baseCode]) {
-      return languageMap[baseCode];
-    }
-
-    // If not found, return the code as-is (might be a full name already)
-    return langCode;
-  };
-
   const getContentType = () => {
     if (rawText) {
-      const match = rawText.match(/Content Type:\s*([^\n]+)/i);
+      const match = rawText.match(CONTENT_TYPE_PATTERN);
       if (match) return match[1].trim();
     }
     if (data?.sections) {
@@ -198,7 +140,10 @@ const AudioOverview = ({ data, rawText, fileData, analysisData }) => {
             if (item.type === "bullet") {
               // Check if the bullet contains multiple topics separated by dashes
               const topicText = item.text.trim();
-              if (topicText.includes("-") && !topicText.match(/^[-•*]\s*/)) {
+              if (
+                topicText.includes("-") &&
+                !topicText.match(BULLET_MARKER_PATTERN)
+              ) {
                 // Split by dash and clean up each topic
                 const splitTopics = topicText
                   .split(/\s*-\s*/)
@@ -233,9 +178,7 @@ const AudioOverview = ({ data, rawText, fileData, analysisData }) => {
                   .split(/\s*-\s*/)
                   .map((t) => t.trim())
                   .filter(
-                    (t) =>
-                      t.length > 0 &&
-                      !t.match(/^(Key Themes|Purpose|Main Topic)/i)
+                    (t) => t.length > 0 && !t.match(KEY_THEMES_HEADER_PATTERN)
                   );
                 topics.push(...splitTopics);
               }
@@ -246,16 +189,14 @@ const AudioOverview = ({ data, rawText, fileData, analysisData }) => {
     }
     // Also try to extract from raw text
     if (topics.length === 0 && rawText) {
-      const themesMatch = rawText.match(
-        /Key Themes:[\s\S]*?(?=Purpose:|SECTION:|$)/i
-      );
+      const themesMatch = rawText.match(KEY_THEMES_PATTERN);
       if (themesMatch) {
         const themesText = themesMatch[0];
         // First try to find bullet points
-        const bulletMatches = themesText.match(/[-•*]\s*([^\n]+)/g);
+        const bulletMatches = themesText.match(BULLET_EXTRACTION_PATTERN);
         if (bulletMatches) {
           bulletMatches.forEach((match) => {
-            const topicText = match.replace(/^[-•*]\s*/, "").trim();
+            const topicText = match.replace(BULLET_MARKER_PATTERN, "").trim();
             // Check if this topic contains multiple items separated by dashes
             if (topicText.includes("-") && topicText.split("-").length > 2) {
               const splitTopics = topicText
@@ -397,7 +338,7 @@ const AudioOverview = ({ data, rawText, fileData, analysisData }) => {
                 item.type === "text" &&
                 item.text?.trim() &&
                 !item.text.includes("SECTION:") &&
-                !item.text.match(/^(Artist|Album|Type|Genre|Description):/i)
+                !item.text.match(METADATA_FIELD_HEADER_PATTERN)
             );
 
             if (textItems && textItems.length > 0) {
@@ -439,7 +380,7 @@ const AudioOverview = ({ data, rawText, fileData, analysisData }) => {
               .filter((s) => s.trim());
             if (sentences.length > 3) {
               description = sentences.slice(0, 3).join(". ").trim();
-              if (!description.match(/[.!?]$/)) {
+              if (!description.match(SENTENCE_ENDING_PATTERN)) {
                 description += ".";
               }
             } else if (description && !description.match(/[.!?]$/)) {
@@ -456,25 +397,15 @@ const AudioOverview = ({ data, rawText, fileData, analysisData }) => {
     // Fallback: try to extract from rawText
     if (rawText) {
       // Extract artist - stop at next field or section
-      const artistMatch = rawText.match(
-        /Artist[\/\s]Performer:\s*([^\n]+?)(?=\s*(?:Album|Collection|Type of Music|Type of Content|Genre|Description|SECTION:|Key Statistics|Content Summary|Participants|Quality|AI Summary|$))/i
-      );
+      const artistMatch = rawText.match(ARTIST_EXTRACTION_PATTERN);
       // Extract album - stop at next field or section
-      const albumMatch = rawText.match(
-        /Album[\/\s]Collection:\s*([^\n]+?)(?=\s*(?:Type of Music|Type of Content|Genre|Description|Artist|Performer|SECTION:|Key Statistics|Content Summary|Participants|Quality|AI Summary|$))/i
-      );
+      const albumMatch = rawText.match(ALBUM_EXTRACTION_PATTERN);
       // Extract type - stop at next field or section
-      const typeMatch = rawText.match(
-        /Type of Music[\/\s]Content:\s*([^\n]+?)(?=\s*(?:Genre|Description|Artist|Performer|Album|Collection|SECTION:|Key Statistics|Content Summary|Participants|Quality|AI Summary|$))/i
-      );
+      const typeMatch = rawText.match(TYPE_OF_MUSIC_EXTRACTION_PATTERN);
       // Extract genre - stop at next field or section
-      const genreMatch = rawText.match(
-        /Genre:\s*([^\n]+?)(?=\s*(?:Description|Artist|Performer|Album|Collection|Type of Music|Type of Content|SECTION:|Key Statistics|Content Summary|Participants|Quality|AI Summary|$))/i
-      );
+      const genreMatch = rawText.match(GENRE_EXTRACTION_PATTERN);
       // Extract description - be very precise, stop at first SECTION or next field
-      const descMatch = rawText.match(
-        /Description:\s*([^\n]+(?:\n[^\n]+)*?)(?=\n\s*(?:SECTION:|Artist|Album|Type|Genre|Key Statistics|Content Summary|Participants|Quality|AI Summary)|$)/i
-      );
+      const descMatch = rawText.match(DESCRIPTION_EXTRACTION_PATTERN);
       let description = "";
       if (descMatch) {
         description = descMatch[1]
@@ -901,7 +832,7 @@ const AudioOverview = ({ data, rawText, fileData, analysisData }) => {
         // If no summary section found, try to extract from rawText
         if (rawText && !aiSummarySection) {
           const summaryMatch = rawText.match(
-            /SECTION:\s*AI Summary\s*\n([\s\S]*?)(?=\n\s*SECTION:|$)/i
+            createSectionPattern("AI\\s+Summary")
           );
           if (summaryMatch) {
             const summaryText = summaryMatch[1]

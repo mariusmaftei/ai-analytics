@@ -1,0 +1,132 @@
+.errorBoundary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 300px;
+  padding: 2rem;
+  background: #fff;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+}
+
+.errorContent {
+  text-align: center;
+  max-width: 600px;
+}
+
+.errorIcon {
+  font-size: 3rem;
+  color: #ef4444;
+  margin-bottom: 1rem;
+}
+
+.errorTitle {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #111827;
+  margin: 0 0 0.5rem 0;
+}
+
+.errorMessage {
+  font-size: 1rem;
+  color: #6b7280;
+  margin: 0 0 1.5rem 0;
+  line-height: 1.5;
+}
+
+.errorDetails {
+  margin: 1.5rem 0;
+  text-align: left;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  padding: 1rem;
+}
+
+.errorDetails summary {
+  cursor: pointer;
+  font-weight: 500;
+  color: #374151;
+  margin-bottom: 0.5rem;
+}
+
+.errorDetails summary:hover {
+  color: #111827;
+}
+
+.errorStack {
+  font-family: "Courier New", monospace;
+  font-size: 0.875rem;
+  color: #dc2626;
+  white-space: pre-wrap;
+  word-break: break-all;
+  margin: 0;
+  padding: 0.5rem;
+  background: #fff;
+  border-radius: 4px;
+  overflow-x: auto;
+}
+
+.errorActions {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.retryButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  background: #9333ea;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.retryButton:hover {
+  background: #7e22ce;
+}
+
+.retryButton:active {
+  background: #6b21a8;
+}
+
+.retryButton:focus {
+  outline: 2px solid #9333ea;
+  outline-offset: 2px;
+}
+
+@media (max-width: 640px) {
+  .errorBoundary {
+    padding: 1rem;
+    min-height: 200px;
+  }
+
+  .errorIcon {
+    font-size: 2rem;
+  }
+
+  .errorTitle {
+    font-size: 1.25rem;
+  }
+
+  .errorMessage {
+    font-size: 0.875rem;
+  }
+
+  .errorActions {
+    flex-direction: column;
+  }
+
+  .retryButton {
+    width: 100%;
+    justify-content: center;
+  }
+}
+

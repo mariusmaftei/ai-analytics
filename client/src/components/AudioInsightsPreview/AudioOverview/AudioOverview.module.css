@@ -131,12 +131,6 @@
   border-bottom: 2px solid rgba(147, 51, 234, 0.2);
 }
 
-.snapshotGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 1rem;
-}
-
 /* Card-based Overview */
 .cardsGrid {
   display: grid;
@@ -332,91 +326,6 @@
   margin-bottom: 0;
 }
 
-.snapshotCard {
-  padding: 1.25rem;
-  background: var(--background-color);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-lg);
-  border-left: 4px solid #9333ea;
-  transition: all 0.3s ease;
-}
-
-.snapshotCard:hover {
-  border-color: #9333ea;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(147, 51, 234, 0.1);
-}
-
-.snapshotLabel {
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: var(--text-secondary);
-  margin-bottom: 0.5rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.snapshotValue {
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: #9333ea;
-}
-
-.contentSection {
-  margin-bottom: 1.5rem;
-}
-
-.content {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  margin-top: 1rem;
-}
-
-.keyValue {
-  display: flex;
-  gap: 0.5rem;
-  padding: 0.75rem;
-  background: var(--background-color);
-  border-radius: var(--radius-md);
-  border-left: 3px solid #9333ea;
-}
-
-.key {
-  font-weight: 600;
-  color: var(--text-primary);
-  min-width: 150px;
-}
-
-.value {
-  color: var(--text-secondary);
-  flex: 1;
-}
-
-.bullet {
-  padding: 0.5rem 0.75rem;
-  color: var(--text-primary);
-  line-height: 1.6;
-}
-
-.text {
-  padding: 0.75rem;
-  color: var(--text-primary);
-  line-height: 1.7;
-}
-
-.rawText {
-  padding: 1rem;
-  background: var(--background-color);
-  border-radius: var(--radius-md);
-  color: var(--text-primary);
-  line-height: 1.7;
-  white-space: pre-wrap;
-}
-
 @media (max-width: 768px) {
   .container {
     padding: 1.5rem;
@@ -429,24 +338,6 @@
 
   .infoCard {
     padding: 1.25rem;
-  }
-
-  .snapshotGrid {
-    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-    gap: 0.75rem;
-  }
-
-  .snapshotCard {
-    padding: 1rem;
-  }
-
-  .keyValue {
-    flex-direction: column;
-    gap: 0.25rem;
-  }
-
-  .key {
-    min-width: auto;
   }
 
   .speakerNumber,

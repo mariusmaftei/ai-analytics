@@ -4,6 +4,8 @@
  */
 
 import api, { API_BASE_URL } from './api';
+import { RETRY_OPTIONS, retryFetchRequest } from '../utils/retryUtils';
+import { errorLog } from '../utils/debugLogger';
 
 /**
  * Upload and analyze audio file with real backend
@@ -31,6 +33,7 @@ export const analyzeAudioFile = async (file, options = {}) => {
         'Content-Type': 'multipart/form-data',
       },
       timeout: 600000, // 10 minutes for audio uploads (transcription can take time)
+      _retryConfig: RETRY_OPTIONS.LONG, // Use long-running retry config
     });
 
     const data = response.data;
@@ -43,7 +46,10 @@ export const analyzeAudioFile = async (file, options = {}) => {
     return transformAudioResponse(data);
 
   } catch (error) {
-    console.error('Audio Analysis Error:', error);
+    errorLog('audioAnalysisService', 'Audio Analysis Error', {
+      message: error.message,
+      status: error.status,
+    });
     throw error;
   }
 };
@@ -136,6 +142,7 @@ export const getAudioMetadata = async (file) => {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
+      _retryConfig: RETRY_OPTIONS.QUICK, // Use quick retry config for metadata
     });
 
     if (data.status === 'error') {
@@ -145,7 +152,10 @@ export const getAudioMetadata = async (file) => {
     return data.metadata;
 
   } catch (error) {
-    console.error('Audio Metadata Error:', error);
+    errorLog('audioAnalysisService', 'Audio Metadata Error', {
+      message: error.message,
+      status: error.status,
+    });
     throw error;
   }
 };
@@ -170,10 +180,14 @@ export const analyzeAudioStream = async (
       formData.append('analysis_type', options.analysisType);
     }
 
-    const response = await fetch(`${API_BASE_URL}/api/audio/analyze-stream`, {
-      method: 'POST',
-      body: formData,
-    });
+    const response = await retryFetchRequest(
+      () =>
+        fetch(`${API_BASE_URL}/api/audio/analyze-stream`, {
+          method: 'POST',
+          body: formData,
+        }),
+      RETRY_OPTIONS.STREAMING
+    );
 
     if (!response.ok) {
       const errorText = await response.text().catch(() => 'Unknown error');
@@ -225,7 +239,10 @@ export const analyzeAudioStream = async (
     return { text: fullText };
 
   } catch (error) {
-    console.error('Audio Streaming Analysis Error:', error);
+    errorLog('audioAnalysisService', 'Audio Streaming Analysis Error', {
+      message: error.message,
+      status: error.status,
+    });
     throw error;
   }
 };

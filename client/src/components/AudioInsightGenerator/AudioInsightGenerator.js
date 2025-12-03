@@ -24,6 +24,7 @@ import AudioTimeline from "../AudioInsightsPreview/AudioTimeline/AudioTimeline";
 import AudioMetadata from "../AudioInsightsPreview/AudioMetadata/AudioMetadata";
 import AudioTranscription from "../AudioInsightsPreview/AudioTranscription/AudioTranscription";
 import BaseInsightGenerator from "../Shared/BaseInsightGenerator/BaseInsightGenerator";
+import ErrorBoundary from "../Shared/ErrorBoundary/ErrorBoundary";
 
 const ANALYSIS_TYPES = [
   {
@@ -109,85 +110,104 @@ const AudioInsightGenerator = ({ fileData, analysisData }) => {
   };
 
   const renderPreviewComponent = (typeId, data, rawText, fileData, analysisData, result) => {
+    const errorBoundaryProps = {
+      componentName: `Audio${typeId.charAt(0).toUpperCase() + typeId.slice(1)}`,
+      title: "Analysis Error",
+      message: `An error occurred while displaying the ${typeId} analysis. The data may be in an unexpected format.`,
+    };
+
     switch (typeId) {
       case "overview":
         return (
-          <AudioOverview
-            data={data}
-            rawText={rawText}
-            fileData={fileData}
-            analysisData={analysisData}
-          />
+          <ErrorBoundary {...errorBoundaryProps}>
+            <AudioOverview
+              data={data}
+              rawText={rawText}
+              fileData={fileData}
+              analysisData={analysisData}
+            />
+          </ErrorBoundary>
         );
       case "transcription":
         return (
-          <AudioTranscription
-            data={data}
-            rawText={rawText}
-            analysisData={analysisData}
-            fileData={fileData}
-          />
+          <ErrorBoundary {...errorBoundaryProps}>
+            <AudioTranscription
+              data={data}
+              rawText={rawText}
+              analysisData={analysisData}
+              fileData={fileData}
+            />
+          </ErrorBoundary>
         );
       case "summary":
         return (
-          <AudioSummary data={data} rawText={rawText} analysisData={analysisData} />
+          <ErrorBoundary {...errorBoundaryProps}>
+            <AudioSummary data={data} rawText={rawText} />
+          </ErrorBoundary>
         );
       case "content":
         return (
-          <AudioContentAnalysis
-            data={data}
-            rawText={rawText}
-            analysisData={analysisData}
-          />
+          <ErrorBoundary {...errorBoundaryProps}>
+            <AudioContentAnalysis
+              data={data}
+              rawText={rawText}
+            />
+          </ErrorBoundary>
         );
       case "sentiment":
         return (
-          <AudioSentimentAnalysis
-            data={data}
-            rawText={rawText}
-            analysisData={analysisData}
-          />
+          <ErrorBoundary {...errorBoundaryProps}>
+            <AudioSentimentAnalysis
+              data={data}
+              rawText={rawText}
+            />
+          </ErrorBoundary>
         );
       case "keywords":
         return (
-          <AudioKeywordsExtraction
-            data={data}
-            rawText={rawText}
-            analysisData={analysisData}
-          />
+          <ErrorBoundary {...errorBoundaryProps}>
+            <AudioKeywordsExtraction
+              data={data}
+              rawText={rawText}
+            />
+          </ErrorBoundary>
         );
       case "speakers":
         return (
-          <AudioSpeakerAnalysis
-            data={data}
-            rawText={rawText}
-            analysisData={analysisData}
-          />
+          <ErrorBoundary {...errorBoundaryProps}>
+            <AudioSpeakerAnalysis
+              data={data}
+              rawText={rawText}
+            />
+          </ErrorBoundary>
         );
       case "actions":
         return (
-          <AudioActionItems
-            data={data}
-            rawText={rawText}
-            analysisData={analysisData}
-          />
+          <ErrorBoundary {...errorBoundaryProps}>
+            <AudioActionItems
+              rawText={rawText}
+            />
+          </ErrorBoundary>
         );
       case "timeline":
         return (
-          <AudioTimeline
-            data={data}
-            rawText={rawText}
-            analysisData={analysisData}
-          />
+          <ErrorBoundary {...errorBoundaryProps}>
+            <AudioTimeline
+              data={data}
+              rawText={rawText}
+            />
+          </ErrorBoundary>
         );
       case "metadata":
         return (
-          <AudioMetadata
-            data={data}
-            rawText={rawText}
-            analysisData={analysisData}
-            fileData={fileData}
-          />
+          <ErrorBoundary {...errorBoundaryProps}>
+            <AudioMetadata
+              data={data}
+              rawText={rawText}
+              analysisData={analysisData}
+              fileData={fileData}
+            />
+          </ErrorBoundary>
         );
       default:
         return null;

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useRef, useEffect, useMemo } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faTextWidth,
@@ -10,6 +10,7 @@ import {
   faVolumeUp,
   faVolumeMute,
 } from "@fortawesome/free-solid-svg-icons";
+import { errorLog } from "../../../utils/debugLogger";
 import styles from "./AudioTranscription.module.css";
 
 const AudioTranscription = ({ data, rawText, analysisData, fileData }) => {
@@ -23,11 +24,14 @@ const AudioTranscription = ({ data, rawText, analysisData, fileData }) => {
   const [isMuted, setIsMuted] = useState(false);
   const [highlightedKeyword, setHighlightedKeyword] = useState(null);
   const [activeSegmentIndex, setActiveSegmentIndex] = useState(-1);
-  const [waveformData, setWaveformData] = useState(null);
   const waveformCanvasRef = useRef(null);
 
-  const segments = analysisData?.transcription?.segments || [];
-  const fullText = analysisData?.transcription?.text || analysisData?.text || "";
+  const segments = useMemo(
+    () => analysisData?.transcription?.segments || [],
+    [analysisData?.transcription?.segments]
+  );
+  const fullText =
+    analysisData?.transcription?.text || analysisData?.text || "";
   const audioFile = fileData?.file;
   const audioUrl = analysisData?.audioUrl;
 
@@ -84,7 +88,7 @@ const AudioTranscription = ({ data, rawText, analysisData, fileData }) => {
       setActiveSegmentIndex(-1);
     };
     const handleError = (e) => {
-      console.error("Audio playback error:", e);
+      errorLog("AudioTranscription", "Audio playback error:", e);
       setIsPlaying(false);
     };
 
@@ -121,7 +125,8 @@ const AudioTranscription = ({ data, rawText, analysisData, fileData }) => {
       setActiveSegmentIndex(currentIndex);
       // Autoscroll to active segment
       if (currentIndex >= 0 && segmentsContainerRef.current) {
-        const segmentElement = segmentsContainerRef.current.children[currentIndex];
+        const segmentElement =
+          segmentsContainerRef.current.children[currentIndex];
         if (segmentElement) {
           segmentElement.scrollIntoView({
             behavior: "smooth",
@@ -221,10 +226,7 @@ const AudioTranscription = ({ data, rawText, analysisData, fileData }) => {
   const highlightKeywords = (text) => {
     if (!highlightedKeyword || keywords.length === 0) return text;
 
-    const regex = new RegExp(
-      `\\b(${highlightedKeyword})\\b`,
-      "gi"
-    );
+    const regex = new RegExp(`\\b(${highlightedKeyword})\\b`, "gi");
     return text.replace(regex, (match) => {
       return `<mark class="${styles.keywordHighlight}">${match}</mark>`;
     });
@@ -370,8 +372,7 @@ const AudioTranscription = ({ data, rawText, analysisData, fileData }) => {
       {segments.length > 0 ? (
         <div className={styles.segments} ref={segmentsContainerRef}>
           {segments.map((segment, index) => {
-            const isActive =
-              isPlaying && activeSegmentIndex === index;
+            const isActive = isPlaying && activeSegmentIndex === index;
             const isInRange =
               currentTime >= segment.start && currentTime < segment.end;
 
@@ -407,7 +408,9 @@ const AudioTranscription = ({ data, rawText, analysisData, fileData }) => {
         <div className={styles.fullText}>
           <div
             dangerouslySetInnerHTML={{
-              __html: highlightKeywords(fullText || rawText || "No transcription available"),
+              __html: highlightKeywords(
+                fullText || rawText || "No transcription available"
+              ),
             }}
           />
         </div>

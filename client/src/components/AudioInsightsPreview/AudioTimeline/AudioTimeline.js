@@ -3,7 +3,6 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faClock,
   faKey,
-  faExclamationCircle,
   faStickyNote,
   faBullseye,
   faCommentDots,
@@ -15,9 +14,28 @@ import {
   faEyeSlash,
   faGavel,
 } from "@fortawesome/free-solid-svg-icons";
+import { errorLog } from "../../../utils/debugLogger";
+import { validateParsedData } from "../../../utils/audioParsingHelpers";
+import {
+  DISCUSSION_TIMELINE_PATTERN,
+  DISCUSSION_TIMELINE_SIMPLE_PATTERN,
+  DISCUSSION_TIMELINE_GLOBAL_PATTERN,
+  KEY_MOMENT_PATTERN,
+  KEY_MOMENT_GLOBAL_PATTERN,
+  TOPIC_TRANSITION_PATTERN,
+  TOPIC_TRANSITION_GLOBAL_PATTERN,
+  TRANSCRIPT_HIGHLIGHT_PATTERN,
+  TRANSCRIPT_HIGHLIGHT_QUOTED_PATTERN,
+  TRANSCRIPT_HIGHLIGHT_QUOTED_CONTENT_PATTERN,
+  TRANSCRIPT_HIGHLIGHT_CONTENT_PATTERN,
+  TRANSCRIPT_HIGHLIGHT_GLOBAL_PATTERN,
+  createSectionPattern,
+} from "../../../utils/audioRegexPatterns";
+import EmptyState from "../../Shared/EmptyState/EmptyState";
+import ParsingError from "../../Shared/ParsingError/ParsingError";
 import styles from "./AudioTimeline.module.css";
 
-const AudioTimeline = ({ data, rawText, analysisData }) => {
+const AudioTimeline = ({ data, rawText }) => {
   const [filters, setFilters] = useState({
     keyMoments: true,
     speakers: true,
@@ -25,301 +43,298 @@ const AudioTimeline = ({ data, rawText, analysisData }) => {
     actionItems: true,
     decisions: true,
   });
+  const [parsingError, setParsingError] = useState(null);
 
   const parsedData = useMemo(() => {
-    const result = {
-      timeline: [],
-      keyMoments: [],
-      topicTransitions: [],
-      transcriptHighlights: [],
-    };
+    setParsingError(null);
 
-    const text = rawText || "";
-    const sections = data?.sections || [];
+    try {
+      const result = {
+        timeline: [],
+        keyMoments: [],
+        topicTransitions: [],
+        transcriptHighlights: [],
+      };
 
-    console.log("[AudioTimeline] Raw sections:", sections);
-    console.log("[AudioTimeline] Raw text length:", text.length);
-    if (text) {
-      console.log("[AudioTimeline] Raw text preview:", text.substring(0, 500));
-    }
+      const text = rawText || "";
 
-    // Parse Discussion Timeline from rawText
-    const timelineMatch = text.match(
-      /SECTION:\s*Discussion\s+Timeline\s*[:\n]*([\s\S]*?)(?=SECTION:|$)/i
-    );
-    if (timelineMatch) {
-      const timelineText = timelineMatch[1];
-      console.log(
-        "[AudioTimeline] Found Discussion Timeline:",
-        timelineText.substring(0, 500)
+      // Parse Discussion Timeline from rawText
+      const timelineMatch = text.match(
+        createSectionPattern("Discussion\\s+Timeline")
       );
+      if (timelineMatch) {
+        const timelineText = timelineMatch[1];
 
-      // Handle concatenated entries - split by time pattern
-      const timelinePattern =
-        /(\d{1,2}:\d{2})-(\d{1,2}:\d{2}):\s*((?:(?!\d{1,2}:\d{2}-\d{1,2}:\d{2}).)+?)(?=\d{1,2}:\d{2}-\d{1,2}:\d{2}|$)/gi;
-      const matches = [...timelineText.matchAll(timelinePattern)];
+        // Handle concatenated entries - split by time pattern
+        const matches = [
+          ...timelineText.matchAll(DISCUSSION_TIMELINE_GLOBAL_PATTERN),
+        ];
 
-      if (matches.length > 0) {
-        matches.forEach((match) => {
-          const content = match[3].trim();
-          // Try full format: "Speaker Label: Topic/Description: Transcript Snippet"
-          const fullMatch = content.match(/^([^:]+?):\s*([^:]+?):\s*(.+)$/);
-          if (fullMatch) {
-            result.timeline.push({
-              startTime: match[1],
-              endTime: match[2],
-              speaker: fullMatch[1].trim(),
-              topic: fullMatch[2].trim(),
-              transcript: fullMatch[3].trim(),
-            });
-          } else {
-            // Simpler format
-            result.timeline.push({
-              startTime: match[1],
-              endTime: match[2],
-              speaker: null,
-              topic: content,
-              transcript: "",
-            });
-          }
-        });
-      } else {
-        // Fallback: Try splitting by newlines
-        const lines = timelineText
-          .split(/\n/)
-          .filter((line) => line.trim().length > 0);
-        lines.forEach((line) => {
-          const timelineMatch = line.match(
-            /(\d{1,2}:\d{2})-(\d{1,2}:\d{2}):\s*([^:]+?):\s*([^:]+?):\s*(.+)$/i
-          );
-          if (timelineMatch) {
-            result.timeline.push({
-              startTime: timelineMatch[1],
-              endTime: timelineMatch[2],
-              speaker: timelineMatch[3].trim(),
-              topic: timelineMatch[4].trim(),
-              transcript: timelineMatch[5].trim(),
-            });
-          } else {
-            const simpleMatch = line.match(
-              /(\d{1,2}:\d{2})-(\d{1,2}:\d{2}):\s*(.+)$/i
-            );
-            if (simpleMatch && !simpleMatch[3].includes("SECTION:")) {
+        if (matches.length > 0) {
+          matches.forEach((match) => {
+            const content = match[3].trim();
+            // Try full format: "Speaker Label: Topic/Description: Transcript Snippet"
+            const fullMatch = content.match(/^([^:]+?):\s*([^:]+?):\s*(.+)$/);
+            if (fullMatch) {
               result.timeline.push({
-                startTime: simpleMatch[1],
-                endTime: simpleMatch[2],
+                startTime: match[1],
+                endTime: match[2],
+                speaker: fullMatch[1].trim(),
+                topic: fullMatch[2].trim(),
+                transcript: fullMatch[3].trim(),
+              });
+            } else {
+              // Simpler format
+              result.timeline.push({
+                startTime: match[1],
+                endTime: match[2],
                 speaker: null,
-                topic: simpleMatch[3].trim(),
+                topic: content,
                 transcript: "",
               });
             }
-          }
-        });
+          });
+        } else {
+          // Fallback: Try splitting by newlines
+          const lines = timelineText
+            .split(/\n/)
+            .filter((line) => line.trim().length > 0);
+          lines.forEach((line) => {
+            const timelineMatch = line.match(DISCUSSION_TIMELINE_PATTERN);
+            if (timelineMatch) {
+              result.timeline.push({
+                startTime: timelineMatch[1],
+                endTime: timelineMatch[2],
+                speaker: timelineMatch[3].trim(),
+                topic: timelineMatch[4].trim(),
+                transcript: timelineMatch[5].trim(),
+              });
+            } else {
+              const simpleMatch = line.match(
+                DISCUSSION_TIMELINE_SIMPLE_PATTERN
+              );
+              if (simpleMatch && !simpleMatch[3].includes("SECTION:")) {
+                result.timeline.push({
+                  startTime: simpleMatch[1],
+                  endTime: simpleMatch[2],
+                  speaker: null,
+                  topic: simpleMatch[3].trim(),
+                  transcript: "",
+                });
+              }
+            }
+          });
+        }
       }
-    }
 
-    // Parse Key Moments from rawText
-    const keyMomentsMatch = text.match(
-      /SECTION:\s*Key\s+Moments\s*[:\n]*([\s\S]*?)(?=SECTION:|$)/i
-    );
-    if (keyMomentsMatch) {
-      const keyMomentsText = keyMomentsMatch[1];
-      console.log(
-        "[AudioTimeline] Found Key Moments:",
-        keyMomentsText.substring(0, 500)
+      // Parse Key Moments from rawText
+      const keyMomentsMatch = text.match(
+        createSectionPattern("Key\\s+Moments")
       );
+      if (keyMomentsMatch) {
+        const keyMomentsText = keyMomentsMatch[1];
 
-      // Handle concatenated entries - split by type pattern
-      const momentPattern =
-        /(Decision|Action|TopicShift|Emotional|Keyword|Insight):\s*(\d{1,2}:\d{2}):\s*((?:(?!(?:Decision|Action|TopicShift|Emotional|Keyword|Insight):\s*\d{1,2}:\d{2}).)+?)(?=(?:Decision|Action|TopicShift|Emotional|Keyword|Insight):\s*\d{1,2}:\d{2}|$)/gi;
-      const matches = [...keyMomentsText.matchAll(momentPattern)];
+        // Handle concatenated entries - split by type pattern
+        const matches = [...keyMomentsText.matchAll(KEY_MOMENT_GLOBAL_PATTERN)];
 
-      if (matches.length > 0) {
-        matches.forEach((match) => {
-          const content = match[3].trim();
-          // Try format: "Description: Transcript Snippet"
-          const contentMatch = content.match(/^([^:]+?):\s*(.+)$/);
-          if (contentMatch) {
-            result.keyMoments.push({
-              type: match[1].trim(),
-              timestamp: match[2].trim(),
-              description: contentMatch[1].trim(),
-              transcript: contentMatch[2].trim(),
-            });
-          } else {
-            result.keyMoments.push({
-              type: match[1].trim(),
-              timestamp: match[2].trim(),
-              description: content,
-              transcript: "",
-            });
-          }
-        });
-      } else {
-        // Fallback: Try splitting by newlines
-        const lines = keyMomentsText
-          .split(/\n/)
-          .filter((line) => line.trim().length > 0);
-        lines.forEach((line) => {
-          const momentMatch = line.match(
-            /(Decision|Action|TopicShift|Emotional|Keyword|Insight):\s*(\d{1,2}:\d{2}):\s*([^:]+?):\s*(.+)$/i
-          );
-          if (momentMatch) {
-            result.keyMoments.push({
-              type: momentMatch[1].trim(),
-              timestamp: momentMatch[2].trim(),
-              description: momentMatch[3].trim(),
-              transcript: momentMatch[4].trim(),
-            });
-          } else {
-            const simpleMatch = line.match(/(\d{1,2}:\d{2}):\s*(.+)$/i);
-            if (simpleMatch && !simpleMatch[2].includes("SECTION:")) {
+        if (matches.length > 0) {
+          matches.forEach((match) => {
+            const content = match[3].trim();
+            // Try format: "Description: Transcript Snippet"
+            const contentMatch = content.match(/^([^:]+?):\s*(.+)$/);
+            if (contentMatch) {
               result.keyMoments.push({
-                type: "Insight",
-                timestamp: simpleMatch[1].trim(),
-                description: simpleMatch[2].trim(),
+                type: match[1].trim(),
+                timestamp: match[2].trim(),
+                description: contentMatch[1].trim(),
+                transcript: contentMatch[2].trim(),
+              });
+            } else {
+              result.keyMoments.push({
+                type: match[1].trim(),
+                timestamp: match[2].trim(),
+                description: content,
                 transcript: "",
               });
             }
-          }
-        });
+          });
+        } else {
+          // Fallback: Try splitting by newlines
+          const lines = keyMomentsText
+            .split(/\n/)
+            .filter((line) => line.trim().length > 0);
+          lines.forEach((line) => {
+            const momentMatch = line.match(KEY_MOMENT_PATTERN);
+            if (momentMatch) {
+              result.keyMoments.push({
+                type: momentMatch[1].trim(),
+                timestamp: momentMatch[2].trim(),
+                description: momentMatch[3].trim(),
+                transcript: momentMatch[4].trim(),
+              });
+            } else {
+              // Simple format: "timestamp: description"
+              const simpleMatch = line.match(/^(\d{1,2}:\d{2}):\s*(.+)$/i);
+              if (simpleMatch && !simpleMatch[2].includes("SECTION:")) {
+                result.keyMoments.push({
+                  type: "Insight",
+                  timestamp: simpleMatch[1].trim(),
+                  description: simpleMatch[2].trim(),
+                  transcript: "",
+                });
+              }
+            }
+          });
+        }
       }
-    }
 
-    // Parse Topic Transitions from rawText
-    const transitionsMatch = text.match(
-      /SECTION:\s*Topic\s+Transitions\s*[:\n]*([\s\S]*?)(?=SECTION:|$)/i
-    );
-    if (transitionsMatch) {
-      const transitionsText = transitionsMatch[1];
-      console.log(
-        "[AudioTimeline] Found Topic Transitions:",
-        transitionsText.substring(0, 500)
+      // Parse Topic Transitions from rawText
+      const transitionsMatch = text.match(
+        /SECTION:\s*Topic\s+Transitions\s*[:\n]*([\s\S]*?)(?=SECTION:|$)/i
       );
+      if (transitionsMatch) {
+        const transitionsText = transitionsMatch[1];
 
-      // Handle concatenated entries - split by time pattern
-      const transitionPattern =
-        /(\d{1,2}:\d{2}):\s*((?:(?!\d{1,2}:\d{2}:).)+?)(?=\d{1,2}:\d{2}:|$)/gi;
-      const matches = [...transitionsText.matchAll(transitionPattern)];
+        // Handle concatenated entries - split by time pattern
+        const matches = [
+          ...transitionsText.matchAll(TOPIC_TRANSITION_GLOBAL_PATTERN),
+        ];
 
-      if (matches.length > 0) {
-        matches.forEach((match) => {
-          const content = match[2].trim();
-          // Try format: "From Topic → To Topic: Trigger/Reason"
-          const transitionMatch = content.match(
-            /^([^→]+?)\s*→\s*([^:]+?):\s*(.+)$/i
-          );
-          if (transitionMatch) {
-            result.topicTransitions.push({
-              timestamp: match[1].trim(),
-              fromTopic: transitionMatch[1].trim(),
-              toTopic: transitionMatch[2].trim(),
-              trigger: transitionMatch[3].trim(),
-            });
-          }
-        });
-      } else {
-        // Fallback: Try splitting by newlines
-        const lines = transitionsText
-          .split(/\n/)
-          .filter((line) => line.trim().length > 0);
-        lines.forEach((line) => {
-          const transitionMatch = line.match(
-            /(\d{1,2}:\d{2}):\s*([^→]+?)\s*→\s*([^:]+?):\s*(.+)$/i
-          );
-          if (transitionMatch) {
-            result.topicTransitions.push({
-              timestamp: transitionMatch[1].trim(),
-              fromTopic: transitionMatch[2].trim(),
-              toTopic: transitionMatch[3].trim(),
-              trigger: transitionMatch[4].trim(),
-            });
-          }
-        });
-      }
-    }
-
-    // Parse Transcript Highlights from rawText
-    const highlightsMatch = text.match(
-      /SECTION:\s*Transcript\s+Highlights\s*[:\n]*([\s\S]*?)(?=SECTION:|$)/i
-    );
-    if (highlightsMatch) {
-      const highlightsText = highlightsMatch[1];
-      console.log(
-        "[AudioTimeline] Found Transcript Highlights:",
-        highlightsText.substring(0, 500)
-      );
-
-      // Handle concatenated entries - split by time pattern
-      const highlightPattern =
-        /(\d{1,2}:\d{2}):\s*((?:(?!\d{1,2}:\d{2}:).)+?)(?=\d{1,2}:\d{2}:|$)/gi;
-      const matches = [...highlightsText.matchAll(highlightPattern)];
-
-      if (matches.length > 0) {
-        matches.forEach((match) => {
-          const content = match[2].trim();
-          // Try format with quotes: "Transcript Text": Type: Icon Label
-          const quotedMatch = content.match(
-            /^"([^"]+)"[:\s]*(Decision|Action|Topic|Emotional):\s*(.+)$/i
-          );
-          if (quotedMatch) {
-            result.transcriptHighlights.push({
-              timestamp: match[1].trim(),
-              text: quotedMatch[1].trim(),
-              type: quotedMatch[2].trim(),
-              iconLabel: quotedMatch[3].trim(),
-            });
-          } else {
-            // Try format without quotes: Transcript Text: Type: Icon Label
-            const unquotedMatch = content.match(
-              /^(.+?):\s*(Decision|Action|Topic|Emotional):\s*(.+)$/i
+        if (matches.length > 0) {
+          matches.forEach((match) => {
+            const content = match[2].trim();
+            // Try format: "From Topic → To Topic: Trigger/Reason"
+            const transitionMatch = content.match(
+              /^([^→]+?)\s*→\s*([^:]+?):\s*(.+)$/i
             );
-            if (unquotedMatch && !unquotedMatch[1].includes("SECTION:")) {
+            if (transitionMatch) {
+              result.topicTransitions.push({
+                timestamp: match[1].trim(),
+                fromTopic: transitionMatch[1].trim(),
+                toTopic: transitionMatch[2].trim(),
+                trigger: transitionMatch[3].trim(),
+              });
+            }
+          });
+        } else {
+          // Fallback: Try splitting by newlines
+          const lines = transitionsText
+            .split(/\n/)
+            .filter((line) => line.trim().length > 0);
+          lines.forEach((line) => {
+            const transitionMatch = line.match(TOPIC_TRANSITION_PATTERN);
+            if (transitionMatch) {
+              result.topicTransitions.push({
+                timestamp: transitionMatch[1].trim(),
+                fromTopic: transitionMatch[2].trim(),
+                toTopic: transitionMatch[3].trim(),
+                trigger: transitionMatch[4].trim(),
+              });
+            }
+          });
+        }
+      }
+
+      // Parse Transcript Highlights from rawText
+      const highlightsMatch = text.match(
+        createSectionPattern("Transcript\\s+Highlights")
+      );
+      if (highlightsMatch) {
+        const highlightsText = highlightsMatch[1];
+
+        // Handle concatenated entries - split by time pattern
+        const matches = [
+          ...highlightsText.matchAll(TRANSCRIPT_HIGHLIGHT_GLOBAL_PATTERN),
+        ];
+
+        if (matches.length > 0) {
+          matches.forEach((match) => {
+            const content = match[2].trim();
+            // Try format with quotes: "Transcript Text": Type: Icon Label
+            const quotedMatch = content.match(
+              TRANSCRIPT_HIGHLIGHT_QUOTED_CONTENT_PATTERN
+            );
+            if (quotedMatch) {
               result.transcriptHighlights.push({
                 timestamp: match[1].trim(),
-                text: unquotedMatch[1].trim(),
-                type: unquotedMatch[2].trim(),
-                iconLabel: unquotedMatch[3].trim(),
+                text: quotedMatch[1].trim(),
+                type: quotedMatch[2].trim(),
+                iconLabel: quotedMatch[3].trim(),
               });
+            } else {
+              // Try format without quotes: Transcript Text: Type: Icon Label
+              const unquotedMatch = content.match(
+                TRANSCRIPT_HIGHLIGHT_CONTENT_PATTERN
+              );
+              if (unquotedMatch && !unquotedMatch[1].includes("SECTION:")) {
+                result.transcriptHighlights.push({
+                  timestamp: match[1].trim(),
+                  text: unquotedMatch[1].trim(),
+                  type: unquotedMatch[2].trim(),
+                  iconLabel: unquotedMatch[3].trim(),
+                });
+              }
             }
-          }
-        });
-      } else {
-        // Fallback: Try splitting by newlines
-        const lines = highlightsText
-          .split(/\n/)
-          .filter((line) => line.trim().length > 0);
-        lines.forEach((line) => {
-          const highlightMatch = line.match(
-            /(\d{1,2}:\d{2}):\s*"([^"]+)"[:\s]*(Decision|Action|Topic|Emotional):\s*(.+)$/i
-          );
-          if (highlightMatch) {
-            result.transcriptHighlights.push({
-              timestamp: highlightMatch[1].trim(),
-              text: highlightMatch[2].trim(),
-              type: highlightMatch[3].trim(),
-              iconLabel: highlightMatch[4].trim(),
-            });
-          } else {
-            const simpleMatch = line.match(
-              /(\d{1,2}:\d{2}):\s*(.+?):\s*(Decision|Action|Topic|Emotional):\s*(.+)$/i
+          });
+        } else {
+          // Fallback: Try splitting by newlines
+          const lines = highlightsText
+            .split(/\n/)
+            .filter((line) => line.trim().length > 0);
+          lines.forEach((line) => {
+            const highlightMatch = line.match(
+              TRANSCRIPT_HIGHLIGHT_QUOTED_PATTERN
             );
-            if (simpleMatch && !simpleMatch[2].includes("SECTION:")) {
+            if (highlightMatch) {
               result.transcriptHighlights.push({
-                timestamp: simpleMatch[1].trim(),
-                text: simpleMatch[2].trim(),
-                type: simpleMatch[3].trim(),
-                iconLabel: simpleMatch[4].trim(),
+                timestamp: highlightMatch[1].trim(),
+                text: highlightMatch[2].trim(),
+                type: highlightMatch[3].trim(),
+                iconLabel: highlightMatch[4].trim(),
               });
+            } else {
+              const simpleMatch = line.match(TRANSCRIPT_HIGHLIGHT_PATTERN);
+              if (simpleMatch && !simpleMatch[2].includes("SECTION:")) {
+                result.transcriptHighlights.push({
+                  timestamp: simpleMatch[1].trim(),
+                  text: simpleMatch[2].trim(),
+                  type: simpleMatch[3].trim(),
+                  iconLabel: simpleMatch[4].trim(),
+                });
+              }
             }
-          }
-        });
+          });
+        }
       }
-    }
 
-    console.log("[AudioTimeline] Parsed data:", result);
-    return result;
-  }, [data, rawText]);
+      // Validate parsed data
+      const isValid = validateParsedData(
+        result,
+        {
+          timeline: "array",
+          keyMoments: "array",
+          topicTransitions: "array",
+          transcriptHighlights: "array",
+        },
+        "AudioTimeline"
+      );
+
+      if (!isValid) {
+        throw new Error("Parsed data validation failed - invalid structure");
+      }
+
+      return result;
+    } catch (error) {
+      errorLog("AudioTimeline", "Parsing error:", error);
+      setParsingError(error);
+      return {
+        timeline: [],
+        keyMoments: [],
+        topicTransitions: [],
+        transcriptHighlights: [],
+      };
+    }
+  }, [rawText]);
 
   // Calculate total duration
   const totalDuration = useMemo(() => {
@@ -430,6 +445,37 @@ const AudioTimeline = ({ data, rawText, analysisData }) => {
     return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
+  // Show parsing error if occurred
+  if (parsingError) {
+    return (
+      <div className={styles.container}>
+        <div className={styles.header}>
+          <div className={styles.headerIcon}>
+            <FontAwesomeIcon icon={faClock} />
+          </div>
+          <div>
+            <h2 className={styles.title}>Timeline</h2>
+            <p className={styles.subtitle}>
+              Discussion timeline and key moments
+            </p>
+          </div>
+        </div>
+        <ParsingError
+          message="Failed to parse timeline data. The analysis may be in an unexpected format."
+          showRawData={true}
+          rawData={rawText}
+        />
+      </div>
+    );
+  }
+
+  // Check if all data is empty
+  const hasData =
+    parsedData.timeline.length > 0 ||
+    parsedData.keyMoments.length > 0 ||
+    parsedData.topicTransitions.length > 0 ||
+    parsedData.transcriptHighlights.length > 0;
+
   return (
     <div className={styles.container}>
       <div className={styles.header}>
@@ -441,6 +487,14 @@ const AudioTimeline = ({ data, rawText, analysisData }) => {
           <p className={styles.subtitle}>Discussion timeline and key moments</p>
         </div>
       </div>
+
+      {!hasData && (
+        <EmptyState
+          icon={faClock}
+          title="No Timeline Data Found"
+          message="No timeline information was extracted from this audio analysis."
+        />
+      )}
 
       {/* Filters */}
       <div className={styles.filtersBar}>
@@ -665,53 +719,6 @@ const AudioTimeline = ({ data, rawText, analysisData }) => {
           </div>
         </div>
       )}
-
-      {/* Fallback: Show raw sections if available */}
-      {parsedData.timeline.length === 0 &&
-        parsedData.keyMoments.length === 0 &&
-        data?.sections &&
-        data.sections.length > 0 && (
-          <div className={styles.sections}>
-            {data.sections.map((section, index) => (
-              <div key={index} className={styles.section}>
-                <h3 className={styles.sectionTitle}>{section.name}</h3>
-                <div className={styles.content}>
-                  {section.content?.map((item, itemIndex) => {
-                    if (item.type === "bullet") {
-                      return (
-                        <div key={itemIndex} className={styles.timelineItem}>
-                          <div className={styles.timelineMarker}></div>
-                          <div className={styles.timelineContent}>
-                            {item.text}
-                          </div>
-                        </div>
-                      );
-                    } else if (item.type === "keyValue") {
-                      return (
-                        <div key={itemIndex} className={styles.keyValue}>
-                          <span className={styles.key}>{item.key}:</span>
-                          <span className={styles.value}>{item.value}</span>
-                        </div>
-                      );
-                    } else {
-                      return (
-                        <div key={itemIndex} className={styles.text}>
-                          {item.text}
-                        </div>
-                      );
-                    }
-                  })}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-
-      {/* Fallback: Show raw text */}
-      {parsedData.timeline.length === 0 &&
-        parsedData.keyMoments.length === 0 &&
-        !data?.sections &&
-        rawText && <div className={styles.rawText}>{rawText}</div>}
     </div>
   );
 };

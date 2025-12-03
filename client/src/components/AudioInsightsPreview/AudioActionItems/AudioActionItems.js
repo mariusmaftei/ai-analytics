@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faTasks,
@@ -12,199 +12,164 @@ import {
   faTable,
   faCircle,
 } from "@fortawesome/free-solid-svg-icons";
+import { errorLog } from "../../../utils/debugLogger";
+import { validateParsedData } from "../../../utils/audioParsingHelpers";
+import {
+  ACTION_ITEM_FULL_PATTERN,
+  ACTION_ITEM_SIMPLE_PATTERN,
+  DECISION_WITH_OPTIONAL_TIMESTAMP_PATTERN,
+  DECISION_SIMPLE_PATTERN,
+  DEADLINE_WITH_TIMESTAMP_PATTERN,
+  DEADLINE_PATTERN,
+  createSectionPattern,
+} from "../../../utils/audioRegexPatterns";
+import EmptyState from "../../Shared/EmptyState/EmptyState";
+import ParsingError from "../../Shared/ParsingError/ParsingError";
 import styles from "./AudioActionItems.module.css";
 
-const AudioActionItems = ({ data, rawText, analysisData }) => {
+// Helper function to parse lines from a section
+const parseLines = (
+  text,
+  fullPattern,
+  simplePattern,
+  parseFull,
+  parseSimple
+) => {
+  const lines = text.split(/\n/).filter((line) => line.trim().length > 0);
+
+  const results = [];
+  lines.forEach((line) => {
+    const fullMatch = line.match(fullPattern);
+    if (fullMatch) {
+      results.push(parseFull(fullMatch));
+    } else {
+      const simpleMatch = line.match(simplePattern);
+      if (simpleMatch && !simpleMatch[1]?.includes("SECTION:")) {
+        results.push(parseSimple(simpleMatch));
+      }
+    }
+  });
+  return results;
+};
+
+// Helper to normalize "—" to null
+const normalizeValue = (value) =>
+  value?.trim() === "—" ? null : value?.trim();
+
+const AudioActionItems = ({ rawText }) => {
+  const [parsingError, setParsingError] = useState(null);
+
   const parsedData = useMemo(() => {
-    const result = {
-      actionItems: [],
-      decisions: [],
-      deadlines: [],
-      followUps: [],
-    };
+    setParsingError(null);
 
-    const text = rawText || "";
-    const sections = data?.sections || [];
+    try {
+      const result = {
+        actionItems: [],
+        decisions: [],
+        deadlines: [],
+      };
 
-    console.log("[AudioActionItems] Raw sections:", sections);
-    console.log("[AudioActionItems] Raw text length:", text.length);
-    if (text) {
-      console.log(
-        "[AudioActionItems] Raw text preview:",
-        text.substring(0, 500)
+      const text = rawText || "";
+
+      // Parse Action Items from rawText
+      const actionItemsMatch = text.match(
+        createSectionPattern("Action\\s+Items")
       );
-    }
-
-    // Parse Action Items from rawText
-    const actionItemsMatch = text.match(
-      /SECTION:\s*Action\s+Items\s*[:\n]*([\s\S]*?)(?=SECTION:|$)/i
-    );
-    if (actionItemsMatch) {
-      const actionItemsText = actionItemsMatch[1];
-      console.log(
-        "[AudioActionItems] Found Action Items:",
-        actionItemsText.substring(0, 500)
-      );
-
-      const lines = actionItemsText
-        .split(/\n/)
-        .filter((line) => line.trim().length > 0);
-      lines.forEach((line) => {
-        // Parse format: "Task Name: Assigned To: Deadline: Priority: Timestamp: Notes"
-        const taskMatch = line.match(
-          /^([^:]+?):\s*([^:]+?):\s*([^:]+?):\s*(High|Medium|Low|—):\s*(\d{1,2}:\d{2}|—):\s*(.+)$/i
+      if (actionItemsMatch) {
+        const actionItemsText = actionItemsMatch[1];
+        result.actionItems = parseLines(
+          actionItemsText,
+          ACTION_ITEM_FULL_PATTERN,
+          ACTION_ITEM_SIMPLE_PATTERN,
+          (match) => ({
+            task: match[1].trim(),
+            assignedTo: normalizeValue(match[2]),
+            deadline: normalizeValue(match[3]),
+            priority: match[4].trim(),
+            timestamp: normalizeValue(match[5]),
+            notes: match[6].trim(),
+          }),
+          (match) => ({
+            task: match[1].trim(),
+            assignedTo: null,
+            deadline: null,
+            priority: "Medium",
+            timestamp: null,
+            notes: match[2].trim(),
+          })
         );
-        if (taskMatch) {
-          result.actionItems.push({
-            task: taskMatch[1].trim(),
-            assignedTo:
-              taskMatch[2].trim() === "—" ? null : taskMatch[2].trim(),
-            deadline: taskMatch[3].trim() === "—" ? null : taskMatch[3].trim(),
-            priority: taskMatch[4].trim(),
-            timestamp: taskMatch[5].trim() === "—" ? null : taskMatch[5].trim(),
-            notes: taskMatch[6].trim(),
-          });
-        } else {
-          // Try simpler format without all fields
-          const simpleTaskMatch = line.match(/^([^:]+?):\s*(.+)$/);
-          if (simpleTaskMatch && !simpleTaskMatch[1].includes("SECTION:")) {
-            result.actionItems.push({
-              task: simpleTaskMatch[1].trim(),
-              assignedTo: null,
-              deadline: null,
-              priority: "Medium",
-              timestamp: null,
-              notes: simpleTaskMatch[2].trim(),
-            });
-          }
-        }
-      });
-    }
+      }
 
-    // Parse Decisions Made from rawText
-    const decisionsMatch = text.match(
-      /SECTION:\s*Decisions\s+Made\s*[:\n]*([\s\S]*?)(?=SECTION:|$)/i
-    );
-    if (decisionsMatch) {
-      const decisionsText = decisionsMatch[1];
-      console.log(
-        "[AudioActionItems] Found Decisions:",
-        decisionsText.substring(0, 500)
+      // Parse Decisions Made from rawText
+      const decisionsMatch = text.match(
+        createSectionPattern("Decisions\\s+Made")
       );
-
-      const lines = decisionsText
-        .split(/\n/)
-        .filter((line) => line.trim().length > 0);
-      lines.forEach((line) => {
-        // Parse format: "Decision Description: Timestamp"
-        const decisionMatch = line.match(/^([^:]+?):\s*(\d{1,2}:\d{2}|—)$/i);
-        if (decisionMatch) {
-          result.decisions.push({
-            decision: decisionMatch[1].trim(),
-            timestamp:
-              decisionMatch[2].trim() === "—" ? null : decisionMatch[2].trim(),
-          });
-        } else {
-          // Try format without timestamp
-          const simpleDecisionMatch = line.match(/^[-•*]?\s*(.+)$/);
-          if (
-            simpleDecisionMatch &&
-            !simpleDecisionMatch[1].includes("SECTION:")
-          ) {
-            result.decisions.push({
-              decision: simpleDecisionMatch[1].trim(),
-              timestamp: null,
-            });
-          }
-        }
-      });
-    }
-
-    // Parse Deadlines Mentioned from rawText
-    const deadlinesMatch = text.match(
-      /SECTION:\s*Deadlines\s+Mentioned\s*[:\n]*([\s\S]*?)(?=SECTION:|$)/i
-    );
-    if (deadlinesMatch) {
-      const deadlinesText = deadlinesMatch[1];
-      console.log(
-        "[AudioActionItems] Found Deadlines:",
-        deadlinesText.substring(0, 500)
-      );
-
-      const lines = deadlinesText
-        .split(/\n/)
-        .filter((line) => line.trim().length > 0);
-      lines.forEach((line) => {
-        // Parse format: "Deadline Description: Date: Timestamp"
-        const deadlineMatch = line.match(
-          /^([^:]+?):\s*([^:]+?):\s*(\d{1,2}:\d{2}|—)$/i
+      if (decisionsMatch) {
+        const decisionsText = decisionsMatch[1];
+        result.decisions = parseLines(
+          decisionsText,
+          DECISION_WITH_OPTIONAL_TIMESTAMP_PATTERN,
+          DECISION_SIMPLE_PATTERN,
+          (match) => ({
+            decision: match[1].trim(),
+            timestamp: normalizeValue(match[2]),
+          }),
+          (match) => ({
+            decision: match[1].trim(),
+            timestamp: null,
+          })
         );
-        if (deadlineMatch) {
-          result.deadlines.push({
-            description: deadlineMatch[1].trim(),
-            date: deadlineMatch[2].trim(),
-            timestamp:
-              deadlineMatch[3].trim() === "—" ? null : deadlineMatch[3].trim(),
-          });
-        } else {
-          // Try format without timestamp
-          const simpleDeadlineMatch = line.match(/^([^:]+?):\s*(.+)$/);
-          if (
-            simpleDeadlineMatch &&
-            !simpleDeadlineMatch[1].includes("SECTION:")
-          ) {
-            result.deadlines.push({
-              description: simpleDeadlineMatch[1].trim(),
-              date: simpleDeadlineMatch[2].trim(),
-              timestamp: null,
-            });
-          }
-        }
-      });
-    }
+      }
 
-    // Parse Follow-up Items from rawText
-    const followUpsMatch = text.match(
-      /SECTION:\s*Follow-up\s+Items\s*[:\n]*([\s\S]*?)(?=SECTION:|$)/i
-    );
-    if (followUpsMatch) {
-      const followUpsText = followUpsMatch[1];
-      console.log(
-        "[AudioActionItems] Found Follow-ups:",
-        followUpsText.substring(0, 500)
+      // Parse Deadlines Mentioned from rawText
+      const deadlinesMatch = text.match(
+        createSectionPattern("Deadlines\\s+Mentioned")
+      );
+      if (deadlinesMatch) {
+        const deadlinesText = deadlinesMatch[1];
+        result.deadlines = parseLines(
+          deadlinesText,
+          DEADLINE_WITH_TIMESTAMP_PATTERN,
+          DEADLINE_PATTERN,
+          (match) => ({
+            description: match[1].trim(),
+            date: match[2].trim(),
+            timestamp: normalizeValue(match[3]),
+          }),
+          (match) => ({
+            description: match[1].trim(),
+            date: match[2].trim(),
+            timestamp: null,
+          })
+        );
+      }
+
+      // Validate parsed data
+      const isValid = validateParsedData(
+        result,
+        {
+          actionItems: "array",
+          decisions: "array",
+          deadlines: "array",
+        },
+        "AudioActionItems"
       );
 
-      const lines = followUpsText
-        .split(/\n/)
-        .filter((line) => line.trim().length > 0);
-      lines.forEach((line) => {
-        // Parse format: "Follow-up Description: Timestamp"
-        const followUpMatch = line.match(/^([^:]+?):\s*(\d{1,2}:\d{2}|—)$/i);
-        if (followUpMatch) {
-          result.followUps.push({
-            description: followUpMatch[1].trim(),
-            timestamp:
-              followUpMatch[2].trim() === "—" ? null : followUpMatch[2].trim(),
-          });
-        } else {
-          // Try format without timestamp
-          const simpleFollowUpMatch = line.match(/^[-•*]?\s*(.+)$/);
-          if (
-            simpleFollowUpMatch &&
-            !simpleFollowUpMatch[1].includes("SECTION:")
-          ) {
-            result.followUps.push({
-              description: simpleFollowUpMatch[1].trim(),
-              timestamp: null,
-            });
-          }
-        }
-      });
-    }
+      if (!isValid) {
+        throw new Error("Parsed data validation failed - invalid structure");
+      }
 
-    console.log("[AudioActionItems] Parsed data:", result);
-    return result;
-  }, [data, rawText]);
+      return result;
+    } catch (error) {
+      errorLog("AudioActionItems", "Parsing error:", error);
+      setParsingError(error);
+      return {
+        actionItems: [],
+        decisions: [],
+        deadlines: [],
+      };
+    }
+  }, [rawText]);
 
   // Calculate summary statistics
   const summary = useMemo(() => {
@@ -248,6 +213,34 @@ const AudioActionItems = ({ data, rawText, analysisData }) => {
     }
   };
 
+  // Show parsing error if occurred
+  if (parsingError) {
+    return (
+      <div className={styles.container}>
+        <div className={styles.header}>
+          <div className={styles.headerIcon}>
+            <FontAwesomeIcon icon={faTasks} />
+          </div>
+          <div>
+            <h2 className={styles.title}>Action Items</h2>
+            <p className={styles.subtitle}>Tasks, decisions, and deadlines</p>
+          </div>
+        </div>
+        <ParsingError
+          message="Failed to parse action items data. The analysis may be in an unexpected format."
+          showRawData={true}
+          rawData={rawText}
+        />
+      </div>
+    );
+  }
+
+  // Check if all data is empty
+  const hasData =
+    parsedData.actionItems.length > 0 ||
+    parsedData.decisions.length > 0 ||
+    parsedData.deadlines.length > 0;
+
   return (
     <div className={styles.container}>
       <div className={styles.header}>
@@ -259,6 +252,14 @@ const AudioActionItems = ({ data, rawText, analysisData }) => {
           <p className={styles.subtitle}>Tasks, decisions, and deadlines</p>
         </div>
       </div>
+
+      {!hasData && (
+        <EmptyState
+          icon={faTasks}
+          title="No Action Items Found"
+          message="No action items, decisions, or deadlines were extracted from this audio analysis."
+        />
+      )}
 
       {/* Summary Box */}
       {(summary.tasksCount > 0 ||
@@ -501,51 +502,6 @@ const AudioActionItems = ({ data, rawText, analysisData }) => {
           </div>
         </div>
       )}
-
-      {/* Fallback: Show raw sections if available */}
-      {parsedData.actionItems.length === 0 &&
-        parsedData.decisions.length === 0 &&
-        data?.sections &&
-        data.sections.length > 0 && (
-          <div className={styles.sections}>
-            {data.sections.map((section, index) => (
-              <div key={index} className={styles.section}>
-                <h3 className={styles.sectionTitle}>{section.name}</h3>
-                <div className={styles.content}>
-                  {section.content?.map((item, itemIndex) => {
-                    if (item.type === "bullet") {
-                      return (
-                        <div key={itemIndex} className={styles.actionItem}>
-                          <FontAwesomeIcon icon={faTasks} />
-                          {item.text}
-                        </div>
-                      );
-                    } else if (item.type === "keyValue") {
-                      return (
-                        <div key={itemIndex} className={styles.keyValue}>
-                          <span className={styles.key}>{item.key}:</span>
-                          <span className={styles.value}>{item.value}</span>
-                        </div>
-                      );
-                    } else {
-                      return (
-                        <div key={itemIndex} className={styles.text}>
-                          {item.text}
-                        </div>
-                      );
-                    }
-                  })}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-
-      {/* Fallback: Show raw text */}
-      {parsedData.actionItems.length === 0 &&
-        parsedData.decisions.length === 0 &&
-        !data?.sections &&
-        rawText && <div className={styles.rawText}>{rawText}</div>}
     </div>
   );
 };
