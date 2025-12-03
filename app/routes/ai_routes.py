@@ -7,6 +7,7 @@ from config import generate_text, generate_text_stream, analyze_content
 from services.ai_prompt_service import build_chat_prompt, build_streaming_chat_prompt
 from services.pdf_analysis_service import build_document_insight_prompt
 from services.csv_service import build_csv_insight_prompt
+from services.audio_analysis.prompts import build_audio_insight_prompt
 
 ai_bp = Blueprint('ai', __name__, url_prefix='/api/ai')
 
@@ -167,6 +168,34 @@ def ai_generate_insights_stream():
                 print(f"[INSIGHT] Prompt built successfully, length: {len(prompt)}, type: {analysis_type}")
             except Exception as e:
                 print(f"[INSIGHT] Error building CSV prompt: {str(e)}")
+                return jsonify({
+                    'status': 'error',
+                    'message': f'Error building prompt: {str(e)}'
+                }), 500
+        elif file_type == 'AUDIO':
+            document_text = data.get('text', '')
+            metadata = data.get('metadata', {})
+            transcription = data.get('transcription', {})
+            analysis_type = data.get('analysisType', 'overview')
+            
+            print(f"[INSIGHT] Audio transcript length: {len(document_text) if document_text else 0}, analysis_type: {analysis_type}")
+            
+            if not document_text:
+                return jsonify({
+                    'status': 'error',
+                    'message': 'Audio transcript is required for audio files'
+                }), 400
+            
+            try:
+                prompt = build_audio_insight_prompt(
+                    transcript=document_text,
+                    metadata=metadata,
+                    transcription_data=transcription,
+                    analysis_type=analysis_type
+                )
+                print(f"[INSIGHT] Audio prompt built successfully, length: {len(prompt)}, type: {analysis_type}")
+            except Exception as e:
+                print(f"[INSIGHT] Error building audio prompt: {str(e)}")
                 return jsonify({
                     'status': 'error',
                     'message': f'Error building prompt: {str(e)}'

@@ -51,6 +51,15 @@ export const generateInsights = async (params, onChunk) => {
       payload.columns = columns;
       payload.metadata = metadata || {};
       payload.analysisType = params.analysisType || 'overview';
+    } else if (fileType === 'AUDIO') {
+      // For audio files, text is the transcript
+      if (!text) {
+        throw new Error('Audio transcript is required for audio files');
+      }
+      payload.text = text;
+      payload.metadata = metadata || {};
+      payload.transcription = params.transcription || {};
+      payload.analysisType = params.analysisType || 'overview';
     } else {
       // For non-CSV files, text is required
       if (!text) {

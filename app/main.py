@@ -7,7 +7,7 @@ from flask_cors import CORS
 from dotenv import load_dotenv
 import os
 from config import init_db, close_db
-from routes import pdf_bp, rag_bp
+from routes import pdf_bp, rag_bp, audio_bp
 from routes.image_routes import image_bp
 from routes.ai_routes import ai_bp
 
@@ -28,6 +28,7 @@ app.register_blueprint(pdf_bp)
 app.register_blueprint(rag_bp)
 app.register_blueprint(image_bp)
 app.register_blueprint(ai_bp)
+app.register_blueprint(audio_bp)
 
 try:
     init_db()

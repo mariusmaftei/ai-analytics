@@ -1,0 +1,473 @@
+.container {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  padding: 2rem;
+  background: var(--surface-color);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-xl);
+  animation: fadeIn 0.4s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 2px solid var(--border-color);
+}
+
+.headerIcon {
+  font-size: 2rem;
+  color: #9333ea;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 3rem;
+  height: 3rem;
+  background: rgba(147, 51, 234, 0.1);
+  border-radius: var(--radius-md);
+}
+
+.title {
+  margin: 0;
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.subtitle {
+  margin: 0.25rem 0 0 0;
+  font-size: 0.9375rem;
+  color: var(--text-secondary);
+}
+
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.sectionIcon {
+  font-size: 1.25rem;
+  color: #9333ea;
+}
+
+.sectionTitle {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+/* Filters Bar */
+.filtersBar {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  background: var(--background-color);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-color);
+  flex-wrap: wrap;
+}
+
+.filtersLabel {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 0.875rem;
+}
+
+.filterIcon {
+  color: #9333ea;
+}
+
+.filtersList {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.filterButton {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: var(--surface-color);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.filterButton:hover {
+  background: rgba(147, 51, 234, 0.1);
+  border-color: #9333ea;
+  color: var(--text-primary);
+}
+
+.filterButton.filterActive {
+  background: rgba(147, 51, 234, 0.1);
+  border-color: #9333ea;
+  color: #9333ea;
+  font-weight: 600;
+}
+
+/* Timeline Section */
+.timelineSection {
+  padding: 1.5rem;
+  background: var(--background-color);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-color);
+  position: relative;
+}
+
+.timelineHeader {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
+.timelineStart,
+.timelineEnd {
+  font-family: 'Courier New', monospace;
+}
+
+/* Key Moments Layer */
+.keyMomentsLayer {
+  position: relative;
+  height: 3rem;
+  margin-bottom: 1rem;
+}
+
+.keyMomentMarker {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  font-size: 1.25rem;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+  z-index: 10;
+}
+
+.keyMomentMarker:hover {
+  transform: translateX(-50%) scale(1.2);
+}
+
+/* Main Timeline Bar */
+.mainTimelineBar {
+  position: relative;
+  height: 3rem;
+  background: rgba(147, 51, 234, 0.1);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  margin-bottom: 1rem;
+}
+
+.timelineSegment {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2px;
+}
+
+.timelineSegment:hover {
+  opacity: 0.8;
+  transform: scaleY(1.1);
+  z-index: 5;
+}
+
+.segmentLabel {
+  color: white;
+  font-weight: 700;
+  font-size: 0.75rem;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  pointer-events: none;
+}
+
+/* Speaker Activity Layer */
+.speakerActivityLayer {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.speakerTrack {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.speakerTrackLabel {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 120px;
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 0.875rem;
+}
+
+.speakerTrackLabel svg {
+  color: #9333ea;
+}
+
+.speakerTrackBar {
+  flex: 1;
+  height: 1.5rem;
+  background: rgba(147, 51, 234, 0.05);
+  border-radius: var(--radius-md);
+  position: relative;
+  overflow: hidden;
+}
+
+.speakerSegment {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+  min-width: 2px;
+}
+
+.speakerSegment:hover {
+  opacity: 0.7;
+}
+
+/* Highlights Section */
+.highlightsSection {
+  margin-top: 2rem;
+}
+
+.highlightsList {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.highlightItem {
+  display: flex;
+  gap: 1rem;
+  padding: 1rem;
+  background: var(--background-color);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+  border-left: 3px solid #9333ea;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  cursor: pointer;
+}
+
+.highlightItem:hover {
+  transform: translateX(4px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.highlightTimestamp {
+  font-family: 'Courier New', monospace;
+  font-weight: 700;
+  color: #9333ea;
+  font-size: 0.875rem;
+  min-width: 4rem;
+  flex-shrink: 0;
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+  border-radius: var(--radius-md);
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.highlightTimestamp:hover {
+  background: rgba(147, 51, 234, 0.1);
+  transform: scale(1.05);
+}
+
+.highlightContent {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.highlightText {
+  color: var(--text-primary);
+  line-height: 1.6;
+  font-style: italic;
+}
+
+.highlightMeta {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+/* Fallback Styles */
+.sections {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  position: relative;
+  padding-left: 1.5rem;
+}
+
+.timelineItem {
+  display: flex;
+  gap: 1rem;
+  position: relative;
+  padding-bottom: 1rem;
+}
+
+.timelineMarker {
+  position: absolute;
+  left: -1.75rem;
+  top: 0.25rem;
+  width: 12px;
+  height: 12px;
+  background: #9333ea;
+  border-radius: 50%;
+  border: 2px solid var(--surface-color);
+  box-shadow: 0 0 0 2px #9333ea;
+}
+
+.timelineItem::before {
+  content: '';
+  position: absolute;
+  left: -1.25rem;
+  top: 0.75rem;
+  width: 2px;
+  height: calc(100% - 0.5rem);
+  background: rgba(147, 51, 234, 0.3);
+}
+
+.timelineItem:last-child::before {
+  display: none;
+}
+
+.timelineContent {
+  flex: 1;
+  padding: 0.75rem;
+  background: var(--background-color);
+  border-radius: var(--radius-md);
+  border-left: 3px solid #9333ea;
+  color: var(--text-primary);
+  line-height: 1.6;
+}
+
+.keyValue {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  background: var(--background-color);
+  border-radius: var(--radius-md);
+  border-left: 3px solid #9333ea;
+}
+
+.key {
+  font-weight: 600;
+  color: var(--text-primary);
+  min-width: 150px;
+}
+
+.value {
+  color: var(--text-secondary);
+  flex: 1;
+}
+
+.text {
+  padding: 0.75rem;
+  color: var(--text-primary);
+  line-height: 1.7;
+}
+
+.rawText {
+  padding: 1.5rem;
+  background: var(--background-color);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  line-height: 1.8;
+  white-space: pre-wrap;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .container {
+    padding: 1.5rem;
+    gap: 1.5rem;
+  }
+
+  .filtersBar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .filtersList {
+    width: 100%;
+  }
+
+  .filterButton {
+    flex: 1;
+    justify-content: center;
+  }
+
+  .speakerTrack {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+
+  .speakerTrackBar {
+    width: 100%;
+  }
+
+  .highlightItem {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .highlightTimestamp {
+    min-width: auto;
+  }
+}

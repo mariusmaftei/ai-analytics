@@ -215,6 +215,7 @@ const BaseInsightGenerator = ({
     if (accentColor === "#f97316") return "orange";
     if (accentColor === "#22c55e") return "green";
     if (accentColor === "#3b82f6") return "blue";
+    if (accentColor === "#9333ea") return "purple";
     return "orange";
   };
 

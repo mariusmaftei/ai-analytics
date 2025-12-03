@@ -15,4 +15,11 @@ torch==2.5.1+cpu
 torchvision==0.20.1+cpu
 # Pin ultralytics to avoid dependency resolution issues
 ultralytics==8.3.233
+# Audio processing
+# AssemblyAI for Speech-to-Text transcription (free tier: 185 hours/month)
+# ElevenLabs for Text-to-Speech (TTS) - optional feature
+elevenlabs>=1.0.0
+# mutagen for audio metadata extraction (MP3, MP4, OGG, FLAC, etc.)
+mutagen>=1.47.0
+# requests library (already included) is used for AssemblyAI API calls
 

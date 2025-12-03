@@ -1,0 +1,504 @@
+.container {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  padding: 2rem;
+  background: var(--surface-color);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-xl);
+  animation: fadeIn 0.4s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 2px solid var(--border-color);
+}
+
+.headerIcon {
+  font-size: 2rem;
+  color: #9333ea;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 3rem;
+  height: 3rem;
+  background: rgba(147, 51, 234, 0.1);
+  border-radius: var(--radius-md);
+}
+
+.title {
+  margin: 0;
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.subtitle {
+  margin: 0.25rem 0 0 0;
+  font-size: 0.9375rem;
+  color: var(--text-secondary);
+}
+
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.sectionIcon {
+  font-size: 1.25rem;
+  color: #9333ea;
+}
+
+.sectionTitle {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+/* Speaker List Cards Section */
+.speakerCardsSection {
+  margin-bottom: 2rem;
+}
+
+.speakerCardsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1.5rem;
+}
+
+.speakerCard {
+  display: flex;
+  gap: 1rem;
+  padding: 1.5rem;
+  background: var(--background-color);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-color);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.speakerCard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.speakerIndicator {
+  width: 4px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.speakerCardContent {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.speakerLabel {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.dominantBadge {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  background: rgba(147, 51, 234, 0.1);
+  color: #9333ea;
+  border-radius: var(--radius-md);
+  font-size: 0.75rem;
+  font-weight: 600;
+  width: fit-content;
+}
+
+.speakerStats {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.speakerStat {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.875rem;
+}
+
+.statLabel {
+  color: var(--text-secondary);
+}
+
+.statValue {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* Timeline Section */
+.timelineSection {
+  margin-bottom: 2rem;
+}
+
+.timelineContainer {
+  padding: 1.5rem;
+  background: var(--background-color);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-color);
+}
+
+.timelineScale {
+  display: flex;
+  justify-content: space-between;
+  padding-bottom: 0.75rem;
+  margin-bottom: 1rem;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  font-weight: 600;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.timelineTracks {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.timelineTrack {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.timelineTrackLabel {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 120px;
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 0.875rem;
+}
+
+.timelineTrackColor {
+  width: 1rem;
+  height: 1rem;
+  border-radius: 50%;
+}
+
+.timelineTrackBar {
+  flex: 1;
+  height: 2rem;
+  background: rgba(147, 51, 234, 0.1);
+  border-radius: var(--radius-md);
+  position: relative;
+  overflow: hidden;
+}
+
+.timelineSegment {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+}
+
+.timelineSegment:hover {
+  opacity: 0.8;
+}
+
+/* Speaking Duration Chart Section */
+.durationChartSection {
+  margin-bottom: 2rem;
+}
+
+.durationChart {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1.5rem;
+  background: var(--background-color);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-color);
+}
+
+.durationBar {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.durationBarLabel {
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 0.875rem;
+  min-width: 120px;
+}
+
+.durationBarContainer {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  position: relative;
+}
+
+.durationBarFill {
+  height: 2rem;
+  border-radius: var(--radius-md);
+  transition: width 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: 0.75rem;
+  color: white;
+  font-weight: 600;
+  font-size: 0.875rem;
+  min-width: 2rem;
+}
+
+.durationBarPercentage {
+  font-weight: 600;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  min-width: 3rem;
+  text-align: right;
+}
+
+/* Conversation Patterns Section */
+.patternsSection {
+  margin-bottom: 2rem;
+}
+
+.patternsCard {
+  padding: 1.5rem;
+  background: var(--background-color);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-color);
+  border-left: 4px solid #9333ea;
+}
+
+.patternsList {
+  margin: 0;
+  padding-left: 1.5rem;
+  list-style: none;
+}
+
+.patternItem {
+  padding: 0.5rem 0;
+  color: var(--text-primary);
+  line-height: 1.6;
+  position: relative;
+}
+
+.patternItem::before {
+  content: "•";
+  position: absolute;
+  left: -1.5rem;
+  color: #9333ea;
+  font-weight: 700;
+}
+
+/* Speaker Breakdown Table Section */
+.breakdownTableSection {
+  margin-bottom: 2rem;
+}
+
+.tableContainer {
+  overflow-x: auto;
+  background: var(--background-color);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-color);
+}
+
+.breakdownTable {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.breakdownTable thead {
+  background: rgba(147, 51, 234, 0.1);
+}
+
+.breakdownTable th {
+  padding: 1rem;
+  text-align: left;
+  font-weight: 700;
+  color: var(--text-primary);
+  border-bottom: 2px solid var(--border-color);
+  font-size: 0.9375rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.breakdownTable td {
+  padding: 1rem;
+  border-bottom: 1px solid var(--border-color);
+  color: var(--text-primary);
+}
+
+.breakdownTable tbody tr:hover {
+  background: rgba(147, 51, 234, 0.05);
+}
+
+.speakerCell {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 600;
+}
+
+.speakerDot {
+  width: 0.75rem;
+  height: 0.75rem;
+  border-radius: 50%;
+}
+
+.timeCell {
+  font-family: 'Courier New', monospace;
+  color: var(--text-secondary);
+}
+
+.percentageCell {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.segmentsCell,
+.avgLengthCell {
+  text-align: center;
+  color: var(--text-secondary);
+}
+
+.notesCell {
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+/* Fallback Styles */
+.sections {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.sectionTitle {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid rgba(147, 51, 234, 0.2);
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.keyValue {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  background: var(--background-color);
+  border-radius: var(--radius-md);
+  border-left: 3px solid #9333ea;
+}
+
+.key {
+  font-weight: 600;
+  color: var(--text-primary);
+  min-width: 150px;
+}
+
+.value {
+  color: var(--text-secondary);
+  flex: 1;
+}
+
+.bullet {
+  padding: 0.5rem 0.75rem;
+  color: var(--text-primary);
+  line-height: 1.6;
+}
+
+.text {
+  padding: 0.75rem;
+  color: var(--text-primary);
+  line-height: 1.7;
+}
+
+.rawText {
+  padding: 1.5rem;
+  background: var(--background-color);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  line-height: 1.8;
+  white-space: pre-wrap;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .container {
+    padding: 1.5rem;
+    gap: 1.5rem;
+  }
+
+  .speakerCardsGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .timelineTrack {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+
+  .timelineTrackBar {
+    width: 100%;
+  }
+
+  .breakdownTable {
+    font-size: 0.875rem;
+  }
+
+  .breakdownTable th,
+  .breakdownTable td {
+    padding: 0.75rem 0.5rem;
+  }
+
+  .durationBarContainer {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .durationBarFill {
+    width: 100% !important;
+  }
+}

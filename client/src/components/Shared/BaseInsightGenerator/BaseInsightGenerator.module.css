@@ -54,6 +54,10 @@
   background: linear-gradient(135deg, rgba(59, 130, 246, 0.05) 0%, rgba(59, 130, 246, 0.02) 100%);
 }
 
+.container.purple .header {
+  background: linear-gradient(135deg, rgba(147, 51, 234, 0.05) 0%, rgba(147, 51, 234, 0.02) 100%);
+}
+
 .headerLeft {
   display: flex;
   align-items: center;
@@ -89,6 +93,11 @@
 .container.blue .icon {
   color: #3b82f6;
   filter: drop-shadow(0 2px 4px rgba(59, 130, 246, 0.2));
+}
+
+.container.purple .icon {
+  color: #9333ea;
+  filter: drop-shadow(0 2px 4px rgba(147, 51, 234, 0.2));
 }
 
 .header h3 {
@@ -128,6 +137,13 @@
   background-clip: text;
 }
 
+.container.purple .header h3 {
+  background: linear-gradient(135deg, #9333ea 0%, #7e22ce 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
 .headerSubtitle {
   margin: 0.25rem 0 0 0;
   font-size: 0.875rem;
@@ -155,6 +171,10 @@
 
 .container.blue .promptSection {
   background: linear-gradient(135deg, rgba(59, 130, 246, 0.02) 0%, rgba(59, 130, 246, 0.05) 100%);
+}
+
+.container.purple .promptSection {
+  background: linear-gradient(135deg, rgba(147, 51, 234, 0.02) 0%, rgba(147, 51, 234, 0.05) 100%);
 }
 
 .promptText {
@@ -201,6 +221,12 @@
   border: 1px solid rgba(59, 130, 246, 0.2);
 }
 
+.container.purple .completedHint {
+  color: #9333ea;
+  background: rgba(147, 51, 234, 0.1);
+  border: 1px solid rgba(147, 51, 234, 0.2);
+}
+
 .analysisTypesGrid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -241,6 +267,11 @@
   box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
 }
 
+.container.purple .generateButton {
+  background: linear-gradient(135deg, #9333ea 0%, #7e22ce 100%);
+  box-shadow: 0 4px 12px rgba(147, 51, 234, 0.3);
+}
+
 .generateButton:hover:not(:disabled) {
   transform: translateY(-2px);
   box-shadow: 0 6px 20px rgba(249, 115, 22, 0.4);
@@ -256,6 +287,10 @@
 
 .container.blue .generateButton:hover:not(:disabled) {
   box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4);
+}
+
+.container.purple .generateButton:hover:not(:disabled) {
+  box-shadow: 0 6px 20px rgba(147, 51, 234, 0.4);
 }
 
 .generateButton:disabled {
@@ -367,6 +402,10 @@
   background: linear-gradient(135deg, rgba(59, 130, 246, 0.05) 0%, rgba(59, 130, 246, 0.02) 100%);
 }
 
+.container.purple .analysisHeader {
+  background: linear-gradient(135deg, rgba(147, 51, 234, 0.05) 0%, rgba(147, 51, 234, 0.02) 100%);
+}
+
 .container.orange .analysisHeader:hover {
   background: linear-gradient(135deg, rgba(249, 115, 22, 0.1) 0%, rgba(249, 115, 22, 0.05) 100%);
 }
@@ -377,6 +416,10 @@
 
 .container.blue .analysisHeader:hover {
   background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(59, 130, 246, 0.05) 100%);
+}
+
+.container.purple .analysisHeader:hover {
+  background: linear-gradient(135deg, rgba(147, 51, 234, 0.1) 0%, rgba(147, 51, 234, 0.05) 100%);
 }
 
 .analysisHeaderLeft {
@@ -474,6 +517,12 @@
   background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(59, 130, 246, 0.05) 100%);
   border-color: #3b82f6;
   color: #3b82f6;
+}
+
+.container.purple .analysisTypeBadge {
+  background: linear-gradient(135deg, rgba(147, 51, 234, 0.1) 0%, rgba(147, 51, 234, 0.05) 100%);
+  border-color: #9333ea;
+  color: #9333ea;
 }
 
 .singleAnalysisSection {

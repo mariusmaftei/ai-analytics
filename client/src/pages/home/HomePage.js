@@ -5,6 +5,7 @@ import {
   faFilePdf,
   faFileCsv,
   faImage,
+  faVolumeUp,
   faMagnifyingGlass,
   faBolt,
   faLock,
@@ -30,6 +31,7 @@ const HomePage = () => {
   const imageInputRef = useRef(null);
   const pdfInputRef = useRef(null);
   const csvInputRef = useRef(null);
+  const audioInputRef = useRef(null);
   const mainTextareaRef = useRef(null);
   const bottomTextareaRef = useRef(null);
   const messagesEndRef = useRef(null);
@@ -69,6 +71,7 @@ const HomePage = () => {
       pdf: ["pdf"],
       csv: ["csv"],
       image: ["png", "jpg", "jpeg", "gif", "bmp", "webp", "tiff", "tif"],
+      audio: ["mp3", "wav", "m4a", "ogg", "flac", "webm", "aac"],
     };
 
     const validMimeTypes = {
@@ -82,6 +85,19 @@ const HomePage = () => {
         "image/bmp",
         "image/webp",
         "image/tiff",
+      ],
+      audio: [
+        "audio/mpeg",
+        "audio/mp3",
+        "audio/wav",
+        "audio/wave",
+        "audio/x-wav",
+        "audio/mp4",
+        "audio/m4a",
+        "audio/ogg",
+        "audio/flac",
+        "audio/webm",
+        "audio/aac",
       ],
     };
 
@@ -117,6 +133,7 @@ const HomePage = () => {
           pdf: "PDF",
           csv: "CSV",
           image: "Image",
+          audio: "Audio",
         };
         setErrorMessage(
           `Please upload a ${typeNames[expectedType]} file. You selected "${file.name}" which is not a valid ${typeNames[expectedType]} file.`
@@ -187,7 +204,7 @@ const HomePage = () => {
         handleFileUpload(file);
       } else {
         setErrorMessage(
-          `Please upload an Image, PDF, or CSV file. You dropped "${file.name}" which is not a supported file type.`
+          `Please upload an Image, PDF, CSV, or Audio file. You dropped "${file.name}" which is not a supported file type.`
         );
         setShowErrorModal(true);
       }
@@ -440,25 +457,39 @@ const HomePage = () => {
                   accept=".csv,text/csv,application/vnd.ms-excel"
                 />
                 <button
-                  className={styles.bottomUploadIcon}
+                  className={`${styles.bottomUploadIcon} ${styles.iconImage}`}
                   onClick={() => imageInputRef.current?.click()}
                   title="Upload Image - Visual analysis"
                 >
                   <FontAwesomeIcon icon={faImage} />
                 </button>
                 <button
-                  className={styles.bottomUploadIcon}
+                  className={`${styles.bottomUploadIcon} ${styles.iconPdf}`}
                   onClick={() => pdfInputRef.current?.click()}
                   title="Upload PDF - Document analysis"
                 >
                   <FontAwesomeIcon icon={faFilePdf} />
                 </button>
                 <button
-                  className={styles.bottomUploadIcon}
+                  className={`${styles.bottomUploadIcon} ${styles.iconCsv}`}
                   onClick={() => csvInputRef.current?.click()}
                   title="Upload CSV - Spreadsheet data"
                 >
                   <FontAwesomeIcon icon={faFileCsv} />
+                </button>
+                <input
+                  ref={audioInputRef}
+                  type="file"
+                  onChange={(e) => handleFileSelect(e, "audio")}
+                  className={styles.fileInput}
+                  accept=".mp3,.wav,.m4a,.ogg,.flac,.webm,.aac,audio/*"
+                />
+                <button
+                  className={`${styles.bottomUploadIcon} ${styles.iconAudio}`}
+                  onClick={() => audioInputRef.current?.click()}
+                  title="Upload Audio - Transcription and analysis"
+                >
+                  <FontAwesomeIcon icon={faVolumeUp} />
                 </button>
               </div>
 
@@ -543,26 +574,40 @@ const HomePage = () => {
                 className={styles.fileInput}
                 accept=".csv,text/csv,application/vnd.ms-excel"
               />
+              <input
+                ref={audioInputRef}
+                type="file"
+                onChange={(e) => handleFileSelect(e, "audio")}
+                className={styles.fileInput}
+                accept=".mp3,.wav,.m4a,.ogg,.flac,.webm,.aac,audio/*"
+              />
               <button
-                className={styles.uploadIconInline}
+                className={`${styles.uploadIconInline} ${styles.iconImage}`}
                 onClick={() => imageInputRef.current?.click()}
                 title="Upload Image - Visual analysis (PNG, JPG, GIF, etc.)"
               >
                 <FontAwesomeIcon icon={faImage} />
               </button>
               <button
-                className={styles.uploadIconInline}
+                className={`${styles.uploadIconInline} ${styles.iconPdf}`}
                 onClick={() => pdfInputRef.current?.click()}
                 title="Upload PDF - Document analysis"
               >
                 <FontAwesomeIcon icon={faFilePdf} />
               </button>
               <button
-                className={styles.uploadIconInline}
+                className={`${styles.uploadIconInline} ${styles.iconCsv}`}
                 onClick={() => csvInputRef.current?.click()}
                 title="Upload CSV - Spreadsheet data"
               >
                 <FontAwesomeIcon icon={faFileCsv} />
+              </button>
+              <button
+                className={`${styles.uploadIconInline} ${styles.iconAudio}`}
+                onClick={() => audioInputRef.current?.click()}
+                title="Upload Audio - Transcription and analysis"
+              >
+                <FontAwesomeIcon icon={faVolumeUp} />
               </button>
             </div>
           </div>

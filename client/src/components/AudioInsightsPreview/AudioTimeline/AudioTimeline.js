@@ -1,0 +1,719 @@
+import React, { useMemo, useState } from "react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import {
+  faClock,
+  faKey,
+  faExclamationCircle,
+  faStickyNote,
+  faBullseye,
+  faCommentDots,
+  faThumbtack,
+  faChartLine,
+  faFilter,
+  faUser,
+  faEye,
+  faEyeSlash,
+  faGavel,
+} from "@fortawesome/free-solid-svg-icons";
+import styles from "./AudioTimeline.module.css";
+
+const AudioTimeline = ({ data, rawText, analysisData }) => {
+  const [filters, setFilters] = useState({
+    keyMoments: true,
+    speakers: true,
+    sentiment: true,
+    actionItems: true,
+    decisions: true,
+  });
+
+  const parsedData = useMemo(() => {
+    const result = {
+      timeline: [],
+      keyMoments: [],
+      topicTransitions: [],
+      transcriptHighlights: [],
+    };
+
+    const text = rawText || "";
+    const sections = data?.sections || [];
+
+    console.log("[AudioTimeline] Raw sections:", sections);
+    console.log("[AudioTimeline] Raw text length:", text.length);
+    if (text) {
+      console.log("[AudioTimeline] Raw text preview:", text.substring(0, 500));
+    }
+
+    // Parse Discussion Timeline from rawText
+    const timelineMatch = text.match(
+      /SECTION:\s*Discussion\s+Timeline\s*[:\n]*([\s\S]*?)(?=SECTION:|$)/i
+    );
+    if (timelineMatch) {
+      const timelineText = timelineMatch[1];
+      console.log(
+        "[AudioTimeline] Found Discussion Timeline:",
+        timelineText.substring(0, 500)
+      );
+
+      // Handle concatenated entries - split by time pattern
+      const timelinePattern =
+        /(\d{1,2}:\d{2})-(\d{1,2}:\d{2}):\s*((?:(?!\d{1,2}:\d{2}-\d{1,2}:\d{2}).)+?)(?=\d{1,2}:\d{2}-\d{1,2}:\d{2}|$)/gi;
+      const matches = [...timelineText.matchAll(timelinePattern)];
+
+      if (matches.length > 0) {
+        matches.forEach((match) => {
+          const content = match[3].trim();
+          // Try full format: "Speaker Label: Topic/Description: Transcript Snippet"
+          const fullMatch = content.match(/^([^:]+?):\s*([^:]+?):\s*(.+)$/);
+          if (fullMatch) {
+            result.timeline.push({
+              startTime: match[1],
+              endTime: match[2],
+              speaker: fullMatch[1].trim(),
+              topic: fullMatch[2].trim(),
+              transcript: fullMatch[3].trim(),
+            });
+          } else {
+            // Simpler format
+            result.timeline.push({
+              startTime: match[1],
+              endTime: match[2],
+              speaker: null,
+              topic: content,
+              transcript: "",
+            });
+          }
+        });
+      } else {
+        // Fallback: Try splitting by newlines
+        const lines = timelineText
+          .split(/\n/)
+          .filter((line) => line.trim().length > 0);
+        lines.forEach((line) => {
+          const timelineMatch = line.match(
+            /(\d{1,2}:\d{2})-(\d{1,2}:\d{2}):\s*([^:]+?):\s*([^:]+?):\s*(.+)$/i
+          );
+          if (timelineMatch) {
+            result.timeline.push({
+              startTime: timelineMatch[1],
+              endTime: timelineMatch[2],
+              speaker: timelineMatch[3].trim(),
+              topic: timelineMatch[4].trim(),
+              transcript: timelineMatch[5].trim(),
+            });
+          } else {
+            const simpleMatch = line.match(
+              /(\d{1,2}:\d{2})-(\d{1,2}:\d{2}):\s*(.+)$/i
+            );
+            if (simpleMatch && !simpleMatch[3].includes("SECTION:")) {
+              result.timeline.push({
+                startTime: simpleMatch[1],
+                endTime: simpleMatch[2],
+                speaker: null,
+                topic: simpleMatch[3].trim(),
+                transcript: "",
+              });
+            }
+          }
+        });
+      }
+    }
+
+    // Parse Key Moments from rawText
+    const keyMomentsMatch = text.match(
+      /SECTION:\s*Key\s+Moments\s*[:\n]*([\s\S]*?)(?=SECTION:|$)/i
+    );
+    if (keyMomentsMatch) {
+      const keyMomentsText = keyMomentsMatch[1];
+      console.log(
+        "[AudioTimeline] Found Key Moments:",
+        keyMomentsText.substring(0, 500)
+      );
+
+      // Handle concatenated entries - split by type pattern
+      const momentPattern =
+        /(Decision|Action|TopicShift|Emotional|Keyword|Insight):\s*(\d{1,2}:\d{2}):\s*((?:(?!(?:Decision|Action|TopicShift|Emotional|Keyword|Insight):\s*\d{1,2}:\d{2}).)+?)(?=(?:Decision|Action|TopicShift|Emotional|Keyword|Insight):\s*\d{1,2}:\d{2}|$)/gi;
+      const matches = [...keyMomentsText.matchAll(momentPattern)];
+
+      if (matches.length > 0) {
+        matches.forEach((match) => {
+          const content = match[3].trim();
+          // Try format: "Description: Transcript Snippet"
+          const contentMatch = content.match(/^([^:]+?):\s*(.+)$/);
+          if (contentMatch) {
+            result.keyMoments.push({
+              type: match[1].trim(),
+              timestamp: match[2].trim(),
+              description: contentMatch[1].trim(),
+              transcript: contentMatch[2].trim(),
+            });
+          } else {
+            result.keyMoments.push({
+              type: match[1].trim(),
+              timestamp: match[2].trim(),
+              description: content,
+              transcript: "",
+            });
+          }
+        });
+      } else {
+        // Fallback: Try splitting by newlines
+        const lines = keyMomentsText
+          .split(/\n/)
+          .filter((line) => line.trim().length > 0);
+        lines.forEach((line) => {
+          const momentMatch = line.match(
+            /(Decision|Action|TopicShift|Emotional|Keyword|Insight):\s*(\d{1,2}:\d{2}):\s*([^:]+?):\s*(.+)$/i
+          );
+          if (momentMatch) {
+            result.keyMoments.push({
+              type: momentMatch[1].trim(),
+              timestamp: momentMatch[2].trim(),
+              description: momentMatch[3].trim(),
+              transcript: momentMatch[4].trim(),
+            });
+          } else {
+            const simpleMatch = line.match(/(\d{1,2}:\d{2}):\s*(.+)$/i);
+            if (simpleMatch && !simpleMatch[2].includes("SECTION:")) {
+              result.keyMoments.push({
+                type: "Insight",
+                timestamp: simpleMatch[1].trim(),
+                description: simpleMatch[2].trim(),
+                transcript: "",
+              });
+            }
+          }
+        });
+      }
+    }
+
+    // Parse Topic Transitions from rawText
+    const transitionsMatch = text.match(
+      /SECTION:\s*Topic\s+Transitions\s*[:\n]*([\s\S]*?)(?=SECTION:|$)/i
+    );
+    if (transitionsMatch) {
+      const transitionsText = transitionsMatch[1];
+      console.log(
+        "[AudioTimeline] Found Topic Transitions:",
+        transitionsText.substring(0, 500)
+      );
+
+      // Handle concatenated entries - split by time pattern
+      const transitionPattern =
+        /(\d{1,2}:\d{2}):\s*((?:(?!\d{1,2}:\d{2}:).)+?)(?=\d{1,2}:\d{2}:|$)/gi;
+      const matches = [...transitionsText.matchAll(transitionPattern)];
+
+      if (matches.length > 0) {
+        matches.forEach((match) => {
+          const content = match[2].trim();
+          // Try format: "From Topic → To Topic: Trigger/Reason"
+          const transitionMatch = content.match(
+            /^([^→]+?)\s*→\s*([^:]+?):\s*(.+)$/i
+          );
+          if (transitionMatch) {
+            result.topicTransitions.push({
+              timestamp: match[1].trim(),
+              fromTopic: transitionMatch[1].trim(),
+              toTopic: transitionMatch[2].trim(),
+              trigger: transitionMatch[3].trim(),
+            });
+          }
+        });
+      } else {
+        // Fallback: Try splitting by newlines
+        const lines = transitionsText
+          .split(/\n/)
+          .filter((line) => line.trim().length > 0);
+        lines.forEach((line) => {
+          const transitionMatch = line.match(
+            /(\d{1,2}:\d{2}):\s*([^→]+?)\s*→\s*([^:]+?):\s*(.+)$/i
+          );
+          if (transitionMatch) {
+            result.topicTransitions.push({
+              timestamp: transitionMatch[1].trim(),
+              fromTopic: transitionMatch[2].trim(),
+              toTopic: transitionMatch[3].trim(),
+              trigger: transitionMatch[4].trim(),
+            });
+          }
+        });
+      }
+    }
+
+    // Parse Transcript Highlights from rawText
+    const highlightsMatch = text.match(
+      /SECTION:\s*Transcript\s+Highlights\s*[:\n]*([\s\S]*?)(?=SECTION:|$)/i
+    );
+    if (highlightsMatch) {
+      const highlightsText = highlightsMatch[1];
+      console.log(
+        "[AudioTimeline] Found Transcript Highlights:",
+        highlightsText.substring(0, 500)
+      );
+
+      // Handle concatenated entries - split by time pattern
+      const highlightPattern =
+        /(\d{1,2}:\d{2}):\s*((?:(?!\d{1,2}:\d{2}:).)+?)(?=\d{1,2}:\d{2}:|$)/gi;
+      const matches = [...highlightsText.matchAll(highlightPattern)];
+
+      if (matches.length > 0) {
+        matches.forEach((match) => {
+          const content = match[2].trim();
+          // Try format with quotes: "Transcript Text": Type: Icon Label
+          const quotedMatch = content.match(
+            /^"([^"]+)"[:\s]*(Decision|Action|Topic|Emotional):\s*(.+)$/i
+          );
+          if (quotedMatch) {
+            result.transcriptHighlights.push({
+              timestamp: match[1].trim(),
+              text: quotedMatch[1].trim(),
+              type: quotedMatch[2].trim(),
+              iconLabel: quotedMatch[3].trim(),
+            });
+          } else {
+            // Try format without quotes: Transcript Text: Type: Icon Label
+            const unquotedMatch = content.match(
+              /^(.+?):\s*(Decision|Action|Topic|Emotional):\s*(.+)$/i
+            );
+            if (unquotedMatch && !unquotedMatch[1].includes("SECTION:")) {
+              result.transcriptHighlights.push({
+                timestamp: match[1].trim(),
+                text: unquotedMatch[1].trim(),
+                type: unquotedMatch[2].trim(),
+                iconLabel: unquotedMatch[3].trim(),
+              });
+            }
+          }
+        });
+      } else {
+        // Fallback: Try splitting by newlines
+        const lines = highlightsText
+          .split(/\n/)
+          .filter((line) => line.trim().length > 0);
+        lines.forEach((line) => {
+          const highlightMatch = line.match(
+            /(\d{1,2}:\d{2}):\s*"([^"]+)"[:\s]*(Decision|Action|Topic|Emotional):\s*(.+)$/i
+          );
+          if (highlightMatch) {
+            result.transcriptHighlights.push({
+              timestamp: highlightMatch[1].trim(),
+              text: highlightMatch[2].trim(),
+              type: highlightMatch[3].trim(),
+              iconLabel: highlightMatch[4].trim(),
+            });
+          } else {
+            const simpleMatch = line.match(
+              /(\d{1,2}:\d{2}):\s*(.+?):\s*(Decision|Action|Topic|Emotional):\s*(.+)$/i
+            );
+            if (simpleMatch && !simpleMatch[2].includes("SECTION:")) {
+              result.transcriptHighlights.push({
+                timestamp: simpleMatch[1].trim(),
+                text: simpleMatch[2].trim(),
+                type: simpleMatch[3].trim(),
+                iconLabel: simpleMatch[4].trim(),
+              });
+            }
+          }
+        });
+      }
+    }
+
+    console.log("[AudioTimeline] Parsed data:", result);
+    return result;
+  }, [data, rawText]);
+
+  // Calculate total duration
+  const totalDuration = useMemo(() => {
+    if (parsedData.timeline.length > 0) {
+      const lastItem = parsedData.timeline[parsedData.timeline.length - 1];
+      const [minutes, seconds] = lastItem.endTime.split(":").map(Number);
+      return minutes * 60 + seconds;
+    }
+    return 0;
+  }, [parsedData.timeline]);
+
+  // Group timeline by speaker
+  const timelineBySpeaker = useMemo(() => {
+    const grouped = {};
+    parsedData.timeline.forEach((item) => {
+      const speaker = item.speaker || "Unknown";
+      if (!grouped[speaker]) {
+        grouped[speaker] = [];
+      }
+      grouped[speaker].push(item);
+    });
+    return grouped;
+  }, [parsedData.timeline]);
+
+  // Get unique speakers
+  const speakers = useMemo(() => {
+    return Object.keys(timelineBySpeaker);
+  }, [timelineBySpeaker]);
+
+  const getSpeakerColor = (speaker, index) => {
+    const colors = [
+      "#9333ea", // Purple
+      "#3b82f6", // Blue
+      "#22c55e", // Green
+      "#f59e0b", // Orange
+      "#ef4444", // Red
+      "#8b5cf6", // Violet
+      "#06b6d4", // Cyan
+      "#ec4899", // Pink
+    ];
+    const speakerIndex = speakers.indexOf(speaker);
+    return colors[(speakerIndex >= 0 ? speakerIndex : index) % colors.length];
+  };
+
+  const calculatePosition = (timeString) => {
+    const [minutes, seconds] = timeString.split(":").map(Number);
+    const totalSeconds = minutes * 60 + seconds;
+    return totalDuration > 0 ? (totalSeconds / totalDuration) * 100 : 0;
+  };
+
+  const calculateWidth = (startTime, endTime) => {
+    const [startM, startS] = startTime.split(":").map(Number);
+    const [endM, endS] = endTime.split(":").map(Number);
+    const startSeconds = startM * 60 + startS;
+    const endSeconds = endM * 60 + endS;
+    const duration = endSeconds - startSeconds;
+    return totalDuration > 0 ? (duration / totalDuration) * 100 : 0;
+  };
+
+  const getMomentIcon = (type) => {
+    switch (type?.toLowerCase()) {
+      case "decision":
+        return faGavel;
+      case "action":
+        return faStickyNote;
+      case "topicshift":
+        return faKey;
+      case "emotional":
+        return faCommentDots;
+      case "keyword":
+        return faThumbtack;
+      case "insight":
+        return faChartLine;
+      default:
+        return faBullseye;
+    }
+  };
+
+  const getMomentColor = (type) => {
+    switch (type?.toLowerCase()) {
+      case "decision":
+        return "#9333ea";
+      case "action":
+        return "#3b82f6";
+      case "topicshift":
+        return "#f59e0b";
+      case "emotional":
+        return "#ec4899";
+      case "keyword":
+        return "#22c55e";
+      case "insight":
+        return "#06b6d4";
+      default:
+        return "#6b7280";
+    }
+  };
+
+  const toggleFilter = (filterName) => {
+    setFilters((prev) => ({
+      ...prev,
+      [filterName]: !prev[filterName],
+    }));
+  };
+
+  const formatTime = (seconds) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
+  };
+
+  return (
+    <div className={styles.container}>
+      <div className={styles.header}>
+        <div className={styles.headerIcon}>
+          <FontAwesomeIcon icon={faClock} />
+        </div>
+        <div>
+          <h2 className={styles.title}>Timeline</h2>
+          <p className={styles.subtitle}>Discussion timeline and key moments</p>
+        </div>
+      </div>
+
+      {/* Filters */}
+      <div className={styles.filtersBar}>
+        <div className={styles.filtersLabel}>
+          <FontAwesomeIcon icon={faFilter} className={styles.filterIcon} />
+          <span>Show:</span>
+        </div>
+        <div className={styles.filtersList}>
+          <button
+            className={`${styles.filterButton} ${
+              filters.keyMoments ? styles.filterActive : ""
+            }`}
+            onClick={() => toggleFilter("keyMoments")}
+          >
+            <FontAwesomeIcon icon={filters.keyMoments ? faEye : faEyeSlash} />
+            Key Moments
+          </button>
+          <button
+            className={`${styles.filterButton} ${
+              filters.speakers ? styles.filterActive : ""
+            }`}
+            onClick={() => toggleFilter("speakers")}
+          >
+            <FontAwesomeIcon icon={filters.speakers ? faEye : faEyeSlash} />
+            Speakers
+          </button>
+          <button
+            className={`${styles.filterButton} ${
+              filters.sentiment ? styles.filterActive : ""
+            }`}
+            onClick={() => toggleFilter("sentiment")}
+          >
+            <FontAwesomeIcon icon={filters.sentiment ? faEye : faEyeSlash} />
+            Sentiment
+          </button>
+          <button
+            className={`${styles.filterButton} ${
+              filters.actionItems ? styles.filterActive : ""
+            }`}
+            onClick={() => toggleFilter("actionItems")}
+          >
+            <FontAwesomeIcon icon={filters.actionItems ? faEye : faEyeSlash} />
+            Action Items
+          </button>
+          <button
+            className={`${styles.filterButton} ${
+              filters.decisions ? styles.filterActive : ""
+            }`}
+            onClick={() => toggleFilter("decisions")}
+          >
+            <FontAwesomeIcon icon={filters.decisions ? faEye : faEyeSlash} />
+            Decisions
+          </button>
+        </div>
+      </div>
+
+      {/* Main Timeline Bar */}
+      {totalDuration > 0 && (
+        <div className={styles.timelineSection}>
+          <div className={styles.timelineHeader}>
+            <span className={styles.timelineStart}>0:00</span>
+            <span className={styles.timelineEnd}>
+              {formatTime(totalDuration)}
+            </span>
+          </div>
+
+          {/* Key Moments Markers */}
+          {filters.keyMoments && parsedData.keyMoments.length > 0 && (
+            <div className={styles.keyMomentsLayer}>
+              {parsedData.keyMoments.map((moment, index) => {
+                const position = calculatePosition(moment.timestamp);
+                return (
+                  <div
+                    key={index}
+                    className={styles.keyMomentMarker}
+                    style={{ left: `${position}%` }}
+                    title={`${moment.type}: ${moment.description} (${moment.timestamp})`}
+                  >
+                    <FontAwesomeIcon
+                      icon={getMomentIcon(moment.type)}
+                      style={{ color: getMomentColor(moment.type) }}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Main Timeline Bar */}
+          <div className={styles.mainTimelineBar}>
+            {parsedData.timeline.map((item, index) => {
+              const left = calculatePosition(item.startTime);
+              const width = calculateWidth(item.startTime, item.endTime);
+              const speaker = item.speaker || "Unknown";
+              const color = getSpeakerColor(speaker, index);
+
+              return (
+                <div
+                  key={index}
+                  className={styles.timelineSegment}
+                  style={{
+                    left: `${left}%`,
+                    width: `${width}%`,
+                    backgroundColor: color,
+                  }}
+                  title={`${item.startTime}-${item.endTime}: ${speaker} - ${item.topic}`}
+                >
+                  {item.speaker && (
+                    <span className={styles.segmentLabel}>
+                      {speaker.charAt(speaker.length - 1)}
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Speaker Activity Layer */}
+          {filters.speakers && speakers.length > 0 && (
+            <div className={styles.speakerActivityLayer}>
+              {speakers.map((speaker, speakerIndex) => {
+                const speakerTimeline = timelineBySpeaker[speaker] || [];
+                const color = getSpeakerColor(speaker, speakerIndex);
+
+                return (
+                  <div key={speakerIndex} className={styles.speakerTrack}>
+                    <div className={styles.speakerTrackLabel}>
+                      <FontAwesomeIcon icon={faUser} />
+                      <span>{speaker}</span>
+                    </div>
+                    <div className={styles.speakerTrackBar}>
+                      {speakerTimeline.map((item, itemIndex) => {
+                        const left = calculatePosition(item.startTime);
+                        const width = calculateWidth(
+                          item.startTime,
+                          item.endTime
+                        );
+                        return (
+                          <div
+                            key={itemIndex}
+                            className={styles.speakerSegment}
+                            style={{
+                              left: `${left}%`,
+                              width: `${width}%`,
+                              backgroundColor: color,
+                            }}
+                            title={`${item.startTime}-${item.endTime}: ${item.topic}`}
+                          ></div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Timestamped Transcript Highlights */}
+      {parsedData.transcriptHighlights.length > 0 && (
+        <div className={styles.highlightsSection}>
+          <div className={styles.sectionHeader}>
+            <FontAwesomeIcon icon={faClock} className={styles.sectionIcon} />
+            <h3 className={styles.sectionTitle}>Transcript Highlights</h3>
+          </div>
+          <div className={styles.highlightsList}>
+            {parsedData.transcriptHighlights.map((highlight, index) => {
+              const filtered =
+                (highlight.type === "Decision" && !filters.decisions) ||
+                (highlight.type === "Action" && !filters.actionItems);
+
+              if (filtered) return null;
+
+              const handleTimestampClick = () => {
+                // Scroll to timeline and highlight the position
+                const timelineSection = document.querySelector(
+                  `.${styles.timelineSection}`
+                );
+                if (timelineSection) {
+                  timelineSection.scrollIntoView({
+                    behavior: "smooth",
+                    block: "center",
+                  });
+                  // Add a temporary highlight effect
+                  timelineSection.style.boxShadow =
+                    "0 0 20px rgba(147, 51, 234, 0.5)";
+                  setTimeout(() => {
+                    timelineSection.style.boxShadow = "";
+                  }, 2000);
+                }
+              };
+
+              return (
+                <div key={index} className={styles.highlightItem}>
+                  <div
+                    className={styles.highlightTimestamp}
+                    onClick={handleTimestampClick}
+                    title={`Jump to ${highlight.timestamp} on timeline`}
+                  >
+                    {highlight.timestamp}
+                  </div>
+                  <div className={styles.highlightContent}>
+                    <div className={styles.highlightText}>
+                      "{highlight.text}"
+                    </div>
+                    <div className={styles.highlightMeta}>
+                      <FontAwesomeIcon
+                        icon={getMomentIcon(highlight.type)}
+                        style={{ color: getMomentColor(highlight.type) }}
+                      />
+                      <span>
+                        {highlight.type === "Topic"
+                          ? "Topic Shift"
+                          : highlight.type}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Fallback: Show raw sections if available */}
+      {parsedData.timeline.length === 0 &&
+        parsedData.keyMoments.length === 0 &&
+        data?.sections &&
+        data.sections.length > 0 && (
+          <div className={styles.sections}>
+            {data.sections.map((section, index) => (
+              <div key={index} className={styles.section}>
+                <h3 className={styles.sectionTitle}>{section.name}</h3>
+                <div className={styles.content}>
+                  {section.content?.map((item, itemIndex) => {
+                    if (item.type === "bullet") {
+                      return (
+                        <div key={itemIndex} className={styles.timelineItem}>
+                          <div className={styles.timelineMarker}></div>
+                          <div className={styles.timelineContent}>
+                            {item.text}
+                          </div>
+                        </div>
+                      );
+                    } else if (item.type === "keyValue") {
+                      return (
+                        <div key={itemIndex} className={styles.keyValue}>
+                          <span className={styles.key}>{item.key}:</span>
+                          <span className={styles.value}>{item.value}</span>
+                        </div>
+                      );
+                    } else {
+                      return (
+                        <div key={itemIndex} className={styles.text}>
+                          {item.text}
+                        </div>
+                      );
+                    }
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+      {/* Fallback: Show raw text */}
+      {parsedData.timeline.length === 0 &&
+        parsedData.keyMoments.length === 0 &&
+        !data?.sections &&
+        rawText && <div className={styles.rawText}>{rawText}</div>}
+    </div>
+  );
+};
+
+export default AudioTimeline;

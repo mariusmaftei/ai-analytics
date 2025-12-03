@@ -382,10 +382,26 @@
 }
 
 .uploadIconInline:hover {
-  border-color: var(--primary-color);
+  border-color: #22c55e; /* Green border on hover */
   background: var(--surface-hover);
-  color: var(--primary-color);
   transform: translateY(-2px);
+}
+
+/* Icon-specific hover colors */
+.uploadIconInline.iconImage:hover {
+  color: #3b82f6; /* Blue for images */
+}
+
+.uploadIconInline.iconPdf:hover {
+  color: #f97316; /* Orange for PDFs */
+}
+
+.uploadIconInline.iconCsv:hover {
+  color: #22c55e; /* Green for CSVs */
+}
+
+.uploadIconInline.iconAudio:hover {
+  color: #9333ea; /* Purple for audio */
 }
 
 .fileInput {
@@ -435,10 +451,26 @@
 }
 
 .bottomUploadIcon:hover {
-  border-color: var(--primary-color);
+  border-color: #22c55e; /* Green border on hover */
   background: var(--surface-hover);
-  color: var(--primary-color);
   transform: translateY(-2px);
+}
+
+/* Icon-specific hover colors for bottom upload icons */
+.bottomUploadIcon.iconImage:hover {
+  color: #3b82f6; /* Blue for images */
+}
+
+.bottomUploadIcon.iconPdf:hover {
+  color: #f97316; /* Orange for PDFs */
+}
+
+.bottomUploadIcon.iconCsv:hover {
+  color: #22c55e; /* Green for CSVs */
+}
+
+.bottomUploadIcon.iconAudio:hover {
+  color: #9333ea; /* Purple for audio */
 }
 
 .bottomSearchBox {

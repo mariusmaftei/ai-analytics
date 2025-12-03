@@ -266,6 +266,38 @@
   flex-shrink: 0;
 }
 
+/* Audio-specific styling - Purple theme */
+.audioStatIcon {
+  font-size: 2rem;
+  color: #9333ea;
+  flex-shrink: 0;
+}
+
+.audioStatCard {
+  padding: 1.5rem;
+  background: var(--surface-color);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  transition: all 0.3s ease;
+}
+
+.audioStatCard:hover {
+  border-color: #9333ea;
+  transform: translateY(-4px);
+  box-shadow: 0 4px 12px rgba(147, 51, 234, 0.15);
+}
+
+.audioStatValue {
+  font-size: 1.75rem;
+  color: #9333ea;
+  font-weight: 700;
+  line-height: 1;
+  text-align: center;
+}
+
 .statContent {
   flex: 1;
   display: flex;
@@ -442,6 +474,15 @@
 }
 
 /* Data Preview */
+.transcriptionPreview {
+  color: var(--text-primary);
+  line-height: 1.8;
+  margin: 0;
+  padding: 1rem;
+  background: var(--background-color);
+  border-radius: var(--radius-md);
+}
+
 .dataPreview {
   display: flex;
   flex-direction: column;

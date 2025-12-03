@@ -11,6 +11,7 @@ import {
   faArrowLeft,
   faTable,
   faLightbulb,
+  faMicrophone,
 } from "@fortawesome/free-solid-svg-icons";
 import { useSession } from "../../context/SessionContext";
 import { chatAboutDocument } from "../../services/documentChatService";
@@ -19,10 +20,12 @@ import CSVPreview from "../../components/Layout/CSVPreview/CSVPreview";
 import JSONPreview from "../../components/Layout/JSONPreview/JSONPreview";
 import ImagePreview from "../../components/Layout/ImagePreview/ImagePreview";
 import PDFPreview from "../../components/Layout/PDFPreview/PDFPreview";
+import AudioPlayer from "../../components/Layout/AudioPlayer/AudioPlayer";
 import InsightGenerator from "../../components/InsightGenerator/InsightGenerator";
 import ImageInsightGenerator from "../../components/ImageInsightGenerator/ImageInsightGenerator";
 import CSVInsightGenerator from "../../components/CSVInsightGenerator/CSVInsightGenerator";
 import PDFInsightGenerator from "../../components/PDFInsightGenerator/PDFInsightGenerator";
+import AudioInsightGenerator from "../../components/AudioInsightGenerator/AudioInsightGenerator";
 import {
   generatePDFReport,
   generateCSVExport,
@@ -57,12 +60,14 @@ const SessionPage = () => {
   const isImage = analysisData.fileType === "IMAGE";
   const isCSV = analysisData.fileType === "CSV";
   const isPDF = analysisData.fileType === "PDF";
+  const isAudio = analysisData.fileType === "AUDIO";
 
   const [inputValue, setInputValue] = useState("");
   const [showCSVPreview, setShowCSVPreview] = useState(false);
   const [showJSONPreview, setShowJSONPreview] = useState(false);
   const [showImagePreview, setShowImagePreview] = useState(false);
   const [showPDFPreview, setShowPDFPreview] = useState(false);
+  const [showAudioPreview, setShowAudioPreview] = useState(false);
   const [showInsightGenerator, setShowInsightGenerator] = useState(false);
   const [showImageInsightGenerator, setShowImageInsightGenerator] =
     useState(false);
@@ -515,6 +520,18 @@ const SessionPage = () => {
           </button>
         )}
 
+        {analysisData.fileType === "AUDIO" && (
+          <button
+            className={`${styles.actionButton} ${
+              showAudioPreview ? styles.active : ""
+            }`}
+            onClick={() => setShowAudioPreview(!showAudioPreview)}
+          >
+            <FontAwesomeIcon icon={faMicrophone} />
+            <span>{showAudioPreview ? "Hide" : "Show"} Audio Player</span>
+          </button>
+        )}
+
         {!isImage &&
           ((analysisData.fileType === "PDF" &&
             analysisData.hasTables &&
@@ -616,6 +633,22 @@ const SessionPage = () => {
         </div>
       )}
 
+      {showAudioPreview && isAudio && (
+        <div className={styles.audioPreviewSection}>
+          <AudioPlayer
+            file={
+              fileData.file ||
+              session?.files?.find((f) => f.fileName === fileData.fileName)
+                ?.file ||
+              locationState.file
+            }
+            audioUrl={analysisData.audioUrl}
+            fileName={fileData.fileName}
+            metadata={analysisData.metadata}
+          />
+        </div>
+      )}
+
       {showJSONPreview && (
         <div className={styles.jsonPreviewSection}>
           <JSONPreview data={jsonPreviewData} />
@@ -663,7 +696,19 @@ const SessionPage = () => {
         </div>
       )}
 
-      {showInsightGenerator && !isImage && !isCSV && !isPDF && (
+      {showInsightGenerator && isAudio && (
+        <div
+          id="audio-insight-generator-section"
+          className={styles.insightGeneratorSection}
+        >
+          <AudioInsightGenerator
+            fileData={fileData}
+            analysisData={analysisData}
+          />
+        </div>
+      )}
+
+      {showInsightGenerator && !isImage && !isCSV && !isPDF && !isAudio && (
         <div
           id="insight-generator-section"
           className={styles.insightGeneratorSection}

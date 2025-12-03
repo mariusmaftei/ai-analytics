@@ -12,6 +12,8 @@
   padding: 1.5rem 2rem;
   background: var(--surface-color);
   border-bottom: 1px solid var(--border-color);
+  position: relative;
+  z-index: 99;
 }
 
 .backButton {
@@ -84,7 +86,7 @@
 
 .downloadContainer {
   position: relative;
-  z-index: 100;
+  z-index: 101;
 }
 
 .actionButton {
@@ -129,7 +131,7 @@
   border: 2px solid var(--primary-color);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-xl), 0 0 20px rgba(16, 185, 129, 0.3);
-  z-index: 1000;
+  z-index: 1001;
   animation: slideDown 0.3s ease-out;
 }
 
@@ -197,6 +199,7 @@
 .jsonPreviewSection,
 .imagePreviewSection,
 .pdfPreviewSection,
+.audioPreviewSection,
 .insightGeneratorSection {
   padding: 1.5rem 2rem;
   background: var(--surface-color);

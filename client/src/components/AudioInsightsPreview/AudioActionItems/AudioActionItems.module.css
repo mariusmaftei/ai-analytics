@@ -1,0 +1,497 @@
+.container {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  padding: 2rem;
+  background: var(--surface-color);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-xl);
+  animation: fadeIn 0.4s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 2px solid var(--border-color);
+}
+
+.headerIcon {
+  font-size: 2rem;
+  color: #9333ea;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 3rem;
+  height: 3rem;
+  background: rgba(147, 51, 234, 0.1);
+  border-radius: var(--radius-md);
+}
+
+.title {
+  margin: 0;
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.subtitle {
+  margin: 0.25rem 0 0 0;
+  font-size: 0.9375rem;
+  color: var(--text-secondary);
+}
+
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.sectionIcon {
+  font-size: 1.25rem;
+  color: #9333ea;
+}
+
+.sectionTitle {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+/* Summary Box */
+.summaryBox {
+  padding: 1.5rem;
+  background: var(--background-color);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-color);
+  border-left: 4px solid #9333ea;
+}
+
+.summaryHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.summaryIcon {
+  font-size: 1.25rem;
+  color: #9333ea;
+}
+
+.summaryTitle {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.summaryGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.summaryItem {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.summaryLabel {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.summaryValue {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+/* Task List Section */
+.taskListSection {
+  margin-bottom: 2rem;
+}
+
+.taskCardsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 1.5rem;
+}
+
+.taskCard {
+  padding: 1.5rem;
+  background: var(--background-color);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-color);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.taskCard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.taskCardHeader {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.taskPriorityIcon {
+  font-size: 1.25rem;
+  margin-top: 0.25rem;
+  flex-shrink: 0;
+}
+
+.taskName {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  flex: 1;
+}
+
+.taskCardBody {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.taskDetail {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+}
+
+.taskDetailIcon {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  width: 1rem;
+  flex-shrink: 0;
+}
+
+.taskDetailLabel {
+  font-weight: 600;
+  color: var(--text-secondary);
+  min-width: 100px;
+}
+
+.taskDetailValue {
+  color: var(--text-primary);
+  flex: 1;
+}
+
+/* Task Table Section */
+.taskTableSection {
+  margin-bottom: 2rem;
+}
+
+.tableContainer {
+  overflow-x: auto;
+  background: var(--background-color);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-color);
+}
+
+.taskTable {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.taskTable thead {
+  background: rgba(147, 51, 234, 0.1);
+}
+
+.taskTable th {
+  padding: 1rem;
+  text-align: left;
+  font-weight: 700;
+  color: var(--text-primary);
+  border-bottom: 2px solid var(--border-color);
+  font-size: 0.9375rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.taskTable td {
+  padding: 1rem;
+  border-bottom: 1px solid var(--border-color);
+  color: var(--text-primary);
+}
+
+.taskTable tbody tr:hover {
+  background: rgba(147, 51, 234, 0.05);
+}
+
+.taskCell {
+  font-weight: 600;
+}
+
+.assignedCell,
+.deadlineCell,
+.timestampCell {
+  color: var(--text-secondary);
+}
+
+.priorityCell {
+  text-align: center;
+}
+
+.priorityBadge {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  border-radius: var(--radius-md);
+  color: white;
+  font-weight: 600;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+}
+
+/* Decisions Section */
+.decisionsSection {
+  margin-bottom: 2rem;
+}
+
+.decisionsCard {
+  padding: 1.5rem;
+  background: var(--background-color);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-color);
+  border-left: 4px solid #9333ea;
+}
+
+.decisionsList {
+  margin: 0;
+  padding-left: 0;
+  list-style: none;
+}
+
+.decisionItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.decisionItem:last-child {
+  border-bottom: none;
+}
+
+.decisionText {
+  color: var(--text-primary);
+  flex: 1;
+  line-height: 1.6;
+}
+
+.decisionTimestamp {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  font-weight: 600;
+  margin-left: 1rem;
+  flex-shrink: 0;
+}
+
+/* Deadlines Timeline Section */
+.deadlinesSection {
+  margin-bottom: 2rem;
+}
+
+.timelineContainer {
+  padding: 1.5rem;
+  background: var(--background-color);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-color);
+}
+
+.timeline {
+  position: relative;
+  padding-left: 2rem;
+}
+
+.timeline::before {
+  content: "";
+  position: absolute;
+  left: 0.5rem;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--border-color);
+}
+
+.timelineItem {
+  position: relative;
+  margin-bottom: 2rem;
+  padding-left: 2rem;
+}
+
+.timelineItem:last-child {
+  margin-bottom: 0;
+}
+
+.timelineMarker {
+  position: absolute;
+  left: -1.5rem;
+  top: 0.5rem;
+  width: 1rem;
+  height: 1rem;
+  border-radius: 50%;
+  background: #9333ea;
+  border: 3px solid var(--background-color);
+  z-index: 1;
+}
+
+.timelineContent {
+  background: var(--surface-color);
+  padding: 1rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+}
+
+.timelineDate {
+  font-weight: 700;
+  color: #9333ea;
+  font-size: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.timelineDescription {
+  color: var(--text-primary);
+  margin-bottom: 0.5rem;
+  line-height: 1.6;
+}
+
+.timelineTimestamp {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+/* Fallback Styles */
+.sections {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.actionItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 1rem;
+  background: var(--background-color);
+  border-radius: var(--radius-md);
+  border-left: 3px solid #9333ea;
+  color: var(--text-primary);
+  line-height: 1.6;
+}
+
+.actionItem svg {
+  color: #9333ea;
+  margin-top: 0.2rem;
+  flex-shrink: 0;
+}
+
+.keyValue {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  background: var(--background-color);
+  border-radius: var(--radius-md);
+  border-left: 3px solid #9333ea;
+}
+
+.key {
+  font-weight: 600;
+  color: var(--text-primary);
+  min-width: 150px;
+}
+
+.value {
+  color: var(--text-secondary);
+  flex: 1;
+}
+
+.text {
+  padding: 0.75rem;
+  color: var(--text-primary);
+  line-height: 1.7;
+}
+
+.rawText {
+  padding: 1.5rem;
+  background: var(--background-color);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  line-height: 1.8;
+  white-space: pre-wrap;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .container {
+    padding: 1.5rem;
+    gap: 1.5rem;
+  }
+
+  .taskCardsGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .summaryGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .taskTable {
+    font-size: 0.875rem;
+  }
+
+  .taskTable th,
+  .taskTable td {
+    padding: 0.75rem 0.5rem;
+  }
+
+  .decisionItem {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+
+  .decisionTimestamp {
+    margin-left: 0;
+  }
+}

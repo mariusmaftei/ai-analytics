@@ -18,7 +18,9 @@ import { analyzePDFFile } from "../../services/pdfAnalysisService";
 import { analyzeJSONFile } from "../../services/jsonAnalysisService";
 import { analyzeCSVFile } from "../../services/csvAnalysisService";
 import { analyzeImageFile } from "../../services/imageAnalysisService";
+import { analyzeAudioFile } from "../../services/audioAnalysisService";
 import ImagePreview from "../../components/Layout/ImagePreview/ImagePreview";
+import AudioPlayer from "../../components/Layout/AudioPlayer/AudioPlayer";
 import styles from "./AnalysisPage.module.css";
 
 // Helper function to parse and structure insights text
@@ -170,6 +172,12 @@ const AnalysisPage = () => {
           } else if (fileType === 'text/csv' || fileName.endsWith('.csv')) {
             // Analyze CSV file
             results = await analyzeCSVFile(fileData.file);
+          } else if (fileType.includes('audio') || /\.(mp3|wav|m4a|ogg|flac|webm|aac)$/i.test(fileName)) {
+            // Analyze Audio file
+            results = await analyzeAudioFile(fileData.file, {
+              analysisType: 'overview',
+              saveToDb: false,
+            });
           } else {
             // Analyze PDF file (default)
             results = await analyzePDFFile(fileData.file, {
@@ -196,6 +204,8 @@ const AnalysisPage = () => {
           let fileType = 'PDF';
           if (fileTypeStr.includes('image') || /\.(png|jpg|jpeg|gif|bmp|webp|tiff|tif)$/i.test(fileName)) {
             fileType = 'Image';
+          } else if (fileTypeStr.includes('audio') || /\.(mp3|wav|m4a|ogg|flac|webm|aac)$/i.test(fileName)) {
+            fileType = 'Audio';
           } else if (fileTypeStr === 'application/json' || fileName.endsWith('.json')) {
             fileType = 'JSON';
           } else if (fileTypeStr === 'text/csv' || fileName.endsWith('.csv')) {
@@ -563,12 +573,13 @@ const AnalysisPage = () => {
                   )}
                 </div>
 
-                {/* Key Insights */}
-                <div className={styles.insightsSection}>
-                  <h3 className={styles.sectionTitle}>Key Insights</h3>
-                  <div className={styles.insightsList}>
-                    {analysisResults.insights?.summary && (() => {
-                      const parsedSections = parseInsightsText(analysisResults.insights.summary);
+                {/* Key Insights - Simplified for Audio */}
+                {analysisResults.fileType !== "AUDIO" && (
+                  <div className={styles.insightsSection}>
+                    <h3 className={styles.sectionTitle}>Key Insights</h3>
+                    <div className={styles.insightsList}>
+                      {analysisResults.insights?.summary && (() => {
+                        const parsedSections = parseInsightsText(analysisResults.insights.summary);
                       
                       // If we have structured sections, render them
                       if (parsedSections.length > 0) {
@@ -625,6 +636,31 @@ const AnalysisPage = () => {
                     ))}
                   </div>
                 </div>
+                )}
+
+                {/* Audio Summary - Brief and Clean */}
+                {analysisResults.fileType === "AUDIO" && analysisResults.analysis && (
+                  <div className={styles.insightsSection}>
+                    <h3 className={styles.sectionTitle}>Summary</h3>
+                    <div className={styles.insightsList}>
+                      {(() => {
+                        // Extract just the AI Summary section for audio
+                        const analysisText = analysisResults.analysis;
+                        const summaryMatch = analysisText.match(/SECTION:\s*AI Summary\s*\n([\s\S]*?)(?=\n\s*SECTION:|$)/i);
+                        const summaryText = summaryMatch ? summaryMatch[1].trim() : analysisText.split('\n').slice(0, 3).join(' ').substring(0, 300);
+                        
+                        return (
+                          <div className={styles.insightItem}>
+                            <div className={styles.insightDescription}>
+                              {summaryText}
+                              {summaryText.length >= 300 && '...'}
+                            </div>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  </div>
+                )}
 
                 {/* Image Preview */}
                 {analysisResults.fileType === "IMAGE" && analysisResults.imageUrl && (
@@ -635,6 +671,19 @@ const AnalysisPage = () => {
                       metadata={analysisResults.metadata}
                       alt={fileData.fileName}
                       showControls={false}
+                    />
+                  </div>
+                )}
+
+                {/* Audio Player */}
+                {analysisResults.fileType === "AUDIO" && fileData.file && (
+                  <div className={styles.previewSection}>
+                    <h3 className={styles.sectionTitle}>Audio Player</h3>
+                    <AudioPlayer
+                      file={fileData.file}
+                      audioUrl={analysisResults.audioUrl}
+                      fileName={fileData.fileName}
+                      metadata={analysisResults.metadata}
                     />
                   </div>
                 )}
@@ -702,6 +751,54 @@ const AnalysisPage = () => {
                       </div>
                     </div>
                   </div>
+                )}
+
+                {analysisResults.fileType === "AUDIO" && (
+                  <>
+                    {/* Audio Key Stats - Simplified */}
+                    <div className={styles.statsGrid}>
+                      <div className={styles.audioStatCard}>
+                        <FontAwesomeIcon icon={faClock} className={styles.audioStatIcon} />
+                        <div className={styles.statContent}>
+                          <div className={styles.audioStatValue}>
+                            {analysisResults.metadata?.duration 
+                              ? `${Math.floor(analysisResults.metadata.duration / 60)}:${Math.floor(analysisResults.metadata.duration % 60).toString().padStart(2, '0')}`
+                              : 'N/A'}
+                          </div>
+                          <div className={styles.statLabel}>Duration</div>
+                        </div>
+                      </div>
+                      <div className={styles.audioStatCard}>
+                        <FontAwesomeIcon icon={faFile} className={styles.audioStatIcon} />
+                        <div className={styles.statContent}>
+                          <div className={styles.audioStatValue}>
+                            {analysisResults.metadata?.format?.toUpperCase() || 'N/A'}
+                          </div>
+                          <div className={styles.statLabel}>Format</div>
+                        </div>
+                      </div>
+                      <div className={styles.audioStatCard}>
+                        <FontAwesomeIcon icon={faDatabase} className={styles.audioStatIcon} />
+                        <div className={styles.statContent}>
+                          <div className={styles.audioStatValue}>
+                            {analysisResults.transcription?.wordCount?.toLocaleString() || 0}
+                          </div>
+                          <div className={styles.statLabel}>Words Transcribed</div>
+                        </div>
+                      </div>
+                    </div>
+                    {analysisResults.transcription?.text && (
+                      <div className={styles.previewSection}>
+                        <h3 className={styles.sectionTitle}>Transcription Preview</h3>
+                        <div className={styles.dataPreview}>
+                          <p className={styles.transcriptionPreview}>
+                            {analysisResults.transcription.text.substring(0, 300)}
+                            {analysisResults.transcription.text.length > 300 && '...'}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </>
                 )}
 
                 {/* Call to Action */}
