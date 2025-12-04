@@ -12,6 +12,8 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import { errorLog } from "../../../utils/debugLogger";
 import { validateParsedData } from "../../../utils/audioParsingHelpers";
+import { parseAudioAnalysisData } from "../../../utils/audioJsonParser";
+import { SENTIMENT_SCHEMA } from "../../../utils/audioJsonSchemas";
 import {
   SENTIMENT_SCORE_PATTERN,
   SCORE_PATTERN,
@@ -25,7 +27,24 @@ import {
 } from "../../../utils/audioRegexPatterns";
 import EmptyState from "../../Shared/EmptyState/EmptyState";
 import ParsingError from "../../Shared/ParsingError/ParsingError";
+import RawDataViewer from "../../Shared/RawDataViewer/RawDataViewer";
+import { parseTimestamp } from "../../../utils/audioParsingHelpers";
 import styles from "./AudioSentimentAnalysis.module.css";
+
+// Helper to parse timestamp string (MM:SS) to seconds
+const parseTimestampToSeconds = (timestamp) => {
+  if (!timestamp || typeof timestamp !== "string") return 0;
+  try {
+    const parts = timestamp.split(":");
+    if (parts.length !== 2) return 0;
+    const minutes = parseInt(parts[0], 10);
+    const seconds = parseInt(parts[1], 10);
+    if (isNaN(minutes) || isNaN(seconds)) return 0;
+    return minutes * 60 + seconds;
+  } catch {
+    return 0;
+  }
+};
 
 const AudioSentimentAnalysis = ({ data, rawText }) => {
   const [parsingError, setParsingError] = useState(null);
@@ -34,6 +53,47 @@ const AudioSentimentAnalysis = ({ data, rawText }) => {
     setParsingError(null);
 
     try {
+      const text = rawText || "";
+
+      // Try JSON parsing first (new architecture)
+      const jsonResult = parseAudioAnalysisData(
+        text,
+        SENTIMENT_SCHEMA,
+        null, // Will use text parser as fallback
+        "AudioSentimentAnalysis"
+      );
+
+      // If JSON parsing succeeded, transform to expected format
+      if (jsonResult.data && jsonResult.format === 'json') {
+        const jsonData = jsonResult.data;
+        
+        // Transform JSON format to component's expected format
+        const transformed = {
+          overallSentiment: {
+            label: jsonData.overallSentiment?.label || "Neutral",
+            score: jsonData.overallSentiment?.score || 0.5,
+            intensity: jsonData.overallSentiment?.intensity || "Medium",
+          },
+          emotionBreakdown: (jsonData.emotionBreakdown || []).map(emotion => ({
+            emotion: emotion.emotion,
+            percentage: emotion.percentage,
+            intensity: emotion.intensity || null,
+          })),
+          sentimentTimeline: (jsonData.sentimentTimeline || []).map(item => ({
+            startTime: item.timestamp || "00:00",
+            endTime: item.timestamp || "00:00", // JSON only has single timestamp
+            startSeconds: parseTimestampToSeconds(item.timestamp || "00:00"),
+            endSeconds: parseTimestampToSeconds(item.timestamp || "00:00"),
+            sentiment: item.sentiment,
+            score: item.score || null,
+            transcript: item.transcript || null,
+          })),
+        };
+
+        return transformed;
+      }
+
+      // Fallback to text parsing (existing logic)
       const result = {
         overallSentiment: {
           label: "Neutral",
@@ -44,7 +104,6 @@ const AudioSentimentAnalysis = ({ data, rawText }) => {
         sentimentTimeline: [],
       };
 
-      const text = rawText || "";
       const sections = data?.sections || [];
 
       // Parse Overall Sentiment
@@ -687,10 +746,9 @@ const AudioSentimentAnalysis = ({ data, rawText }) => {
             <p className={styles.subtitle}>Emotional tone and sentiment</p>
           </div>
         </div>
+        <RawDataViewer rawText={rawText} title="Raw AI Response (JSON parsing failed)" />
         <ParsingError
           message="Failed to parse sentiment data. The analysis may be in an unexpected format."
-          showRawData={true}
-          rawData={rawText}
         />
       </div>
     );

@@ -127,7 +127,12 @@ def upload_audio():
                 'fileSize': metadata_result.get('file_size', file_size),  # Also include camelCase for frontend
                 'sample_rate': metadata_result.get('sample_rate'),
                 'channels': metadata_result.get('channels'),
-                'bitrate': metadata_result.get('bitrate')
+                'bitrate': metadata_result.get('bitrate'),
+                # Audio analysis metrics (calculated by audio_analysis_metrics.py)
+                'loudness': metadata_result.get('loudness'),
+                'peak_level': metadata_result.get('peak_level'),
+                'noise_level': metadata_result.get('noise_level'),
+                'dynamic_range': metadata_result.get('dynamic_range')
             },
             'transcription': {
                 'text': transcription_result.get('transcript', ''),
@@ -282,7 +287,12 @@ def get_audio_metadata_endpoint():
                 'file_size': metadata_result.get('file_size', 0),
                 'sample_rate': metadata_result.get('sample_rate'),
                 'channels': metadata_result.get('channels'),
-                'bitrate': metadata_result.get('bitrate')
+                'bitrate': metadata_result.get('bitrate'),
+                # Audio analysis metrics (calculated by audio_analysis_metrics.py)
+                'loudness': metadata_result.get('loudness'),
+                'peak_level': metadata_result.get('peak_level'),
+                'noise_level': metadata_result.get('noise_level'),
+                'dynamic_range': metadata_result.get('dynamic_range')
             }
         }), 200
         

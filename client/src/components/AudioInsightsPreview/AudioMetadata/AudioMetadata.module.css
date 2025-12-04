@@ -98,9 +98,24 @@
 
 .fileInfoTitle {
   margin: 0;
-  font-size: 1.25rem;
-  font-weight: 700;
+}
+
+/* File Name Section - displayed on top */
+.fileNameSection {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.fileNameValue {
+  font-size: 1rem;
+  font-weight: 500;
   color: var(--text-primary);
+  word-break: break-word;
+  line-height: 1.5;
 }
 
 .fileInfoGrid {

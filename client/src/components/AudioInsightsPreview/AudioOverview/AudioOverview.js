@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useMemo } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faVolumeUp,
@@ -8,6 +8,8 @@ import {
   faTasks,
   faSmile,
 } from "@fortawesome/free-solid-svg-icons";
+import { parseAudioAnalysisData } from "../../../utils/audioJsonParser";
+import { OVERVIEW_SCHEMA } from "../../../utils/audioJsonSchemas";
 import {
   CONTENT_TYPE_PATTERN,
   KEY_THEMES_PATTERN,
@@ -24,9 +26,37 @@ import {
   createSectionPattern,
 } from "../../../utils/audioRegexPatterns";
 import { formatLanguage } from "../../../utils/audioParsingHelpers";
+import ParsingError from "../../Shared/ParsingError/ParsingError";
+import RawDataViewer from "../../Shared/RawDataViewer/RawDataViewer";
 import styles from "./AudioOverview.module.css";
 
 const AudioOverview = ({ data, rawText, fileData, analysisData }) => {
+  const [parsingError, setParsingError] = useState(null);
+
+  // Parse JSON data from rawText if available
+  const parsedJsonData = useMemo(() => {
+    setParsingError(null);
+
+    if (!rawText) return null;
+
+    try {
+      const jsonResult = parseAudioAnalysisData(
+        rawText,
+        OVERVIEW_SCHEMA,
+        null, // Will use text parser as fallback
+        "AudioOverview"
+      );
+
+      if (jsonResult.data && jsonResult.format === 'json') {
+        return jsonResult.data;
+      }
+    } catch (error) {
+      setParsingError(error);
+    }
+
+    return null;
+  }, [rawText]);
+
   const formatDuration = (seconds) => {
     if (!seconds) return "N/A";
     const mins = Math.floor(seconds / 60);
@@ -42,6 +72,9 @@ const AudioOverview = ({ data, rawText, fileData, analysisData }) => {
   };
 
   const getContentType = () => {
+    if (parsedJsonData?.fileInfo?.contentType) {
+      return parsedJsonData.fileInfo.contentType;
+    }
     if (rawText) {
       const match = rawText.match(CONTENT_TYPE_PATTERN);
       if (match) return match[1].trim();
@@ -121,6 +154,7 @@ const AudioOverview = ({ data, rawText, fileData, analysisData }) => {
   }
   if (speakers === 0) {
     speakers =
+      parsedJsonData?.fileInfo?.speakersDetected ||
       getValue("speakers detected") ||
       getValue("number of speakers") ||
       analysisData?.transcription?.speakers?.length ||
@@ -186,6 +220,10 @@ const AudioOverview = ({ data, rawText, fileData, analysisData }) => {
           });
         }
       }
+    }
+    // Also try to extract from JSON parsed data
+    if (topics.length === 0 && parsedJsonData?.keyThemes && Array.isArray(parsedJsonData.keyThemes)) {
+      topics.push(...parsedJsonData.keyThemes);
     }
     // Also try to extract from raw text
     if (topics.length === 0 && rawText) {
@@ -290,6 +328,20 @@ const AudioOverview = ({ data, rawText, fileData, analysisData }) => {
 
   // Extract audio description (artist, album, type of music)
   const getAudioDescription = () => {
+    // Try JSON parsed data first
+    if (parsedJsonData?.description) {
+      const desc = parsedJsonData.description;
+      if (desc.artist || desc.album || desc.typeOfMusic || desc.genre || desc.description) {
+        return {
+          artist: desc.artist || "Unknown",
+          album: desc.album || "N/A",
+          typeOfMusic: desc.typeOfMusic || "Unknown",
+          genre: desc.genre || null,
+          description: desc.description || "",
+        };
+      }
+    }
+
     if (data?.sections) {
       for (const section of data.sections) {
         if (section.name?.toLowerCase().includes("audio description")) {
@@ -528,6 +580,29 @@ const AudioOverview = ({ data, rawText, fileData, analysisData }) => {
     // Final fallback
     return "Audio Recording";
   };
+
+  // Show parsing error if occurred
+  if (parsingError) {
+    return (
+      <div className={styles.container}>
+        <div className={styles.header}>
+          <div className={styles.headerIcon}>
+            <FontAwesomeIcon icon={faVolumeUp} />
+          </div>
+          <div>
+            <h2 className={styles.title}>Audio Overview</h2>
+            <p className={styles.subtitle}>Audio file overview and metadata</p>
+          </div>
+        </div>
+        <ParsingError
+          message="Failed to parse overview data. The analysis may be in an unexpected format."
+          showRawData={true}
+          rawData={rawText}
+        />
+        {rawText && <RawDataViewer data={rawText} />}
+      </div>
+    );
+  }
 
   return (
     <div className={styles.container}>

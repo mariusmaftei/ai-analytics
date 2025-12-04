@@ -21,5 +21,9 @@ ultralytics==8.3.233
 elevenlabs>=1.0.0
 # mutagen for audio metadata extraction (MP3, MP4, OGG, FLAC, etc.)
 mutagen>=1.47.0
+# librosa and soundfile for audio signal analysis (loudness, peak level, noise level, dynamic range)
+librosa>=0.10.0
+soundfile>=0.12.0
+numpy>=1.24.0
 # requests library (already included) is used for AssemblyAI API calls
 

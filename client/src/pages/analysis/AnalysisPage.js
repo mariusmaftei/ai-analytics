@@ -644,16 +644,157 @@ const AnalysisPage = () => {
                     <h3 className={styles.sectionTitle}>Summary</h3>
                     <div className={styles.insightsList}>
                       {(() => {
-                        // Extract just the AI Summary section for audio
+                        // Extract summary from analysis text (handles both JSON and text formats)
                         const analysisText = analysisResults.analysis;
-                        const summaryMatch = analysisText.match(/SECTION:\s*AI Summary\s*\n([\s\S]*?)(?=\n\s*SECTION:|$)/i);
-                        const summaryText = summaryMatch ? summaryMatch[1].trim() : analysisText.split('\n').slice(0, 3).join(' ').substring(0, 300);
+                        let summaryText = '';
+                        
+                        // Try to extract JSON first (new format)
+                        try {
+                          let jsonText = '';
+                          
+                          // Check if it's JSON wrapped in markdown code blocks
+                          const jsonMatch = analysisText.match(/```json\s*([\s\S]*?)\s*```/);
+                          if (jsonMatch) {
+                            jsonText = jsonMatch[1].trim();
+                          } else {
+                            // Try to find JSON in the text (might start with ```json or just {)
+                            const trimmed = analysisText.trim();
+                            if (trimmed.startsWith('```json')) {
+                              // Extract from markdown block - might not have closing ```
+                              // Remove ```json prefix and try to find the JSON
+                              const withoutPrefix = trimmed.replace(/^```json\s*/, '');
+                              // Try to find complete JSON object
+                              if (withoutPrefix.startsWith('{')) {
+                                let braceCount = 0;
+                                let jsonStart = 0;
+                                for (let i = 0; i < withoutPrefix.length; i++) {
+                                  if (withoutPrefix[i] === '{') {
+                                    braceCount++;
+                                  } else if (withoutPrefix[i] === '}') {
+                                    braceCount--;
+                                    if (braceCount === 0) {
+                                      jsonText = withoutPrefix.substring(jsonStart, i + 1);
+                                      break;
+                                    }
+                                  }
+                                }
+                              }
+                            } else if (trimmed.startsWith('{') || trimmed.includes('"fileInfo"')) {
+                              // Plain JSON - find the complete JSON object
+                              // Look for the first { and find its matching }
+                              let braceCount = 0;
+                              let jsonStart = trimmed.indexOf('{');
+                              if (jsonStart === -1 && trimmed.includes('"fileInfo"')) {
+                                // Try to find { before "fileInfo"
+                                const fileInfoIndex = trimmed.indexOf('"fileInfo"');
+                                for (let i = fileInfoIndex; i >= 0; i--) {
+                                  if (trimmed[i] === '{') {
+                                    jsonStart = i;
+                                    break;
+                                  }
+                                }
+                              }
+                              
+                              if (jsonStart !== -1) {
+                                for (let i = jsonStart; i < trimmed.length; i++) {
+                                  if (trimmed[i] === '{') {
+                                    braceCount++;
+                                  } else if (trimmed[i] === '}') {
+                                    braceCount--;
+                                    if (braceCount === 0) {
+                                      jsonText = trimmed.substring(jsonStart, i + 1);
+                                      break;
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                          
+                          if (jsonText) {
+                            const parsed = JSON.parse(jsonText);
+                            
+                            // Extract summary from JSON structure - check multiple possible fields
+                            if (parsed.executiveSummary) {
+                              summaryText = typeof parsed.executiveSummary === 'string' 
+                                ? parsed.executiveSummary 
+                                : parsed.executiveSummary.text || parsed.executiveSummary.summary || '';
+                            } else if (parsed.summary) {
+                              summaryText = typeof parsed.summary === 'string' 
+                                ? parsed.summary 
+                                : parsed.summary.text || '';
+                            } else if (parsed.description) {
+                              // Handle description object (for Overview analysis type)
+                              if (typeof parsed.description === 'string') {
+                                summaryText = parsed.description;
+                              } else if (parsed.description.description) {
+                                summaryText = parsed.description.description;
+                              } else if (parsed.description.text) {
+                                summaryText = parsed.description.text;
+                              }
+                            } else if (parsed.overview) {
+                              summaryText = typeof parsed.overview === 'string' 
+                                ? parsed.overview 
+                                : parsed.overview.text || parsed.overview.description || '';
+                            }
+                            
+                            // If we have fileInfo but no summary, this is metadata - use description if available
+                            if (!summaryText && parsed.fileInfo && parsed.description) {
+                              if (typeof parsed.description === 'string') {
+                                summaryText = parsed.description;
+                              } else if (parsed.description.description) {
+                                summaryText = parsed.description.description;
+                              }
+                            }
+                          }
+                        } catch (e) {
+                          // Not valid JSON, fall through to text parsing
+                        }
+                        
+                        // If JSON parsing didn't work or returned empty, try text parsing
+                        if (!summaryText) {
+                          // Remove JSON code blocks if present
+                          let cleanedText = analysisText.replace(/```json[\s\S]*?```/g, '');
+                          cleanedText = cleanedText.replace(/```[\s\S]*?```/g, '');
+                          
+                          // Remove any remaining JSON-like content
+                          cleanedText = cleanedText.replace(/\{[^{}]*"fileInfo"[^{}]*\}/g, '');
+                          cleanedText = cleanedText.replace(/\{[^{}]*"description"[^{}]*\}/g, '');
+                          
+                          // Try to extract from text format
+                          const summaryMatch = cleanedText.match(/SECTION:\s*(?:AI\s+)?Summary\s*\n([\s\S]*?)(?=\n\s*SECTION:|$)/i);
+                          if (summaryMatch) {
+                            summaryText = summaryMatch[1].trim();
+                          } else {
+                            // Fallback: use first few lines, but skip JSON-looking content
+                            const lines = cleanedText.split('\n').filter(line => {
+                              const trimmed = line.trim();
+                              return trimmed && 
+                                     !trimmed.startsWith('{') && 
+                                     !trimmed.startsWith('"') &&
+                                     !trimmed.includes('"fileInfo"') &&
+                                     !trimmed.includes('"description":') &&
+                                     !trimmed.match(/^\s*"[^"]+":\s*["{]/);
+                            });
+                            summaryText = lines.slice(0, 5).join(' ').substring(0, 400);
+                          }
+                        }
+                        
+                        // If still no summary, use insights.summary as fallback
+                        if (!summaryText && analysisResults.insights?.summary) {
+                          summaryText = analysisResults.insights.summary;
+                        }
+                        
+                        // Final fallback
+                        if (!summaryText) {
+                          summaryText = 'Audio analysis complete. View detailed insights in the session page.';
+                        }
                         
                         return (
                           <div className={styles.insightItem}>
                             <div className={styles.insightDescription}>
-                              {summaryText}
-                              {summaryText.length >= 300 && '...'}
+                              {summaryText.substring(0, 500)}
+                              {summaryText.length > 500 && '...'}
                             </div>
                           </div>
                         );

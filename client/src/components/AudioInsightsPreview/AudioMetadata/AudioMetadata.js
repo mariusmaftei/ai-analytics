@@ -16,6 +16,8 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import { errorLog } from "../../../utils/debugLogger";
 import { formatLanguage } from "../../../utils/audioParsingHelpers";
+import { parseAudioAnalysisData } from "../../../utils/audioJsonParser";
+import { METADATA_SCHEMA } from "../../../utils/audioJsonSchemas";
 import {
   FILE_NAME_PATTERN,
   FILE_TYPE_PATTERN,
@@ -49,6 +51,7 @@ import {
   createSectionPattern,
 } from "../../../utils/audioRegexPatterns";
 import ParsingError from "../../Shared/ParsingError/ParsingError";
+import RawDataViewer from "../../Shared/RawDataViewer/RawDataViewer";
 import styles from "./AudioMetadata.module.css";
 
 const AudioMetadata = ({ data, rawText, analysisData, fileData }) => {
@@ -84,6 +87,59 @@ const AudioMetadata = ({ data, rawText, analysisData, fileData }) => {
       const text = rawText || "";
       const metadata = analysisData?.metadata || {};
 
+      // Try JSON parsing first (new architecture)
+      if (text) {
+        const jsonResult = parseAudioAnalysisData(
+          text,
+          METADATA_SCHEMA,
+          null, // Will use text parser as fallback
+          "AudioMetadata"
+        );
+
+        // If JSON parsing succeeded, use JSON data
+        if (jsonResult.data && jsonResult.format === 'json') {
+          const jsonData = jsonResult.data;
+          
+          // Use JSON data directly if available
+          if (jsonData.fileInfo) {
+            result.fileInfo = {
+              fileName: jsonData.fileInfo.fileName || "Unknown",
+              fileType: jsonData.fileInfo.fileType || metadata.format?.toUpperCase() || "N/A",
+              fileSize: jsonData.fileInfo.fileSize || "N/A",
+              duration: jsonData.fileInfo.duration || formatDuration(metadata.duration),
+              uploadedOn: jsonData.fileInfo.uploadedOn || "N/A",
+            };
+          }
+          
+          if (jsonData.technicalDetails) {
+            result.technicalDetails = { ...jsonData.technicalDetails };
+          }
+          
+          if (jsonData.audioProperties) {
+            result.audioProperties = { ...jsonData.audioProperties };
+          }
+          
+          if (jsonData.aiQuality) {
+            result.aiQuality = {
+              analysisConfidence: jsonData.aiQuality.analysisConfidence || 0,
+              audioClarity: jsonData.aiQuality.audioClarity || "N/A",
+              speechDetection: jsonData.aiQuality.speechDetection || "N/A",
+            };
+          }
+          
+          if (jsonData.transcriptionMetadata) {
+            result.transcriptionMetadata = { ...jsonData.transcriptionMetadata };
+          }
+          
+          if (jsonData.optionalMetadata) {
+            result.optionalMetadata = { ...jsonData.optionalMetadata };
+          }
+
+          // If we got valid data from JSON, continue with fallback to actual metadata
+          // (JSON might not have all fields, so we still need to merge with backend data)
+        }
+      }
+
       // Parse File Information from rawText
       const fileInfoMatch = text.match(
         createSectionPattern("File\\s+Information")
@@ -106,22 +162,38 @@ const AudioMetadata = ({ data, rawText, analysisData, fileData }) => {
           metadata.file_size ||
           null;
         const parsedFileSize = fileSizeMatch ? fileSizeMatch[1].trim() : null;
+        
+        // Clean parsed file size - filter out invalid values
+        const cleanParsedFileSize = parsedFileSize && 
+          parsedFileSize !== "0.00 MB" && 
+          parsedFileSize !== "0 MB" &&
+          parsedFileSize !== "0.0 MB" &&
+          parsedFileSize !== "N/A" &&
+          !parsedFileSize.toLowerCase().includes("filesize:") &&
+          !parsedFileSize.toLowerCase().includes("file size:")
+          ? parsedFileSize
+          : null;
 
         result.fileInfo = {
           fileName:
             fileNameMatch && fileNameMatch[1].trim() !== "Unknown"
               ? fileNameMatch[1].trim()
               : analysisData?.filename || fileData?.fileName || "Unknown",
-          fileType: fileTypeMatch
-            ? fileTypeMatch[1].trim()
-            : metadata.format?.toUpperCase() || "N/A",
+          fileType: (() => {
+            if (fileTypeMatch) {
+              let fileType = fileTypeMatch[1].trim();
+              // Remove any concatenated "FileSize:" text that might have been captured
+              fileType = fileType.replace(/FileSize:\s*[^\s]+/gi, '').trim();
+              // Remove any trailing invalid characters
+              fileType = fileType.replace(/[^\w\s-]/g, '').trim();
+              return fileType || metadata.format?.toUpperCase() || "N/A";
+            }
+            return metadata.format?.toUpperCase() || "N/A";
+          })(),
+          // Prioritize actual file size from metadata/fileData over parsed text
           fileSize: actualFileSize
             ? formatFileSize(actualFileSize)
-            : parsedFileSize &&
-              parsedFileSize !== "0.00 MB" &&
-              parsedFileSize !== "N/A"
-            ? parsedFileSize
-            : "N/A",
+            : cleanParsedFileSize || "N/A",
           duration: durationMatch
             ? durationMatch[1].trim()
             : formatDuration(metadata.duration),
@@ -269,28 +341,40 @@ const AudioMetadata = ({ data, rawText, analysisData, fileData }) => {
               ? "PCM"
               : "N/A",
           loudness:
-            parsedLoudness &&
-            parsedLoudness !== "N/A" &&
-            !parsedLoudness.toLowerCase().includes("loudness:")
+            // Prioritize metadata object (calculated by backend)
+            metadata.loudness !== null && metadata.loudness !== undefined
+              ? `${metadata.loudness} LUFS`
+              : parsedLoudness &&
+                parsedLoudness !== "N/A" &&
+                !parsedLoudness.toLowerCase().includes("loudness:")
               ? parsedLoudness
               : "N/A",
           peakLevel:
-            parsedPeakLevel &&
-            parsedPeakLevel !== "N/A" &&
-            !parsedPeakLevel.toLowerCase().includes("peak level:") &&
-            !parsedPeakLevel.toLowerCase().includes("noiselevel:")
+            // Prioritize metadata object (calculated by backend)
+            metadata.peak_level !== null && metadata.peak_level !== undefined
+              ? `${metadata.peak_level} dB`
+              : parsedPeakLevel &&
+                parsedPeakLevel !== "N/A" &&
+                !parsedPeakLevel.toLowerCase().includes("peak level:") &&
+                !parsedPeakLevel.toLowerCase().includes("noiselevel:")
               ? parsedPeakLevel
               : "N/A",
           noiseLevel:
-            parsedNoiseLevel &&
-            parsedNoiseLevel !== "N/A" &&
-            !parsedNoiseLevel.toLowerCase().includes("noise level:")
+            // Prioritize metadata object (calculated by backend)
+            metadata.noise_level !== null && metadata.noise_level !== undefined
+              ? `${metadata.noise_level} dB`
+              : parsedNoiseLevel &&
+                parsedNoiseLevel !== "N/A" &&
+                !parsedNoiseLevel.toLowerCase().includes("noise level:")
               ? parsedNoiseLevel
               : "N/A",
           dynamicRange:
-            parsedDynamicRange &&
-            parsedDynamicRange !== "N/A" &&
-            !parsedDynamicRange.toLowerCase().includes("dynamic range:")
+            // Prioritize metadata object (calculated by backend)
+            metadata.dynamic_range !== null && metadata.dynamic_range !== undefined
+              ? `${metadata.dynamic_range} dB`
+              : parsedDynamicRange &&
+                parsedDynamicRange !== "N/A" &&
+                !parsedDynamicRange.toLowerCase().includes("dynamic range:")
               ? parsedDynamicRange
               : "N/A",
         };
@@ -317,10 +401,22 @@ const AudioMetadata = ({ data, rawText, analysisData, fileData }) => {
               : metadata.format === "wav"
               ? "PCM"
               : "N/A",
-          loudness: "N/A",
-          peakLevel: "N/A",
-          noiseLevel: "N/A",
-          dynamicRange: "N/A",
+          loudness:
+            metadata.loudness !== null && metadata.loudness !== undefined
+              ? `${metadata.loudness} LUFS`
+              : "N/A",
+          peakLevel:
+            metadata.peak_level !== null && metadata.peak_level !== undefined
+              ? `${metadata.peak_level} dB`
+              : "N/A",
+          noiseLevel:
+            metadata.noise_level !== null && metadata.noise_level !== undefined
+              ? `${metadata.noise_level} dB`
+              : "N/A",
+          dynamicRange:
+            metadata.dynamic_range !== null && metadata.dynamic_range !== undefined
+              ? `${metadata.dynamic_range} dB`
+              : "N/A",
         };
       }
 
@@ -603,6 +699,7 @@ const AudioMetadata = ({ data, rawText, analysisData, fileData }) => {
           showRawData={true}
           rawData={rawText}
         />
+        {rawText && <RawDataViewer data={rawText} />}
       </div>
     );
   }
@@ -625,13 +722,15 @@ const AudioMetadata = ({ data, rawText, analysisData, fileData }) => {
           <FontAwesomeIcon icon={faFileAudio} className={styles.fileInfoIcon} />
           <h3 className={styles.fileInfoTitle}>Audio File Information</h3>
         </div>
+        {/* File Name - displayed on top for long names */}
+        <div className={styles.fileNameSection}>
+          <span className={styles.fileInfoLabel}>File Name:</span>
+          <span className={styles.fileNameValue}>
+            {parsedData.fileInfo.fileName}
+          </span>
+        </div>
+        {/* Other file info in grid below */}
         <div className={styles.fileInfoGrid}>
-          <div className={styles.fileInfoItem}>
-            <span className={styles.fileInfoLabel}>File Name:</span>
-            <span className={styles.fileInfoValue}>
-              {parsedData.fileInfo.fileName}
-            </span>
-          </div>
           <div className={styles.fileInfoItem}>
             <span className={styles.fileInfoLabel}>File Type:</span>
             <span className={styles.fileInfoValue}>

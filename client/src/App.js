@@ -10,7 +10,7 @@ import AuthPage from "./pages/auth/AuthPage";
 import ComingSoonPage from "./pages/comingsoon/ComingSoonPage";
 import NotFoundPage from "./pages/notfound/NotFoundPage";
 
-const router = createBrowserRouter([
+const routes = [
   {
     path: "/",
     element: <RootLayout />,
@@ -49,7 +49,13 @@ const router = createBrowserRouter([
       },
     ],
   },
-]);
+];
+
+const router = createBrowserRouter(routes, {
+  future: {
+    v7_startTransition: true,
+  },
+});
 
 function App() {
   return (

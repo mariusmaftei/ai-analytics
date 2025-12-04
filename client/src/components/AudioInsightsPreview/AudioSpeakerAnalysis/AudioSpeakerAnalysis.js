@@ -9,13 +9,24 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import { errorLog } from "../../../utils/debugLogger";
 import { validateParsedData } from "../../../utils/audioParsingHelpers";
+import { parseAudioAnalysisData } from "../../../utils/audioJsonParser";
+import { SPEAKERS_SCHEMA } from "../../../utils/audioJsonSchemas";
 import {
   SPEAKER_TIMELINE_PATTERN,
   createSectionPattern,
 } from "../../../utils/audioRegexPatterns";
 import EmptyState from "../../Shared/EmptyState/EmptyState";
 import ParsingError from "../../Shared/ParsingError/ParsingError";
+import RawDataViewer from "../../Shared/RawDataViewer/RawDataViewer";
 import styles from "./AudioSpeakerAnalysis.module.css";
+
+// Helper to format seconds to MM:SS
+const formatTimeFromSeconds = (seconds) => {
+  if (typeof seconds !== 'number' || isNaN(seconds)) return '0:00';
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  return `${mins}:${secs.toString().padStart(2, '0')}`;
+};
 
 const AudioSpeakerAnalysis = ({ data, rawText }) => {
   const [parsingError, setParsingError] = useState(null);
@@ -24,6 +35,55 @@ const AudioSpeakerAnalysis = ({ data, rawText }) => {
     setParsingError(null);
 
     try {
+      const text = rawText || "";
+
+      // Try JSON parsing first (new architecture)
+      const jsonResult = parseAudioAnalysisData(
+        text,
+        SPEAKERS_SCHEMA,
+        null, // Will use text parser as fallback
+        "AudioSpeakerAnalysis"
+      );
+
+      // If JSON parsing succeeded, transform to expected format
+      if (jsonResult.data && jsonResult.format === 'json') {
+        const jsonData = jsonResult.data;
+        
+        // Transform JSON format to component's expected format
+        const transformed = {
+          speakers: (jsonData.speakers || []).map(speaker => ({
+            label: speaker.speakerLabel || speaker.speakerId,
+            speakerId: speaker.speakerId,
+            totalTime: formatTimeFromSeconds(speaker.speakingTime),
+            totalSeconds: speaker.speakingTime,
+            percentage: speaker.percentage,
+            avgSentenceLength: null, // Not in JSON schema
+            segmentCount: speaker.segments || null,
+            notes: speaker.notes || null,
+          })),
+          timeline: (jsonData.timeline || []).map(item => ({
+            startTime: formatTimeFromSeconds(item.startTime),
+            endTime: formatTimeFromSeconds(item.endTime),
+            startSeconds: item.startTime,
+            endSeconds: item.endTime,
+            speaker: item.speakerId || null,
+            transcript: item.transcript || null,
+          })),
+          conversationPatterns: jsonData.conversationPatterns || [],
+          speakerBreakdown: (jsonData.speakers || []).map(speaker => ({
+            label: speaker.speakerLabel || speaker.speakerId,
+            totalTime: formatTimeFromSeconds(speaker.speakingTime),
+            percentage: speaker.percentage,
+            segments: speaker.segments || null,
+            avgSegmentLength: speaker.avgSegmentLength || null,
+            notes: speaker.notes || null,
+          })),
+        };
+
+        return transformed;
+      }
+
+      // Fallback to text parsing (existing logic)
       const result = {
         speakers: [],
         timeline: [],
@@ -31,7 +91,6 @@ const AudioSpeakerAnalysis = ({ data, rawText }) => {
         speakerBreakdown: [],
       };
 
-      const text = rawText || "";
       const sections = data?.sections || [];
 
       // Parse Speaker Overview
@@ -654,10 +713,9 @@ const AudioSpeakerAnalysis = ({ data, rawText }) => {
             </p>
           </div>
         </div>
+        <RawDataViewer rawText={rawText} title="Raw AI Response (JSON parsing failed)" />
         <ParsingError
           message="Failed to parse speaker data. The analysis may be in an unexpected format."
-          showRawData={true}
-          rawData={rawText}
         />
       </div>
     );

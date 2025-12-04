@@ -78,97 +78,83 @@ def _build_overview_prompt(transcript: str, duration: float, format_type: str, f
     is_empty = not transcript or transcript.startswith("[No transcription available")
     
     if is_empty:
-        prompt = f"""You are analyzing an audio file. The transcription service was unable to extract text from this audio file. This could be due to:
-- Music or instrumental content without clear speech
-- Background noise or poor audio quality
-- Language not supported by the transcription service (e.g., Latin, ancient languages)
-- Audio format issues
+        prompt = f"""You are analyzing an audio file. The transcription service was unable to extract text from this audio file.
 
-IMPORTANT: Return clean, readable text WITHOUT markdown symbols (no **, no |, no ✅, no ❌). Use plain text with clear section headers.
+CRITICAL: You MUST return ONLY valid JSON. Do NOT include any markdown, explanations, or text outside the JSON object. Wrap the JSON in a markdown code block with ```json.
 
-MANDATORY FORMAT - Use this EXACT structure:
+Expected JSON structure:
+{{
+  "fileInfo": {{
+    "fileType": "Audio",
+    "format": "{format_type.upper()}",
+    "duration": "{duration_min} minutes {duration_sec} seconds",
+    "fileSize": "{file_size_mb:.2f} MB",
+    "language": "{language}",
+    "wordCount": null,
+    "speakersDetected": null,
+    "contentType": "string (Music|Instrumental|Background Audio|etc.)"
+  }},
+  "description": {{
+    "artist": "Unknown",
+    "album": "N/A",
+    "typeOfMusic": "string or null",
+    "genre": "string or null",
+    "description": "string (2-3 sentence description)"
+  }},
+  "keyThemes": ["string"],
+  "statistics": {{
+    "speakingRate": "N/A",
+    "averageWordsPerMinute": "N/A",
+    "totalSpeakingTime": "{duration_min}:{duration_sec:02d}",
+    "pausesAndSilence": "Unable to determine"
+  }}
+}}
 
-SECTION: Audio Overview
-File Type: Audio
-Format: {format_type.upper()}
-Duration: {duration_min} minutes {duration_sec} seconds
-File Size: {file_size_mb:.2f} MB
-Language Detected: {language}
-Transcription Status: No transcription available
-Content Type: [Based on filename and metadata, suggest: Music, Instrumental, Background Audio, etc.]
-
-SECTION: Analysis Based on Metadata
-File Information: [Analyze the filename, duration, and format to provide insights]
-Possible Content Type: [Suggest what type of audio this might be based on metadata]
-Estimated Characteristics: [Based on duration and format, provide educated guesses about the audio]
-
-SECTION: Recommendations
-Transcription Limitation: [Explain why transcription might have failed]
-Alternative Analysis: [Suggest what could be analyzed instead - metadata, audio characteristics, etc.]
-Next Steps: [Recommendations for better transcription if possible]
+This could be due to music/instrumental content, background noise, unsupported language, or audio format issues.
 """
     else:
         prompt = f"""You are analyzing an audio file. Provide a comprehensive overview analysis.
 
-IMPORTANT: Return clean, readable text WITHOUT markdown symbols (no **, no |, no ✅, no ❌). Use plain text with clear section headers.
+CRITICAL: You MUST return ONLY valid JSON. Do NOT include any markdown, explanations, or text outside the JSON object. Wrap the JSON in a markdown code block with ```json.
 
-MANDATORY FORMAT - Use this EXACT structure:
+Expected JSON structure:
+{{
+  "fileInfo": {{
+    "fileType": "Audio",
+    "format": "{format_type.upper()}",
+    "duration": "{duration_min} minutes {duration_sec} seconds",
+    "fileSize": "{file_size_mb:.2f} MB",
+    "language": "{language}",
+    "wordCount": {word_count},
+    "speakersDetected": {speaker_count},
+    "contentType": "string (Meeting|Interview|Podcast|Lecture|Voice Memo|Music|etc.)"
+  }},
+  "description": {{
+    "artist": "string (CRITICAL: Extract COMPLETE and FULL artist/performer name including BOTH first name AND last name. If only first name mentioned, try to identify complete name from context. If no artist mentioned, use 'Unknown')",
+    "album": "string or 'N/A'",
+    "typeOfMusic": "string (Classical|Pop|Rock|Jazz|Religious|Instrumental|Speech|etc.) or null",
+    "genre": "string or null",
+    "description": "string (2-3 sentence description of what the audio is about, who performs it, and key characteristics)"
+  }},
+  "keyThemes": ["string (3-5 main themes or topics discussed)"],
+  "statistics": {{
+    "speakingRate": "string (Calculate: word_count / (duration / 60) if duration > 0, else 'N/A', format as 'XXX words/minute')",
+    "averageWordsPerMinute": "string (Calculate: word_count / (duration / 60) if duration > 0, else 'N/A')",
+    "totalSpeakingTime": "{duration_min}:{duration_sec:02d}",
+    "pausesAndSilence": "string (Estimate based on transcript or 'Unable to determine')"
+  }}
+}}
 
-SECTION: Audio Overview
-File Type: Audio
-Format: {format_type.upper()}
-Duration: {duration_min} minutes {duration_sec} seconds
-File Size: {file_size_mb:.2f} MB
-Language: {language}
-Word Count: {word_count}
-Speakers Detected: {speaker_count}
-Content Type: [Identify the type - Meeting, Interview, Podcast, Lecture, Voice Memo, Music, etc.]
-
-SECTION: Audio Description
-Artist/Performer: [CRITICAL: Extract the COMPLETE and FULL artist/performer name including BOTH first name AND last name (e.g., "Mirusia Louwerse" not just "Merusia" or "Mirusia"). Search the transcript carefully for the full name. If only a first name is mentioned, try to identify the complete name from context, introductions, or announcements. If the full name cannot be determined from the audio, use the name as mentioned. If no artist is mentioned, use "Unknown"]
-Album/Collection: [Extract album name, collection, or source if mentioned, otherwise "N/A"]
-Type of Music/Content: [Classical, Pop, Rock, Jazz, Religious, Instrumental, Speech, etc. - based on transcript analysis]
-Genre: [Identify the genre or category]
-Description: [Write ONLY a brief 2-3 sentence description. Do NOT include any SECTION: markers or repeat other sections. Just describe what the audio is about, who performs it (mention full name if available), and key characteristics. End the description with a period and then move to the next section.]
-
-SECTION: Key Statistics
-Speaking Rate: [Calculate: word_count / (duration / 60) if duration > 0, else "N/A", format as "XXX words/minute" or "N/A"]
-Average Words per Minute: [Calculate: word_count / (duration / 60) if duration > 0, else "N/A"]
-Total Speaking Time: {duration_min}:{duration_sec:02d}
-Pauses and Silence: [Estimate based on transcript - mention if there are long pauses, or "Unable to determine" if no transcript]
-
-SECTION: Content Summary
-Main Topic: [1-2 sentence description of what the audio is about]
-Key Themes: [List 3-5 main themes or topics discussed]
-Purpose: [What is the purpose of this audio - meeting notes, interview, presentation, etc.]
-
-SECTION: Participants
-Number of Speakers: {speaker_count}
-Speaker Distribution: [If multiple speakers, describe who speaks most/least]
-Interaction Type: [Monologue, Dialogue, Group Discussion, etc.]
-
-SECTION: Quality Assessment
-Audio Quality: [Good/Fair/Poor - based on transcript clarity]
-Clarity: [Clear/Moderate/Unclear]
-Background Noise: [None/Low/Moderate/High - estimate]
-Completeness: [Complete/Partial - based on transcript]
-
-SECTION: AI Summary
-This {duration_min}-minute audio recording contains [detailed 2-3 sentence description]. The main focus is on [key topic]. Key participants include [speaker info if available]. The discussion covers [main themes].
-
-CRITICAL REQUIREMENTS:
-1. Start EVERY section with "SECTION: [Section Name]" on its own line
-2. Use colons (:) for key-value pairs
-3. Use dashes (-) for ALL bullet points
-4. NO markdown symbols (**, |, ✅, ❌) - use plain text only
-5. Calculate ALL numbers from the actual data provided
-6. Include ALL 6 sections
-7. Each section must be clearly separated with blank lines
-8. Be thorough and detailed
+Requirements:
+- Extract complete artist/performer name (first + last name) from transcript
+- Calculate speaking rate and words per minute from actual data
+- Identify content type, themes, and purpose
+- All fields can be null if not available
 
 Transcript:
 {transcript[:5000]}
 
+Return ONLY the JSON object, wrapped in ```json code block.
 """
     return prompt
 
@@ -200,7 +186,7 @@ Format the transcription clearly with proper timestamps.
 
 
 def _build_summary_prompt(transcript: str, duration: float, word_count: int):
-    """Build summary analysis prompt"""
+    """Build summary analysis prompt - Returns JSON format"""
     duration_min = int(duration // 60)
     
     # Check if transcript is empty or contains only music/no speech
@@ -216,43 +202,32 @@ def _build_summary_prompt(transcript: str, duration: float, word_count: int):
 Duration: {duration_min} minutes
 Word Count: {word_count}
 
-IMPORTANT: Return ONLY this exact message:
-"This audio contains no spoken content or lyrics, so a summary is not available."
+CRITICAL: You MUST return ONLY valid JSON. Return this structure:
+{{
+  "executiveSummary": "This audio contains no spoken content or lyrics, so a summary is not available.",
+  "keyPoints": []
+}}
 """
         return prompt
     
     prompt = f"""Analyze this audio transcript and provide a SUMMARY.
 
-IMPORTANT: 
-- Return clean, readable text WITHOUT markdown symbols.
-- The Summary is NOT a transcription, NOT metadata, NOT sentiment.
-- It is a CONDENSED EXPLANATION of what the audio is about.
+CRITICAL: You MUST return ONLY valid JSON. Do NOT include any markdown, explanations, or text outside the JSON object. Wrap the JSON in a markdown code block with ```json.
 
-MANDATORY FORMAT - CRITICAL: You MUST include a newline after each SECTION: header:
+Expected JSON structure:
+{{
+  "executiveSummary": "string (3-6 sentence narrative paragraph describing what the audio is about, topics discussed, purpose/context, overall message, and optional tone)",
+  "keyPoints": [
+    "string (main topics, decisions, facts, ideas, themes, or action items)"
+  ]
+}}
 
-SECTION: Executive Summary
-[Write a 3-6 sentence narrative paragraph describing:
-- What the audio is about
-- What topics were discussed
-- The purpose or context
-- The overall message
-- Optional: overall tone (if clear)
-
-Example format: "This audio contains a [duration] [type: meeting/interview/podcast/song] [description]. [Topics discussed]. [Purpose/context]. [Overall message]. [Optional tone]."]
-
-SECTION: Key Points
-[Create a bulleted list containing:
-- Main topics discussed
-- Major decisions (if any)
-- Important facts mentioned
-- Key ideas or themes
-- Action items (if any)
-
-Use bullet points (one per line) starting with "-" or "*".
-Each bullet should be clear and concise.
-Include 5-10 key points total.]
-
-IMPORTANT: Always put a newline after "SECTION: Executive Summary" and "SECTION: Key Points" before the content starts.
+Requirements:
+- Executive Summary: Write a 3-6 sentence narrative paragraph (NOT bullet points)
+- Key Points: Create an array of 5-10 clear and concise key points
+- The Summary is NOT a transcription, NOT metadata, NOT sentiment
+- It is a CONDENSED EXPLANATION of what the audio is about
+- Include main topics, major decisions, important facts, key ideas, themes, and action items
 
 Duration: {duration_min} minutes
 Word Count: {word_count}
@@ -260,57 +235,46 @@ Word Count: {word_count}
 Transcript:
 {transcript[:8000]}
 
-Provide ONLY the Executive Summary and Key Points sections. Do not include other sections.
+Return ONLY the JSON object, wrapped in ```json code block.
 """
     return prompt
 
 
 def _build_content_analysis_prompt(transcript: str, chapters: list, duration: float):
-    """Build content analysis prompt"""
+    """Build content analysis prompt - Returns JSON format"""
     duration_min = int(duration // 60)
     duration_sec = int(duration % 60)
     
-    prompt = f"""Analyze the content structure and themes of this audio.
+    prompt = f"""Analyze the content structure and themes of this audio transcription.
 
-IMPORTANT: Return clean, readable text WITHOUT markdown symbols (no **, no |, no ✅, no ❌). Use plain text with clear section headers.
+CRITICAL: You MUST return ONLY valid JSON. Do NOT include any markdown, explanations, or text outside the JSON object. Wrap the JSON in a markdown code block with ```json.
 
-MANDATORY FORMAT:
+Expected JSON structure:
+{{
+  "topicClusters": [
+    {{
+      "topic": "string",
+      "description": "string or null",
+      "keywords": ["string"] or null
+    }}
+  ],
+  "discussionFlow": [
+    {{
+      "timestamp": "string (MM:SS format) or null",
+      "topic": "string",
+      "description": "string or null"
+    }}
+  ],
+  "keyConcepts": [
+    "string"
+  ]
+}}
 
-SECTION: Main Topics
-[Create topic clusters/buckets. Each topic should be on a new line in format: "Topic Name: Brief description"
-Example:
-Theme: Spiritual devotion and reverence
-Vocal Style: Classical, operatic performance
-Musical Elements: Gentle, slow tempo, reverent tone]
-
-SECTION: Topic Hierarchy
-[Create a hierarchical breakdown of topics. Format:
-Main Topic Name
-- Subtopic 1
-- Subtopic 2
-Another Main Topic
-- Subtopic 1
-- Subtopic 2]
-
-SECTION: Discussion Flow
-[Create a timeline showing how topics progress. Format each entry as:
-MM:SS - Description of what happens at this time
-Example:
-00:00 - Opening invocation
-00:12 - Main melodic theme introduction
-00:40 - Vocal rise and emotional peak
-01:15 - Second refrain begins]
-
-SECTION: Theme Summary
-[Write a 2-3 sentence summary paragraph focusing on the core themes, emotional tone, and overall message. Do NOT include timestamps or bullet points - just a flowing narrative paragraph.]
-
-SECTION: Key Concepts
-[Create a list of key concepts. Format each as:
-Concept Name: Category: Relevance (High/Medium/Low)
-Example:
-Devotion: Theme: High
-Reverence: Emotion: High
-Classical vocals: Technique: High]
+Requirements:
+- Create topic clusters/buckets with descriptions and related keywords
+- Create a timeline showing how topics progress over time
+- Identify key concepts mentioned in the audio
+- All arrays can be empty if no data is found
 
 Duration: {duration_min} minutes {duration_sec} seconds
 
@@ -319,13 +283,13 @@ Transcript:
 
 Chapters: {str(chapters[:10]) if chapters else 'None'}
 
-Provide detailed analysis with all sections above.
+Return ONLY the JSON object, wrapped in ```json code block.
 """
     return prompt
 
 
 def _build_sentiment_prompt(transcript: str, sentiment_data: list, segments: list, duration: float = 0):
-    """Build sentiment analysis prompt"""
+    """Build sentiment analysis prompt - Returns JSON format"""
     # Use provided duration, or calculate from segments if available, otherwise estimate from transcript
     if duration and duration > 0:
         duration_sec = duration
@@ -340,40 +304,43 @@ def _build_sentiment_prompt(transcript: str, sentiment_data: list, segments: lis
     duration_sec_remainder = int(duration_sec % 60)
     total_seconds = int(duration_sec)
     
-    prompt = f"""Analyze the sentiment and emotional tone of this audio.
+    prompt = f"""Analyze the sentiment and emotional tone of this audio transcription.
 
-IMPORTANT: Return clean, readable text WITHOUT markdown symbols (no **, no |, no ✅, no ❌). Use plain text with clear section headers.
+CRITICAL: You MUST return ONLY valid JSON. Do NOT include any markdown, explanations, or text outside the JSON object. Wrap the JSON in a markdown code block with ```json.
 
-MANDATORY FORMAT:
+Expected JSON structure:
+{{
+  "overallSentiment": {{
+    "label": "string (Positive|Negative|Neutral)",
+    "score": number (0.0-1.0)
+  }},
+  "emotionBreakdown": [
+    {{
+      "emotion": "string (Joy|Calmness|Sadness|Fear|Anger|etc.)",
+      "percentage": number (0-100),
+      "intensity": number (0.0-1.0) or null
+    }}
+  ],
+  "sentimentTimeline": [
+    {{
+      "timestamp": "string (MM:SS format)",
+      "sentiment": "string",
+      "score": number (0.0-1.0) or null,
+      "transcript": "string or null"
+    }}
+  ]
+}}
 
-SECTION: Overall Sentiment
-Sentiment Score: [Format as "Positive 0.78" or "Negative 0.45" or "Neutral 0.50" - include both label and numeric score 0-1]
-Emotional Tone: [Confident, Concerned, Enthusiastic, Neutral, Joyful, etc.]
-Emotional Intensity: [High/Medium/Low - based on the strength of emotions detected]
-
-SECTION: Emotional Indicators
-[Create a breakdown showing percentage of each emotion detected. Format each as:
-Joy: 62%
-Calmness: 21%
-Sadness: 12%
-Fear: 4%
-Anger: 1%
-Include all emotions that are present, with percentages that add up to approximately 100%]
-
-SECTION: Sentiment by Segment
-[Create a timeline showing sentiment changes over time. Format each entry as:
-MM:SS–MM:SS → Sentiment Label
-Example:
-00:00–00:30 → Neutral
-00:30–01:10 → Positive
-01:10–02:00 → Very Positive
-02:00–02:30 → Slightly Sad
-
-CRITICAL: The audio duration is {duration_min}:{duration_sec_remainder:02d} ({total_seconds} seconds total). You MUST provide sentiment timeline entries that cover the ENTIRE duration from 00:00 to {duration_min}:{duration_sec_remainder:02d}. 
-- Divide the timeline into logical segments (typically 10-30 second intervals, or longer if sentiment is consistent)
+Requirements:
+- Calculate overall sentiment score (0.0-1.0) and label (Positive/Negative/Neutral)
+- Break down emotions with percentages that add up to approximately 100%
+- Create sentiment timeline entries covering the ENTIRE duration from 00:00 to {duration_min}:{duration_sec_remainder:02d}
+- Divide timeline into logical segments (10-30 second intervals, or longer if sentiment is consistent)
 - The last entry MUST end at or near {duration_min}:{duration_sec_remainder:02d}
 - Include enough entries to cover the full duration (aim for 10-20 entries for longer audio)
-- Each segment should represent a meaningful change in sentiment or emotion]
+- All arrays can be empty if no data is found
+
+Duration: {duration_min} minutes {duration_sec_remainder} seconds ({total_seconds} seconds total)
 
 Transcript:
 {transcript[:8000]}
@@ -381,115 +348,112 @@ Transcript:
 Sentiment Data: {str(sentiment_data[:10]) if sentiment_data else 'None'}
 Segments: {str(segments[:5]) if segments else 'None'}
 
-Provide detailed sentiment analysis with all sections above. Ensure the Sentiment by Segment section covers the complete duration.
+Return ONLY the JSON object, wrapped in ```json code block.
 """
     return prompt
 
 
 def _build_keywords_prompt(transcript: str, entities: list):
-    """Build keywords extraction prompt"""
-    prompt = f"""Extract keywords and important terms from this audio.
+    """Build keywords extraction prompt - Returns JSON format"""
+    prompt = f"""Extract keywords and important terms from this audio transcription.
 
-IMPORTANT: Return clean, readable text WITHOUT markdown symbols (no **, no |, no ✅, no ❌). Use plain text with clear section headers.
+CRITICAL: You MUST return ONLY valid JSON. Do NOT include any markdown, explanations, or text outside the JSON object. Wrap the JSON in a markdown code block with ```json.
 
-MANDATORY FORMAT:
+Expected JSON structure:
+{{
+  "keywords": [
+    {{
+      "keyword": "string",
+      "relevanceScore": 0.0-1.0,
+      "frequency": number,
+      "firstOccurrence": "MM:SS" or null
+    }}
+  ],
+  "keyPhrases": [
+    {{
+      "phrase": "string",
+      "relevanceScore": 0.0-1.0,
+      "frequency": number
+    }}
+  ],
+  "namedEntities": [
+    {{
+      "entity": "string",
+      "type": "PERSON|ORGANIZATION|LOCATION|PRODUCT" or null,
+      "frequency": number
+    }}
+  ],
+  "keywordClusters": [
+    {{
+      "clusterName": "string",
+      "keywords": ["string"],
+      "description": "string" or null
+    }}
+  ]
+}}
 
-SECTION: Top Keywords
-[Create a list of the 10-15 most important keywords. Format each as:
-Keyword: Relevance Score (0.00-1.00): Frequency: First Occurrence (MM:SS)
-Example:
-Ave: 0.98: 12: 00:04
-Maria: 0.96: 12: 00:06
-Prayer: 0.75: 2: 02:00
-Grace: 0.62: 3: 01:15
-Include relevance score (0.00-1.00), frequency count, and first occurrence timestamp if available.]
-
-SECTION: Key Phrases
-[List important phrases and expressions used. Format each as:
-Phrase: Relevance Score: Frequency
-Example:
-Ave Maria: 0.95: 8
-Gratia plena: 0.88: 4]
-
-SECTION: Named Entities
-[People, companies, products, locations mentioned. Format each as:
-Entity Name: Type (Person/Company/Location/Product): Relevance Score
-Example:
-Franz Schubert: Person: 0.92
-Merusia: Person: 0.85
-Australia: Location: 0.70]
-
-SECTION: Keyword Clusters
-[Group keywords into topic clusters. Format as:
-Cluster Name: Keyword1, Keyword2, Keyword3
-Example:
-Spiritual: Ave, Maria, Prayer, Grace, Holy
-Musical Elements: soprano, chorus, harmony, melody
-Use clear cluster names and group related keywords together.]
+Requirements:
+- Extract the 10-15 most important keywords
+- Calculate relevance scores (0.0-1.0) based on frequency and importance
+- Include first occurrence timestamp in MM:SS format if available
+- Group related keywords into clusters
+- Identify named entities (people, organizations, locations, products)
+- All arrays can be empty if no data is found
 
 Transcript:
 {transcript[:8000]}
 
 Entities: {str(entities[:20]) if entities else 'None'}
 
-Provide detailed keyword extraction with all sections above. Ensure relevance scores are between 0.00 and 1.00.
+Return ONLY the JSON object, wrapped in ```json code block.
 """
     return prompt
 
 
 def _build_speakers_prompt(transcript: str, segments: list, speakers: list):
-    """Build speaker analysis prompt"""
+    """Build speaker analysis prompt - Returns JSON format"""
     duration = 0
     if segments and len(segments) > 0:
         duration = segments[-1].get('end', 0) if segments else 0
     duration_min = int(duration // 60)
     duration_sec = int(duration % 60)
     
-    prompt = f"""Analyze the speakers and their participation in this audio.
+    prompt = f"""Analyze the speakers and their participation in this audio transcription.
 
-IMPORTANT: Return clean, readable text WITHOUT markdown symbols (no **, no |, no ✅, no ❌). Use plain text with clear section headers.
+CRITICAL: You MUST return ONLY valid JSON. Do NOT include any markdown, explanations, or text outside the JSON object. Wrap the JSON in a markdown code block with ```json.
 
-MANDATORY FORMAT:
+Expected JSON structure:
+{{
+  "speakers": [
+    {{
+      "speakerId": "string (e.g., 'Speaker A', 'Speaker B')",
+      "speakerLabel": "string or null",
+      "speakingTime": number (seconds),
+      "percentage": number (0-100),
+      "segments": number or null,
+      "avgSegmentLength": number (seconds) or null,
+      "notes": "string or null"
+    }}
+  ],
+  "timeline": [
+    {{
+      "startTime": number (seconds),
+      "endTime": number (seconds),
+      "speakerId": "string",
+      "transcript": "string or null"
+    }}
+  ],
+  "conversationPatterns": [
+    "string (pattern description)"
+  ]
+}}
 
-SECTION: Speaker Overview
-Number of Speakers: [Count]
-Speaker Identification: [List each speaker as "Speaker A", "Speaker B", etc. or by name if identifiable]
-
-SECTION: Speaking Time Distribution
-[Format each speaker as:
-Speaker A: Total Time (MM:SS): Percentage (%): Average Sentence Length (words): Number of Segments
-Example:
-Speaker A: 3:20: 55%: 7 words: 12 segments
-Speaker B: 2:40: 45%: 4 words: 15 segments
-Include all speakers with their speaking time, percentage, average sentence length, and segment count.]
-
-SECTION: Speaker Timeline
-[Create a timeline showing when each speaker talks. Format as:
-MM:SS-MM:SS: Speaker Label: [Brief description or transcript excerpt]
-Example:
-00:00-00:15: Speaker A: Opening introduction
-00:15-00:30: Speaker B: Response and question
-00:30-00:45: Speaker A: Detailed explanation
-Include all speaking segments in chronological order.]
-
-SECTION: Conversation Patterns
-[Provide insights about the conversation. Format as:
-- [Pattern description]
-- [Another pattern]
-Example:
-- Speaker A talked more (55% of total time)
-- Speaker B spoke in shorter bursts (average 4 words per sentence)
-- 3 interruptions detected between speakers
-- Longest monologue: 42 seconds (Speaker A at 01:15-01:57)
-- Back-and-forth exchange pattern detected between 01:10-02:00
-- Speaker A dominated the first half, Speaker B more active in second half]
-
-SECTION: Speaker Breakdown
-[Create detailed breakdown. Format each as:
-Speaker Label: Total Time: Percentage: Segments: Avg Segment Length: Notes
-Example:
-Speaker A: 3:20: 55%: 12: 15 sec: Dominant speaker, longer monologues
-Speaker B: 2:40: 45%: 15: 8 sec: Reactive speaker, frequent short responses]
+Requirements:
+- Identify all speakers and calculate their speaking time in seconds
+- Calculate percentage of total speaking time for each speaker
+- Create timeline entries for each speaking segment
+- Identify conversation patterns (dominance, interruptions, turn-taking, etc.)
+- All arrays can be empty if no data is found
 
 Duration: {duration_min} minutes {duration_sec} seconds
 
@@ -499,106 +463,113 @@ Transcript:
 Segments: {str(segments[:20]) if segments else 'None'}
 Speakers: {str(speakers[:10]) if speakers else 'None'}
 
-Provide detailed speaker analysis with all sections above.
+Return ONLY the JSON object, wrapped in ```json code block.
 """
     return prompt
 
 
 def _build_actions_prompt(transcript: str, duration: float):
-    """Build action items extraction prompt"""
-    prompt = f"""Extract action items, decisions, and deadlines from this audio.
+    """Build action items extraction prompt - Returns JSON format"""
+    prompt = f"""Extract action items, decisions, and deadlines from this audio transcription.
 
-IMPORTANT: Return clean, readable text WITHOUT markdown symbols (no **, no |, no ✅, no ❌). Use plain text with clear section headers.
+CRITICAL: You MUST return ONLY valid JSON. Do NOT include any markdown, explanations, or text outside the JSON object. Wrap the JSON in a markdown code block with ```json.
 
-MANDATORY FORMAT:
+Expected JSON structure:
+{{
+  "actionItems": [
+    {{
+      "task": "string",
+      "assignedTo": "string or null",
+      "deadline": "string or null",
+      "priority": "string (High|Medium|Low) or null",
+      "timestamp": "string (MM:SS format) or null",
+      "notes": "string or null"
+    }}
+  ],
+  "decisions": [
+    {{
+      "decision": "string",
+      "timestamp": "string (MM:SS format) or null"
+    }}
+  ],
+  "deadlines": [
+    {{
+      "deadline": "string",
+      "date": "string or null",
+      "timestamp": "string (MM:SS format) or null"
+    }}
+  ]
+}}
 
-SECTION: Action Items
-[Format each task as:
-Task Name: Assigned To: Deadline: Priority (High/Medium/Low): Timestamp (MM:SS): Notes/Transcript Snippet
-Example:
-Prepare monthly sales report: Sarah: March 12, 2025: High: 02:15: Discussed during Q1 review
-Email supplier about delays: John: —: Medium: 03:12: Need to follow up on shipping issues
-Schedule next meeting: —: March 20, 2025: Low: 04:45: Team agreed to meet next week
-If assignee is not mentioned, use "—". If deadline is not mentioned, use "—". Include timestamp where the task was mentioned.]
-
-SECTION: Decisions Made
-[Format each decision as:
-Decision Description: Timestamp (MM:SS)
-Example:
-Proceed with new supplier (voted 3–1): 05:30
-Approve Q2 marketing budget: 07:15
-Include all decisions, agreements, or conclusions with timestamps when available.]
-
-SECTION: Deadlines Mentioned
-[Format each deadline as:
-Deadline Description: Date: Timestamp (MM:SS)
-Example:
-Monthly sales report due: March 12, 2025: 02:15
-Next team meeting: March 20, 2025: 04:45
-Include all dates, deadlines, or time-sensitive items mentioned in the audio.]
-
-SECTION: Follow-up Items
-[Format each follow-up as:
-Follow-up Description: Timestamp (MM:SS)
-Example:
-Review supplier proposals: 06:00
-Discuss budget allocation: 08:30
-List items that need follow-up or future discussion.]
+Requirements:
+- Extract all actionable tasks with assignees, deadlines, and priorities when mentioned
+- Extract all decisions, agreements, or conclusions with timestamps
+- Extract all dates, deadlines, or time-sensitive items mentioned
+- Use null for missing fields (assignee, deadline, etc.)
+- Include timestamps in MM:SS format when available
+- All arrays can be empty if no data is found
 
 Transcript:
 {transcript[:8000]}
 
-Be thorough in extracting all actionable items, decisions, and deadlines. Include timestamps whenever possible.
+Return ONLY the JSON object, wrapped in ```json code block.
 """
     return prompt
 
 
 def _build_timeline_prompt(transcript: str, segments: list, chapters: list, duration: float):
-    """Build timeline analysis prompt"""
+    """Build timeline analysis prompt - Returns JSON format"""
     duration_min = int(duration // 60)
     duration_sec = int(duration % 60)
     
     prompt = f"""Create a comprehensive timeline of the discussion with key moments, speaker activity, and important events.
 
-IMPORTANT: Return clean, readable text WITHOUT markdown symbols (no **, no |, no ✅, no ❌). Use plain text with clear section headers.
+CRITICAL: You MUST return ONLY valid JSON. Do NOT include any markdown, explanations, or text outside the JSON object. Wrap the JSON in a markdown code block with ```json.
 
-MANDATORY FORMAT:
+Expected JSON structure:
+{{
+  "timeline": [
+    {{
+      "startTime": "string (MM:SS format)",
+      "endTime": "string (MM:SS format)",
+      "speaker": "string or null",
+      "topic": "string or null",
+      "transcript": "string or null"
+    }}
+  ],
+  "keyMoments": [
+    {{
+      "timestamp": "string (MM:SS format)",
+      "type": "string (Decision|Action|TopicShift|Emotional|Keyword|Insight) or null",
+      "description": "string",
+      "transcript": "string or null"
+    }}
+  ],
+  "topicTransitions": [
+    {{
+      "timestamp": "string (MM:SS format)",
+      "fromTopic": "string or null",
+      "toTopic": "string",
+      "trigger": "string or null"
+    }}
+  ],
+  "transcriptHighlights": [
+    {{
+      "timestamp": "string (MM:SS format)",
+      "text": "string",
+      "type": "string (Decision|Action|Topic|Emotional) or null",
+      "iconLabel": "string or null"
+    }}
+  ]
+}}
 
-SECTION: Discussion Timeline
-[Create a timeline showing speaker activity segments. Format each as:
-MM:SS-MM:SS: Speaker Label: Topic/Description: Transcript Snippet
-Example:
-00:00-02:15: Speaker A: Opening introduction: Welcome everyone to today's meeting
-02:15-04:30: Speaker B: Project updates: We've completed phase one
-04:30-06:00: Speaker A: Discussion: Let's review the budget
-Include all major segments with speaker, topic, and brief transcript excerpt.]
-
-SECTION: Key Moments
-[Identify and timestamp important moments. Format each as:
-Type (Decision/Action/TopicShift/Emotional/Keyword/Insight): MM:SS: Description: Transcript Snippet
-Example:
-Decision: 03:12: Switch to new supplier: We should switch to the new supplier
-Action: 04:45: Schedule next meeting: Let's schedule next meeting on March 20
-TopicShift: 06:30: Budget discussion: The main issue is delayed shipments
-Emotional: 08:15: Frustration expressed: This is unacceptable
-Include all key moments with type, timestamp, description, and transcript snippet.]
-
-SECTION: Topic Transitions
-[Note when topics change. Format each as:
-MM:SS: From Topic → To Topic: Trigger/Reason
-Example:
-06:30: Project Updates → Budget Discussion: Speaker A asked about budget
-09:45: Budget Discussion → Action Items: Team agreed to review next week
-Include all topic transitions with timestamps and triggers.]
-
-SECTION: Transcript Highlights
-[Create a synchronized list of important transcript excerpts. Format each as:
-MM:SS: Transcript Text: Type (Decision/Action/Topic/Emotional): Icon Label
-Example:
-03:12: "We should switch to the new supplier.": Decision: Decision
-04:45: "Let's schedule next meeting on March 20.": Action: Action
-06:30: "The main issue is delayed shipments.": Topic: Topic Shift
-Include timestamps, transcript text, type, and icon label for synchronization.]
+Requirements:
+- Create timeline entries covering the ENTIRE duration from 00:00 to {duration_min}:{duration_sec:02d}
+- Include all major segments with speaker, topic, and transcript excerpts
+- Identify and timestamp all key moments (decisions, actions, topic shifts, emotional moments)
+- Note all topic transitions with timestamps and triggers
+- Create synchronized transcript highlights with timestamps
+- All arrays can be empty if no data is found
 
 Duration: {duration_min} minutes {duration_sec} seconds ({duration} seconds total)
 
@@ -608,7 +579,7 @@ Transcript:
 Segments: {str(segments[:30]) if segments else 'None'}
 Chapters: {str(chapters[:10]) if chapters else 'None'}
 
-Provide a comprehensive timeline with all sections above. Ensure timestamps cover the entire duration from 00:00 to {duration_min}:{duration_sec:02d}.
+Return ONLY the JSON object, wrapped in ```json code block.
 """
     return prompt
 
@@ -639,10 +610,10 @@ Sample Rate: {metadata.get('sample_rate', 'N/A') if metadata.get('sample_rate') 
 Bitrate: {metadata.get('bitrate', 'N/A') if metadata.get('bitrate') else 'N/A'} kbps
 Channels: {metadata.get('channels', 'N/A') if metadata.get('channels') else 'N/A'} ({'Stereo' if metadata.get('channels') == 2 else 'Mono' if metadata.get('channels') == 1 else 'N/A'})
 Encoding: {('MP3' if metadata.get('format', '').lower() == 'mp3' else 'PCM' if metadata.get('format', '').lower() == 'wav' else 'AAC' if metadata.get('format', '').lower() == 'm4a' else 'N/A')}
-Loudness: N/A
-Peak Level: N/A
-Noise Level: N/A
-Dynamic Range: N/A
+Loudness: {metadata.get('loudness', 'N/A') if metadata.get('loudness') is not None else 'N/A'} LUFS
+Peak Level: {metadata.get('peak_level', 'N/A') if metadata.get('peak_level') is not None else 'N/A'} dB
+Noise Level: {metadata.get('noise_level', 'N/A') if metadata.get('noise_level') is not None else 'N/A'} dB
+Dynamic Range: {metadata.get('dynamic_range', 'N/A') if metadata.get('dynamic_range') is not None else 'N/A'} dB
 
 SECTION: Audio Properties
 Channel Breakdown: [If stereo, provide left/right channel levels or "N/A"]

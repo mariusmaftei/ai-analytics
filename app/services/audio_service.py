@@ -137,7 +137,9 @@ def get_audio_metadata(file_stream) -> Dict:
                     # For MP3 files, try to get additional info
                     if file_extension == 'mp3' and isinstance(audio_file, MP3):
                         if hasattr(audio_file.info, 'bitrate'):
-                            metadata['bitrate'] = int(audio_file.info.bitrate)
+                            # Mutagen returns MP3 bitrate in bps, convert to kbps
+                            bitrate = audio_file.info.bitrate
+                            metadata['bitrate'] = int(bitrate / 1000) if bitrate > 1000 else int(bitrate)
                         if hasattr(audio_file.info, 'sample_rate'):
                             metadata['sample_rate'] = int(audio_file.info.sample_rate)
                         if hasattr(audio_file.info, 'channels'):
@@ -157,6 +159,33 @@ def get_audio_metadata(file_stream) -> Dict:
                     elif file_extension == 'wav' and isinstance(audio_file, WAVE):
                         if hasattr(audio_file.info, 'bitrate'):
                             metadata['bitrate'] = int(audio_file.info.bitrate / 1000) if audio_file.info.bitrate > 1000 else int(audio_file.info.bitrate)
+                
+                # Calculate audio analysis metrics (loudness, peak level, noise level, dynamic range)
+                # Do this after mutagen extraction so we can reuse the temp file
+                try:
+                    from services.audio_analysis_metrics import calculate_audio_metrics
+                    audio_metrics = calculate_audio_metrics(temp_path)
+                    
+                    if audio_metrics.get('success'):
+                        metadata['loudness'] = audio_metrics.get('loudness')
+                        metadata['peak_level'] = audio_metrics.get('peak_level')
+                        metadata['noise_level'] = audio_metrics.get('noise_level')
+                        metadata['dynamic_range'] = audio_metrics.get('dynamic_range')
+                    else:
+                        # Set to None if calculation failed (will show as N/A in UI)
+                        metadata['loudness'] = None
+                        metadata['peak_level'] = None
+                        metadata['noise_level'] = None
+                        metadata['dynamic_range'] = None
+                        if audio_metrics.get('error'):
+                            print(f"[AUDIO] Audio metrics calculation failed: {audio_metrics.get('error')}")
+                except Exception as e:
+                    # If metrics calculation fails, continue without them
+                    print(f"[AUDIO] Warning: Could not calculate audio metrics: {str(e)}")
+                    metadata['loudness'] = None
+                    metadata['peak_level'] = None
+                    metadata['noise_level'] = None
+                    metadata['dynamic_range'] = None
                 
             finally:
                 # Clean up temporary file

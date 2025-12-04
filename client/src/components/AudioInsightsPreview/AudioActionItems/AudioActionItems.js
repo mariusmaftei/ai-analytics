@@ -14,6 +14,8 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import { errorLog } from "../../../utils/debugLogger";
 import { validateParsedData } from "../../../utils/audioParsingHelpers";
+import { parseAudioAnalysisData } from "../../../utils/audioJsonParser";
+import { ACTION_ITEMS_SCHEMA } from "../../../utils/audioJsonSchemas";
 import {
   ACTION_ITEM_FULL_PATTERN,
   ACTION_ITEM_SIMPLE_PATTERN,
@@ -25,6 +27,7 @@ import {
 } from "../../../utils/audioRegexPatterns";
 import EmptyState from "../../Shared/EmptyState/EmptyState";
 import ParsingError from "../../Shared/ParsingError/ParsingError";
+import RawDataViewer from "../../Shared/RawDataViewer/RawDataViewer";
 import styles from "./AudioActionItems.module.css";
 
 // Helper function to parse lines from a section
@@ -63,13 +66,50 @@ const AudioActionItems = ({ rawText }) => {
     setParsingError(null);
 
     try {
+      const text = rawText || "";
+
+      // Try JSON parsing first (new architecture)
+      const jsonResult = parseAudioAnalysisData(
+        text,
+        ACTION_ITEMS_SCHEMA,
+        null, // Will use text parser as fallback
+        "AudioActionItems"
+      );
+
+      // If JSON parsing succeeded, transform to expected format
+      if (jsonResult.data && jsonResult.format === 'json') {
+        const jsonData = jsonResult.data;
+        
+        // Transform JSON format to component's expected format
+        const transformed = {
+          actionItems: (jsonData.actionItems || []).map(item => ({
+            task: item.task,
+            assignedTo: item.assignedTo || null,
+            deadline: item.deadline || null,
+            priority: item.priority || "Medium",
+            timestamp: item.timestamp || null,
+            notes: item.notes || null,
+          })),
+          decisions: (jsonData.decisions || []).map(decision => ({
+            decision: decision.decision,
+            timestamp: decision.timestamp || null,
+          })),
+          deadlines: (jsonData.deadlines || []).map(deadline => ({
+            description: deadline.deadline,
+            date: deadline.date || null,
+            timestamp: deadline.timestamp || null,
+          })),
+        };
+
+        return transformed;
+      }
+
+      // Fallback to text parsing (existing logic)
       const result = {
         actionItems: [],
         decisions: [],
         deadlines: [],
       };
-
-      const text = rawText || "";
 
       // Parse Action Items from rawText
       const actionItemsMatch = text.match(
@@ -226,10 +266,9 @@ const AudioActionItems = ({ rawText }) => {
             <p className={styles.subtitle}>Tasks, decisions, and deadlines</p>
           </div>
         </div>
+        <RawDataViewer rawText={rawText} title="Raw AI Response (JSON parsing failed)" />
         <ParsingError
           message="Failed to parse action items data. The analysis may be in an unexpected format."
-          showRawData={true}
-          rawData={rawText}
         />
       </div>
     );

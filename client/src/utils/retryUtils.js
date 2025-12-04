@@ -4,6 +4,7 @@
  */
 
 import { errorLog } from './debugLogger';
+import { logErrorToSentry, addSentryBreadcrumb } from './sentryConfig';
 
 /**
  * Check if an error should be retried
@@ -119,12 +120,42 @@ export const retryWithBackoff = async (fn, options = {}) => {
           );
         }
 
+        // Add breadcrumb to Sentry for retry tracking
+        addSentryBreadcrumb(
+          `Retry attempt ${attempt + 1}/${maxRetries}`,
+          {
+            error: error.message,
+            status: error.response?.status,
+            code: error.code,
+            delay,
+          },
+          'warning'
+        );
+
         await sleep(delay);
         continue;
       }
 
+      // Don't retry - this is a final failure, log to Sentry
+      if (process.env.NODE_ENV === 'production') {
+        logErrorToSentry(lastError, {
+          tags: {
+            component: 'retryUtils',
+            retryExhausted: true,
+            maxRetries,
+          },
+          extra: {
+            attempts: maxRetries + 1,
+            error: lastError.message,
+            status: lastError.response?.status,
+            code: lastError.code,
+          },
+          level: 'error',
+        });
+      }
+
       // Don't retry - throw the error
-      throw error;
+      throw lastError;
     }
   }
 

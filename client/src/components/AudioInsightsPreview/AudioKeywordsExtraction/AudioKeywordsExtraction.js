@@ -18,8 +18,11 @@ import {
   KEYWORD_CLUSTER_PATTERN,
   createSectionPattern,
 } from "../../../utils/audioRegexPatterns";
+import { parseAudioAnalysisData } from "../../../utils/audioJsonParser";
+import { KEYWORDS_SCHEMA } from "../../../utils/audioJsonSchemas";
 import EmptyState from "../../Shared/EmptyState/EmptyState";
 import ParsingError from "../../Shared/ParsingError/ParsingError";
+import RawDataViewer from "../../Shared/RawDataViewer/RawDataViewer";
 import styles from "./AudioKeywordsExtraction.module.css";
 
 const AudioKeywordsExtraction = ({ data, rawText }) => {
@@ -29,6 +32,22 @@ const AudioKeywordsExtraction = ({ data, rawText }) => {
     setParsingError(null);
 
     try {
+      const text = rawText || "";
+      
+      // Try JSON parsing first (new architecture)
+      const jsonResult = parseAudioAnalysisData(
+        text,
+        KEYWORDS_SCHEMA,
+        null, // Will use text parser as fallback
+        "AudioKeywordsExtraction"
+      );
+
+      // If JSON parsing succeeded, use it
+      if (jsonResult.data && jsonResult.format === 'json') {
+        return jsonResult.data;
+      }
+
+      // Fallback to text parsing (existing logic)
       const result = {
         keywords: [],
         keyPhrases: [],
@@ -36,7 +55,6 @@ const AudioKeywordsExtraction = ({ data, rawText }) => {
         keywordClusters: [],
       };
 
-      const text = rawText || "";
       const sections = data?.sections || [];
 
       // Parse Top Keywords - try multiple section name variations
@@ -520,12 +538,15 @@ const AudioKeywordsExtraction = ({ data, rawText }) => {
         </div>
       </div>
 
+      {/* Show raw data viewer if parsing failed */}
+      {parsingError && rawText && (
+        <RawDataViewer rawText={rawText} title="Raw AI Response (JSON parsing failed)" />
+      )}
+
       {/* Show error or empty state */}
       {parsingError ? (
         <ParsingError
           message="Failed to parse keywords data. The analysis may be in an unexpected format."
-          showRawData={true}
-          rawData={rawText}
         />
       ) : parsedData.keywords.length === 0 &&
         parsedData.keyPhrases.length === 0 &&

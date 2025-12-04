@@ -30,6 +30,10 @@ import {
   generatePDFReport,
   generateCSVExport,
   generateJSONExport,
+  generateAudioTranscriptionTXT,
+  generateAudioTranscriptionPDF,
+  generateAudioReportPDF,
+  generateAudioJSONExport,
 } from "../../utils/pdfGenerator";
 import styles from "./SessionPage.module.css";
 
@@ -325,25 +329,47 @@ const SessionPage = () => {
 
   const handleDownload = (format) => {
     try {
-      const formatInfo = {
-        pdf: "📄 PDF Data - Document data with tables, metadata, and insights",
-        csv: "📊 CSV File - Raw data in spreadsheet format",
-        json: "💾 JSON File - Structured data export",
-      };
-
       const fileName = fileData.fileName.replace(/\.[^/.]+$/, "");
+      let formatInfo = {};
 
-      if (format === "pdf") {
-        generatePDFReport(fileData, analysisData, messages);
-      } else if (format === "csv") {
-        generateCSVExport(fileData, analysisData, messages);
-      } else if (format === "json") {
-        generateJSONExport(fileData, analysisData, messages);
+      if (isAudio) {
+        // Audio-specific download options
+        formatInfo = {
+          transcription_txt: "📝 Transcription - Plain text transcript",
+          transcription_pdf: "📄 Transcription PDF - Formatted transcript with timestamps",
+          report_pdf: "📋 Analysis Report - Complete analysis summary",
+          json: "💾 Analysis Data - Structured JSON export",
+        };
+
+        if (format === "transcription_txt") {
+          generateAudioTranscriptionTXT(fileData, analysisData);
+        } else if (format === "transcription_pdf") {
+          generateAudioTranscriptionPDF(fileData, analysisData);
+        } else if (format === "report_pdf") {
+          generateAudioReportPDF(fileData, analysisData, messages);
+        } else if (format === "json") {
+          generateAudioJSONExport(fileData, analysisData, messages);
+        }
+      } else {
+        // PDF/CSV/JSON downloads for other file types
+        formatInfo = {
+          pdf: "📄 PDF Data - Document data with tables, metadata, and insights",
+          csv: "📊 CSV File - Raw data in spreadsheet format",
+          json: "💾 JSON File - Structured data export",
+        };
+
+        if (format === "pdf") {
+          generatePDFReport(fileData, analysisData, messages);
+        } else if (format === "csv") {
+          generateCSVExport(fileData, analysisData, messages);
+        } else if (format === "json") {
+          generateJSONExport(fileData, analysisData, messages);
+        }
       }
 
       const downloadMessage = {
         type: "ai",
-        text: `✅ Download started!\n\n${formatInfo[format]}\n\nFile: ${fileName}.${format}\n\nThe file should download automatically.`,
+        text: `✅ Download started!\n\n${formatInfo[format]}\n\nFile: ${fileName}_${format}.${format.includes('pdf') ? 'pdf' : format.includes('json') ? 'json' : 'txt'}\n\nThe file should download automatically.`,
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, downloadMessage]);
@@ -575,27 +601,62 @@ const SessionPage = () => {
 
             {showDownloadMenu && (
               <div className={styles.downloadMenu}>
-                <button
-                  className={styles.downloadOption}
-                  onClick={() => handleDownload("pdf")}
-                >
-                  <FontAwesomeIcon icon={faFilePdf} />
-                  <span>PDF Data</span>
-                </button>
-                <button
-                  className={styles.downloadOption}
-                  onClick={() => handleDownload("csv")}
-                >
-                  <FontAwesomeIcon icon={faFileCsv} />
-                  <span>CSV Data</span>
-                </button>
-                <button
-                  className={styles.downloadOption}
-                  onClick={() => handleDownload("json")}
-                >
-                  <FontAwesomeIcon icon={faFileCode} />
-                  <span>JSON Data</span>
-                </button>
+                {isAudio ? (
+                  <>
+                    <button
+                      className={styles.downloadOption}
+                      onClick={() => handleDownload("transcription_txt")}
+                    >
+                      <FontAwesomeIcon icon={faFileCode} />
+                      <span>Transcription (TXT)</span>
+                    </button>
+                    <button
+                      className={styles.downloadOption}
+                      onClick={() => handleDownload("transcription_pdf")}
+                    >
+                      <FontAwesomeIcon icon={faFilePdf} />
+                      <span>Transcription (PDF)</span>
+                    </button>
+                    <button
+                      className={styles.downloadOption}
+                      onClick={() => handleDownload("report_pdf")}
+                    >
+                      <FontAwesomeIcon icon={faFilePdf} />
+                      <span>Analysis Report (PDF)</span>
+                    </button>
+                    <button
+                      className={styles.downloadOption}
+                      onClick={() => handleDownload("json")}
+                    >
+                      <FontAwesomeIcon icon={faFileCode} />
+                      <span>Analysis Data (JSON)</span>
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button
+                      className={styles.downloadOption}
+                      onClick={() => handleDownload("pdf")}
+                    >
+                      <FontAwesomeIcon icon={faFilePdf} />
+                      <span>PDF Data</span>
+                    </button>
+                    <button
+                      className={styles.downloadOption}
+                      onClick={() => handleDownload("csv")}
+                    >
+                      <FontAwesomeIcon icon={faFileCsv} />
+                      <span>CSV Data</span>
+                    </button>
+                    <button
+                      className={styles.downloadOption}
+                      onClick={() => handleDownload("json")}
+                    >
+                      <FontAwesomeIcon icon={faFileCode} />
+                      <span>JSON Data</span>
+                    </button>
+                  </>
+                )}
               </div>
             )}
           </div>

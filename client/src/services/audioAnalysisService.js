@@ -70,6 +70,11 @@ function transformAudioResponse(backendData) {
       sampleRate: backendData.metadata?.sample_rate || null,
       channels: backendData.metadata?.channels || null,
       bitrate: backendData.metadata?.bitrate || null,
+      // Audio analysis metrics
+      loudness: backendData.metadata?.loudness || null,
+      peak_level: backendData.metadata?.peak_level || null,
+      noise_level: backendData.metadata?.noise_level || null,
+      dynamic_range: backendData.metadata?.dynamic_range || null,
     },
     
     // Transcription

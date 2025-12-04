@@ -12,6 +12,8 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import { errorLog } from "../../../utils/debugLogger";
 import { validateParsedData } from "../../../utils/audioParsingHelpers";
+import { parseAudioAnalysisData } from "../../../utils/audioJsonParser";
+import { CONTENT_ANALYSIS_SCHEMA } from "../../../utils/audioJsonSchemas";
 import {
   TOPIC_CLUSTER_PATTERN_LAZY,
   TOPIC_TREE_TITLE_PATTERN,
@@ -22,6 +24,7 @@ import {
 } from "../../../utils/audioRegexPatterns";
 import EmptyState from "../../Shared/EmptyState/EmptyState";
 import ParsingError from "../../Shared/ParsingError/ParsingError";
+import RawDataViewer from "../../Shared/RawDataViewer/RawDataViewer";
 import styles from "./AudioContentAnalysis.module.css";
 
 const AudioContentAnalysis = ({ data, rawText }) => {
@@ -42,6 +45,63 @@ const AudioContentAnalysis = ({ data, rawText }) => {
 
       const text = rawText || "";
       const sections = data?.sections || [];
+
+      // Try JSON parsing first (new architecture)
+      if (text) {
+        const jsonResult = parseAudioAnalysisData(
+          text,
+          CONTENT_ANALYSIS_SCHEMA,
+          null, // Will use text parser as fallback
+          "AudioContentAnalysis"
+        );
+
+        // If JSON parsing succeeded, transform to expected format
+        if (jsonResult.data && jsonResult.format === 'json') {
+          const jsonData = jsonResult.data;
+          
+          // Transform topicClusters
+          if (jsonData.topicClusters && Array.isArray(jsonData.topicClusters)) {
+            result.topicClusters = jsonData.topicClusters.map(cluster => ({
+              title: cluster.topic || cluster.title || "",
+              description: cluster.description || "",
+              icon: faMusic,
+            }));
+          }
+
+          // Transform discussionFlow
+          if (jsonData.discussionFlow && Array.isArray(jsonData.discussionFlow)) {
+            result.discussionFlow = jsonData.discussionFlow.map(item => ({
+              time: item.timestamp || item.time || "",
+              description: item.description || item.topic || "",
+            }));
+          }
+
+          // Transform keyConcepts
+          if (jsonData.keyConcepts && Array.isArray(jsonData.keyConcepts)) {
+            result.keyConcepts = jsonData.keyConcepts.map((concept, index) => {
+              // If concept is a string, create a simple object
+              if (typeof concept === 'string') {
+                return {
+                  concept: concept,
+                  category: "General",
+                };
+              }
+              // If concept is an object, use it as-is
+              return {
+                concept: concept.concept || concept.name || "",
+                category: concept.category || "General",
+              };
+            });
+          }
+
+          // If we got valid data from JSON, return early (skip text parsing)
+          if (result.topicClusters.length > 0 || 
+              result.discussionFlow.length > 0 || 
+              result.keyConcepts.length > 0) {
+            return result;
+          }
+        }
+      }
 
       // Parse Topic Clusters from sections or rawText
       const mainTopicsSection = sections.find(
@@ -491,6 +551,7 @@ const AudioContentAnalysis = ({ data, rawText }) => {
   }, [parsedData.discussionFlow]);
 
   const getIconForTopic = (title) => {
+    if (!title || typeof title !== 'string') return faMusic;
     const lower = title.toLowerCase();
     if (lower.includes("theme") || lower.includes("spiritual"))
       return faLightbulb;
@@ -530,6 +591,7 @@ const AudioContentAnalysis = ({ data, rawText }) => {
           showRawData={true}
           rawData={rawText}
         />
+        {rawText && <RawDataViewer data={rawText} />}
       </div>
     );
   }
@@ -652,25 +714,29 @@ const AudioContentAnalysis = ({ data, rawText }) => {
                 </tr>
               </thead>
               <tbody>
-                {parsedData.keyConcepts.map((concept, index) => (
-                  <tr key={index}>
-                    <td>{concept.concept}</td>
-                    <td>{concept.category}</td>
-                    <td>
-                      <span
-                        className={`${styles.relevanceBadge} ${
-                          concept.relevance.toLowerCase() === "high"
-                            ? styles.relevanceHigh
-                            : concept.relevance.toLowerCase() === "medium"
-                            ? styles.relevanceMedium
-                            : styles.relevanceLow
-                        }`}
-                      >
-                        {concept.relevance}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
+                {parsedData.keyConcepts.map((concept, index) => {
+                  const relevance = concept.relevance || "Medium";
+                  const relevanceLower = relevance.toLowerCase();
+                  return (
+                    <tr key={index}>
+                      <td>{concept.concept || ""}</td>
+                      <td>{concept.category || "General"}</td>
+                      <td>
+                        <span
+                          className={`${styles.relevanceBadge} ${
+                            relevanceLower === "high"
+                              ? styles.relevanceHigh
+                              : relevanceLower === "medium"
+                              ? styles.relevanceMedium
+                              : styles.relevanceLow
+                          }`}
+                        >
+                          {relevance}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

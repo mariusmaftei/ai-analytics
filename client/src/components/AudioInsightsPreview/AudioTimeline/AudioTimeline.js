@@ -16,6 +16,8 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import { errorLog } from "../../../utils/debugLogger";
 import { validateParsedData } from "../../../utils/audioParsingHelpers";
+import { parseAudioAnalysisData } from "../../../utils/audioJsonParser";
+import { TIMELINE_SCHEMA } from "../../../utils/audioJsonSchemas";
 import {
   DISCUSSION_TIMELINE_PATTERN,
   DISCUSSION_TIMELINE_SIMPLE_PATTERN,
@@ -33,6 +35,7 @@ import {
 } from "../../../utils/audioRegexPatterns";
 import EmptyState from "../../Shared/EmptyState/EmptyState";
 import ParsingError from "../../Shared/ParsingError/ParsingError";
+import RawDataViewer from "../../Shared/RawDataViewer/RawDataViewer";
 import styles from "./AudioTimeline.module.css";
 
 const AudioTimeline = ({ data, rawText }) => {
@@ -49,14 +52,59 @@ const AudioTimeline = ({ data, rawText }) => {
     setParsingError(null);
 
     try {
+      const text = rawText || "";
+
+      // Try JSON parsing first (new architecture)
+      const jsonResult = parseAudioAnalysisData(
+        text,
+        TIMELINE_SCHEMA,
+        null, // Will use text parser as fallback
+        "AudioTimeline"
+      );
+
+      // If JSON parsing succeeded, transform to expected format
+      if (jsonResult.data && jsonResult.format === 'json') {
+        const jsonData = jsonResult.data;
+        
+        // Transform JSON format to component's expected format
+        const transformed = {
+          timeline: (jsonData.timeline || []).map(item => ({
+            startTime: item.startTime,
+            endTime: item.endTime,
+            speaker: item.speaker || null,
+            topic: item.topic || null,
+            transcript: item.transcript || null,
+          })),
+          keyMoments: (jsonData.keyMoments || []).map(moment => ({
+            timestamp: moment.timestamp,
+            type: moment.type || null,
+            description: moment.description,
+            transcript: moment.transcript || null,
+          })),
+          topicTransitions: (jsonData.topicTransitions || []).map(transition => ({
+            timestamp: transition.timestamp,
+            fromTopic: transition.fromTopic || null,
+            toTopic: transition.toTopic,
+            trigger: transition.trigger || null,
+          })),
+          transcriptHighlights: (jsonData.transcriptHighlights || []).map(highlight => ({
+            timestamp: highlight.timestamp,
+            text: highlight.text,
+            type: highlight.type || null,
+            iconLabel: highlight.iconLabel || null,
+          })),
+        };
+
+        return transformed;
+      }
+
+      // Fallback to text parsing (existing logic)
       const result = {
         timeline: [],
         keyMoments: [],
         topicTransitions: [],
         transcriptHighlights: [],
       };
-
-      const text = rawText || "";
 
       // Parse Discussion Timeline from rawText
       const timelineMatch = text.match(
@@ -460,10 +508,9 @@ const AudioTimeline = ({ data, rawText }) => {
             </p>
           </div>
         </div>
+        <RawDataViewer rawText={rawText} title="Raw AI Response (JSON parsing failed)" />
         <ParsingError
           message="Failed to parse timeline data. The analysis may be in an unexpected format."
-          showRawData={true}
-          rawData={rawText}
         />
       </div>
     );

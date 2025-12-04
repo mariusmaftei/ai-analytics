@@ -1,10 +1,13 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faFileAlt,
   faList,
   faLightbulb,
 } from "@fortawesome/free-solid-svg-icons";
+import { parseAudioAnalysisData } from "../../../utils/audioJsonParser";
+import { SUMMARY_SCHEMA } from "../../../utils/audioJsonSchemas";
+import { warnLog } from "../../../utils/debugLogger";
 import {
   NO_CONTENT_PATTERN,
   EXECUTIVE_SUMMARY_FALLBACK_PATTERN,
@@ -18,6 +21,8 @@ import {
   createSectionPattern,
 } from "../../../utils/audioRegexPatterns";
 import EmptyState from "../../Shared/EmptyState/EmptyState";
+import ParsingError from "../../Shared/ParsingError/ParsingError";
+import RawDataViewer from "../../Shared/RawDataViewer/RawDataViewer";
 import styles from "./AudioSummary.module.css";
 
 // Parse sections from rawText if data.sections is empty
@@ -209,32 +214,93 @@ const parseSectionsFromRawText = (text) => {
 };
 
 const AudioSummary = ({ data, rawText }) => {
+  const [parsingError, setParsingError] = useState(null);
+
   // Use parsed data or fallback to rawText parsing
   const effectiveData = useMemo(() => {
-    // Always try to parse from rawText first if available, as it's the most reliable source
-    if (rawText) {
-      const parsedSections = parseSectionsFromRawText(rawText);
-      if (parsedSections.length > 0) {
-        return { sections: parsedSections };
+    setParsingError(null);
+
+    try {
+      const text = rawText || "";
+
+      // Try JSON parsing first (new architecture)
+      if (text) {
+        const jsonResult = parseAudioAnalysisData(
+          text,
+          SUMMARY_SCHEMA,
+          null, // Will use text parser as fallback
+          "AudioSummary"
+        );
+
+        // If JSON parsing succeeded, transform to expected format
+        if (jsonResult.data && jsonResult.format === 'json') {
+          const jsonData = jsonResult.data;
+          
+          // Validate that we have the expected summary structure (not metadata)
+          // Summary should have executiveSummary or keyPoints, not fileInfo
+          if (jsonData.fileInfo || jsonData.technicalDetails) {
+            // This is metadata JSON, not summary JSON - skip it
+            warnLog('AudioSummary', 'Received metadata JSON instead of summary JSON, falling back to text parsing');
+          } else {
+            // Transform JSON format to component's expected format
+            const sections = [];
+            
+            if (jsonData.executiveSummary) {
+              sections.push({
+                name: "Executive Summary",
+                text: jsonData.executiveSummary,
+                content: [{ type: "text", text: jsonData.executiveSummary }],
+              });
+            }
+            
+            if (jsonData.keyPoints && jsonData.keyPoints.length > 0) {
+              const content = jsonData.keyPoints.map(point => ({
+                type: "bullet",
+                text: point,
+              }));
+              sections.push({
+                name: "Key Points",
+                text: jsonData.keyPoints.join("\n"),
+                content: content,
+              });
+            }
+
+            if (sections.length > 0) {
+              return { sections };
+            }
+          }
+        }
       }
-    }
 
-    // Fallback to data.sections if it exists and has the sections we need
-    if (data?.sections && data.sections.length > 0) {
-      // Check if we have Executive Summary or Key Points sections
-      const hasExecSummary = data.sections.some((s) =>
-        s.name?.toLowerCase().includes("executive summary")
-      );
-      const hasKeyPoints = data.sections.some((s) =>
-        s.name?.toLowerCase().includes("key points")
-      );
-
-      if (hasExecSummary || hasKeyPoints) {
-        return data;
+      // Fallback to text parsing (existing logic)
+      // Always try to parse from rawText first if available, as it's the most reliable source
+      if (rawText) {
+        const parsedSections = parseSectionsFromRawText(rawText);
+        if (parsedSections.length > 0) {
+          return { sections: parsedSections };
+        }
       }
-    }
 
-    return { sections: [] };
+      // Fallback to data.sections if it exists and has the sections we need
+      if (data?.sections && data.sections.length > 0) {
+        // Check if we have Executive Summary or Key Points sections
+        const hasExecSummary = data.sections.some((s) =>
+          s.name?.toLowerCase().includes("executive summary")
+        );
+        const hasKeyPoints = data.sections.some((s) =>
+          s.name?.toLowerCase().includes("key points")
+        );
+
+        if (hasExecSummary || hasKeyPoints) {
+          return data;
+        }
+      }
+
+      return { sections: [] };
+    } catch (error) {
+      setParsingError(error);
+      return { sections: [] };
+    }
   }, [data, rawText]);
 
   const extractSection = React.useCallback(
@@ -374,6 +440,30 @@ const AudioSummary = ({ data, rawText }) => {
       summaryText.toLowerCase().includes(msg.toLowerCase())
     );
   }, [noContent, rawText, executiveSummaryText]);
+
+  // Show parsing error if occurred
+  if (parsingError) {
+    return (
+      <div className={styles.container}>
+        <div className={styles.header}>
+          <div className={styles.headerIcon}>
+            <FontAwesomeIcon icon={faFileAlt} />
+          </div>
+          <div>
+            <h2 className={styles.title}>Summary</h2>
+            <p className={styles.subtitle}>Executive summary and key points</p>
+          </div>
+        </div>
+        <ParsingError
+          componentName="AudioSummary"
+          error={parsingError}
+          rawData={rawText}
+        >
+          {rawText && <RawDataViewer data={rawText} />}
+        </ParsingError>
+      </div>
+    );
+  }
 
   return (
     <div className={styles.container}>

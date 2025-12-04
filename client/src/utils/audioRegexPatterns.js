@@ -247,8 +247,10 @@ export const createMetadataFieldPattern = (fieldLabel, otherFields = []) => {
  * File Information field patterns
  */
 export const FILE_NAME_PATTERN = createMetadataFieldPattern("File\\s+Name", ["File\\s+(?:Type|Size)", "Duration", "Uploaded\\s+On"]);
-export const FILE_TYPE_PATTERN = createMetadataFieldPattern("File\\s+Type", ["File\\s+(?:Name|Size)", "Duration", "Uploaded\\s+On"]);
-export const FILE_SIZE_PATTERN = createMetadataFieldPattern("File\\s+Size", ["File\\s+(?:Name|Type)", "Duration", "Uploaded\\s+On"]);
+// File Type pattern - stop before FileSize (with or without space) to avoid capturing concatenated text like "MP3FileSize:"
+export const FILE_TYPE_PATTERN = /File\s+Type:\s*((?:(?!File\s*Size:|File\s+(?:Name|Size)|Duration:|Uploaded\s+On:).)+?)(?=File\s*Size:|File\s+(?:Name|Size)|Duration:|Uploaded\s+On:|$)/i;
+// File Size pattern - matches "File Size:" with space, but also handles "FileSize:" without space in concatenated text
+export const FILE_SIZE_PATTERN = /File\s*Size:\s*((?:(?!File\s+(?:Name|Type)|Duration:|Uploaded\s+On:).)+?)(?=File\s+(?:Name|Type)|Duration:|Uploaded\s+On:|$)/i;
 export const DURATION_PATTERN = createMetadataFieldPattern("Duration", ["File\\s+(?:Name|Type|Size)", "Uploaded\\s+On"]);
 export const UPLOADED_ON_PATTERN = createMetadataFieldPattern("Uploaded\\s+On", ["File\\s+(?:Name|Type|Size)", "Duration"]);
 
@@ -555,17 +557,17 @@ export const METADATA_FIELD_HEADER_PATTERN = /^(Artist|Album|Type|Genre|Descript
 /**
  * Artist extraction pattern: extracts artist/performer from rawText
  */
-export const ARTIST_EXTRACTION_PATTERN = /Artist[\/\s]Performer:\s*([^\n]+?)(?=\s*(?:Album|Collection|Type of Music|Type of Content|Genre|Description|SECTION:|Key Statistics|Content Summary|Participants|Quality|AI Summary|$))/i;
+export const ARTIST_EXTRACTION_PATTERN = /Artist[/\s]Performer:\s*([^\n]+?)(?=\s*(?:Album|Collection|Type of Music|Type of Content|Genre|Description|SECTION:|Key Statistics|Content Summary|Participants|Quality|AI Summary|$))/i;
 
 /**
  * Album extraction pattern: extracts album/collection from rawText
  */
-export const ALBUM_EXTRACTION_PATTERN = /Album[\/\s]Collection:\s*([^\n]+?)(?=\s*(?:Type of Music|Type of Content|Genre|Description|Artist|Performer|SECTION:|Key Statistics|Content Summary|Participants|Quality|AI Summary|$))/i;
+export const ALBUM_EXTRACTION_PATTERN = /Album[/\s]Collection:\s*([^\n]+?)(?=\s*(?:Type of Music|Type of Content|Genre|Description|Artist|Performer|SECTION:|Key Statistics|Content Summary|Participants|Quality|AI Summary|$))/i;
 
 /**
  * Type of Music extraction pattern: extracts type from rawText
  */
-export const TYPE_OF_MUSIC_EXTRACTION_PATTERN = /Type of Music[\/\s]Content:\s*([^\n]+?)(?=\s*(?:Genre|Description|Artist|Performer|Album|Collection|SECTION:|Key Statistics|Content Summary|Participants|Quality|AI Summary|$))/i;
+export const TYPE_OF_MUSIC_EXTRACTION_PATTERN = /Type of Music[/\s]Content:\s*([^\n]+?)(?=\s*(?:Genre|Description|Artist|Performer|Album|Collection|SECTION:|Key Statistics|Content Summary|Participants|Quality|AI Summary|$))/i;
 
 /**
  * Genre extraction pattern: extracts genre from rawText

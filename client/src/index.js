@@ -2,8 +2,12 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import './index.css';
 import './styles/global.css';
+import { initSentry } from './utils/sentryConfig';
 import App from './App';
 import reportWebVitals from './reportWebVitals';
+
+// Initialize Sentry error tracking
+initSentry();
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(

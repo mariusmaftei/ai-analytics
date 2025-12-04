@@ -2,6 +2,7 @@ import React from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faExclamationTriangle, faRedo } from "@fortawesome/free-solid-svg-icons";
 import { errorLog } from "../../../utils/debugLogger";
+import { logErrorToSentry } from "../../../utils/sentryConfig";
 import styles from "./ErrorBoundary.module.css";
 
 class ErrorBoundary extends React.Component {
@@ -19,16 +20,24 @@ class ErrorBoundary extends React.Component {
   }
 
   componentDidCatch(error, errorInfo) {
-    errorLog(
-      this.props.componentName || "ErrorBoundary",
-      "Caught error:",
-      error
-    );
-    errorLog(
-      this.props.componentName || "ErrorBoundary",
-      "Error info:",
-      errorInfo
-    );
+    const componentName = this.props.componentName || "ErrorBoundary";
+    
+    errorLog(componentName, "Caught error:", error);
+    errorLog(componentName, "Error info:", errorInfo);
+
+    // Send to Sentry for error tracking
+    logErrorToSentry(error, {
+      tags: {
+        component: componentName,
+        errorBoundary: true,
+      },
+      extra: {
+        componentName,
+        errorInfo: errorInfo?.componentStack || errorInfo,
+        props: this.props,
+      },
+      level: 'error',
+    });
 
     this.setState({
       error,

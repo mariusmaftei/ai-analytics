@@ -2,9 +2,18 @@
  * Debug Logger Utility
  * Centralized logging that only works in development mode
  * Prevents sensitive data from being logged in production
+ * Integrates with Sentry for error tracking in production
  */
 
 const DEBUG = process.env.NODE_ENV === 'development';
+
+// Lazy load Sentry to avoid issues if not configured
+let Sentry = null;
+try {
+  Sentry = require('@sentry/react');
+} catch (e) {
+  // Sentry not available or not configured
+}
 
 /**
  * Log debug messages (only in development)
@@ -38,6 +47,7 @@ export const warnLog = (component, message, data = null) => {
 
 /**
  * Log errors (always logged)
+ * Also sends to Sentry in production
  * @param {string} component - Component name
  * @param {string} message - Error message
  * @param {Error} error - Error object
@@ -45,8 +55,43 @@ export const warnLog = (component, message, data = null) => {
 export const errorLog = (component, message, error = null) => {
   if (error) {
     console.error(`[${component}] ${message}`, error);
+    
+    // Send to Sentry if available and in production
+    if (Sentry && process.env.NODE_ENV === 'production') {
+      try {
+        Sentry.captureException(error, {
+          tags: {
+            component,
+            source: 'errorLog',
+          },
+          extra: {
+            message,
+            component,
+          },
+        });
+      } catch (sentryError) {
+        // Don't let Sentry errors break the app
+        console.error('[Sentry] Failed to log error:', sentryError);
+      }
+    }
   } else {
     console.error(`[${component}] ${message}`);
+    
+    // Send message to Sentry if available and in production
+    if (Sentry && process.env.NODE_ENV === 'production') {
+      try {
+        Sentry.captureMessage(`[${component}] ${message}`, {
+          level: 'error',
+          tags: {
+            component,
+            source: 'errorLog',
+          },
+        });
+      } catch (sentryError) {
+        // Don't let Sentry errors break the app
+        console.error('[Sentry] Failed to log message:', sentryError);
+      }
+    }
   }
 };
 
